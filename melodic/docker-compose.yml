@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+    ros-melodic-base:
+        build:
+            context: .
+            dockerfile: Dockerfile.base
+        image: ros-melodic-base
+    
+    ros-melodic-industrial:
+        build: 
+            context: .
+            dockerfile: Dockerfile.industrial
+            args: 
+                - BASE_IMAGE=ros-melodic-base
+        image: ros-melodic-industrial

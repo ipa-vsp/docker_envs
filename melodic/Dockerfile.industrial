@@ -1,0 +1,7 @@
+ARG BASE_IMAGE=prachandabhanu/env:melodic-robot
+
+FROM ${BASE_IMAGE}
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglfw3-dev libglfw3  \
+    && rm -rf /var/lib/apt/lists/*
