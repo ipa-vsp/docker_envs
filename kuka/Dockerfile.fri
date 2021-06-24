@@ -1,0 +1,96 @@
+
+ARG ROS_DISTRO=melodic
+ARG BASE_IMAGE=prachandabhanu/env:melodic-robot
+
+FROM ${BASE_IMAGE}
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && apt-get update \
+    && apt-get install -y \
+    cmake \
+    g++ \
+    clang \
+    wget \
+    libboost-date-time-dev \
+    libboost-filesystem-dev \
+    libboost-iostreams-dev \
+    libeigen3-dev \
+    libblas-dev \
+    libflann-dev \
+    libglew-dev \
+    libgtest-dev \
+    libopenni-dev \
+    libopenni2-dev \
+    libproj-dev \
+    libqhull-dev \
+    libqt5opengl5-dev \
+    libusb-1.0-0-dev \
+    libvtk6-dev \
+    libvtk6-qt-dev \
+    qtbase5-dev \
+    software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && apt-get -y install libhdf5-dev \
+    ros-${ROS_DISTRO}-pcl-ros
+
+
+RUN apt-get clean && apt-get update \
+    && apt-get -y install ros-${ROS_DISTRO}-pr2-controller-manager \
+    ros-${ROS_DISTRO}-pilz-testutils \
+    ros-${ROS_DISTRO}-hardware-interface \
+    ros-${ROS_DISTRO}-moveit-ros-planning \
+    python-docopt \
+    ros-${ROS_DISTRO}-prbt-pg70-support 
+
+RUN apt-get clean && apt-get update \
+    && apt-get -y install ros-${ROS_DISTRO}-moveit-core \
+    ros-${ROS_DISTRO}-controller-interface \
+    ros-${ROS_DISTRO}-moveit-ros-visualization \
+    ros-${ROS_DISTRO}-moveit-ros-planning-interface \
+    ros-${ROS_DISTRO}-laser-geometry \
+    ros-${ROS_DISTRO}-prbt-support \
+    ros-${ROS_DISTRO}-controller-manager \
+    liblapack-dev \
+    ros-${ROS_DISTRO}-moveit-commander \
+    ros-${ROS_DISTRO}-moveit-setup-assistant \
+    ros-${ROS_DISTRO}-moveit-visual-tools
+
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get update \
+    && sed -i s/http/ftp/ /etc/apt/sources.list && apt-get update \
+    && apt-get clean && apt-get update \
+    && apt-get -y install ros-${ROS_DISTRO}-code-coverage \
+    ros-${ROS_DISTRO}-moveit-planners-ompl \
+    ros-${ROS_DISTRO}-moveit-kinematics \
+    ros-${ROS_DISTRO}-tf2-geometry-msgs \
+    ros-${ROS_DISTRO}-gazebo-msgs \
+    ros-${ROS_DISTRO}-moveit-msgs \
+    ros-${ROS_DISTRO}-moveit-ros-move-group \
+    ros-${ROS_DISTRO}-tf2-eigen \
+    ros-${ROS_DISTRO}-roslint \
+    ros-${ROS_DISTRO}-joint-limits-interface \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get -y upgrade
+
+RUN apt-get -y install ros-${ROS_DISTRO}-gazebo-ros-control ros-${ROS_DISTRO}-transmission-interface
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && apt-get update \ 
+    && apt-get -y install python-mock \
+    ros-${ROS_DISTRO}-gazebo-plugins
+
+COPY ./kuka_fri ./kuka_fri
+
+RUN cd kuka_fri \
+    && ./waf configure \
+    && ./waf \
+    && ./waf install
+
+COPY ./kuka_fri_install.sh ./ 
+
+RUN chmod +x ./kuka_fri_install.sh 
+RUN sed -i -e 's/\r$//' kuka_fri_install.sh && ./kuka_fri_install.sh
+
+RUN rm -rf SpaceVecAlg RBDyn mc_rbdyn_urdf corrade robot_controllers kuka_fri 

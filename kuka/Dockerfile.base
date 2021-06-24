@@ -1,0 +1,35 @@
+ARG ROS_DISTRO=melodic
+FROM ros:${ROS_DISTRO}-robot
+
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+WORKDIR /root
+
+RUN apt-get clean && apt-get update \
+    && apt-get -y install vim \
+    git \
+    htop \
+    build-essential \
+    apt-utils \
+    python-pip \
+    python-ipdb \
+    ssh \
+    git \
+    vim \
+    wget \
+    curl \
+    tmux \
+    man-db \
+    ros-$ROS_DISTRO-rqt-tf-tree \
+    ros-$ROS_DISTRO-node-manager-fkie && \ 
+    pip install -U catkin_tools && \
+    # create catkin_ws
+    source /opt/ros/$ROS_DISTRO/setup.bash && \
+    mkdir -p /root/catkin_ws/src && \
+    cd ~/catkin_ws && \
+    catkin init && \
+    catkin build && \
+    echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+RUN apt-get -y install bash-completion ros-$ROS_DISTRO-rviz
