@@ -2,6 +2,18 @@ ARG BASE_IMAGE=prachandabhanu/env:melodic-robot
 
 FROM ${BASE_IMAGE}
 
+WORKDIR /home
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglfw3-dev libglfw3  \
+    curl libcurl4-openssl-dev ros-melodic-ar-track-alvar-msgs ros-melodic-resource-retriever \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-melodic-geometric-shapes libassimp-dev libassimp4 ros-melodic-eigen-stl-containers ros-melodic-octomap ros-melodic-random-numbers \
+    libassimp-dev libassimp4 ros-melodic-eigen-stl-containers ros-melodic-geometric-shapes ros-melodic-octomap ros-melodic-octomap-msgs\
+    ros-melodic-random-numbers ros-melodic-control-toolbox ros-melodic-controller-interface ros-melodic-controller-manager \
+    ros-melodic-joint-limits-interface ros-melodic-srdfdom ros-melodic-octomap-ros ros-melodic-pr2-description ros-melodic-rviz\
+    ros-melodic-ompl \
     && rm -rf /var/lib/apt/lists/*

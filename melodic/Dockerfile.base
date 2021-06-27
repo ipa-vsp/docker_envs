@@ -40,6 +40,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python-rosdep \
     python-rosinstall \
     python-vcstools \
+    python-pip \
+    python-ipdb \
     && rm -rf /var/lib/apt/lists/*
 
 # bootstrap rosdep
@@ -49,19 +51,11 @@ RUN rosdep init && \
 # install ros packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-melodic-ros-base=1.4.1-0* \
-    && rm -rf /var/lib/apt/lists/*
-
-# Robot
-# install ros packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-melodic-robot=1.4.1-0* \
-    && rm -rf /var/lib/apt/lists/*
-
-# Perception
-# install ros packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-melodic-perception=1.4.1-0* \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install -U catkin_tools  
 
 # setup entrypoint
 COPY ./ros_entrypoint.sh /
