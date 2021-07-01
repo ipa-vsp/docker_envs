@@ -14,3 +14,5 @@ services:
             args: 
                 - BASE_IMAGE=ros-melodic-base
         image: ros-melodic-industrial
+        command: 
+            - roscore
