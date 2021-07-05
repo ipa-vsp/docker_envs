@@ -59,6 +59,3 @@ RUN pip install -U catkin_tools
 
 # setup entrypoint
 COPY ./ros_entrypoint.sh /
-
-ENTRYPOINT ["/ros_entrypoint.sh"]
-CMD ["bash"]

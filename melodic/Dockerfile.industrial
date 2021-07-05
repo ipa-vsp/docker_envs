@@ -2,7 +2,13 @@ ARG BASE_IMAGE=prachandabhanu/env:melodic-robot
 
 FROM ${BASE_IMAGE}
 
-WORKDIR /home
+WORKDIR /root
+
+# nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES \
+        ${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES \
+        ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglfw3-dev libglfw3  \
@@ -17,3 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-melodic-joint-limits-interface ros-melodic-srdfdom ros-melodic-octomap-ros ros-melodic-pr2-description ros-melodic-rviz\
     ros-melodic-ompl \
     && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]
