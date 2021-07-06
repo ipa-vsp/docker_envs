@@ -5,7 +5,8 @@
 2. Add `runtime: nvidia` in docker compose
 3. If there is problem with GUI in docker then run `xhost +` or `xhost -`
 4. To avoid the vulnerablity use this instead of above,
-  - 
+    - `xhost +SI:localuser:$(id -un)`
+    - To allow root in container access to X, run `xhost +SI:localuser:root`
 
 Possible ros containers
 ```
