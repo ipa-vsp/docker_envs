@@ -1,5 +1,12 @@
 # docker_envs
 
+## GUI with docker
+1. Install [Nvidia docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+2. Add `runtime: nvidia` in docker compose
+3. If there is problem with GUI in docker then run `xhost +` or `xhost -`
+4. To avoid the vulnerablity use this instead of above,
+  - 
+
 Possible ros containers
 ```
 version: '2'
