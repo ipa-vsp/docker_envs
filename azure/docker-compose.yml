@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+    ros-melodic-base:
+        build:
+            context: .
+            dockerfile: Dockerfile.base
+        image: melodic-base
+    
+    melodic-kinect:
+        build: 
+            context: .
+            dockerfile: Dockerfile.kinect
+            args: 
+                - BASE_IMAGE=melodic-base
+        image: melodic-kinect
+        environment: 
+            - DISPLAY=172.16.17.132:0
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        command: 
+            - k4aviewer

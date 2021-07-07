@@ -8,6 +8,10 @@
     - `xhost +SI:localuser:$(id -un)`
     - To allow root in container access to X, run `xhost +SI:localuser:root`
 
+## GUI with docker in Windows
+1. Download [VcXsrv](https://sourceforge.net/projects/vcxsrv/) and install.
+  - check the box **Disable access control**
+
 Possible ros containers
 ```
 version: '2'

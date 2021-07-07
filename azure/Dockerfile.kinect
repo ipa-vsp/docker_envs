@@ -1,0 +1,89 @@
+ARG BASE_IMAGE=melodic-base
+
+FROM ${BASE_IMAGE}
+
+WORKDIR /root
+
+ARG ARCH=amd64
+
+ADD setup-ubuntu.sh /root
+ADD sources.list /root
+
+# Tell Ubuntu non-interactive install
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN ./setup-ubuntu.sh ${ARCH}
+
+
+RUN apt-get install -y ca-certificates
+RUN update-ca-certificates
+
+#######################################################################
+##                       install nvidia docker                       ##
+#######################################################################
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libxau-dev \
+    libxdmcp-dev \
+    libxcb1-dev \
+    libxext-dev \
+    libx11-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES ${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+
+# install GLX-Gears
+RUN apt update && apt install -y --no-install-recommends \
+    mesa-utils x11-apps zip unzip\
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /
+RUN wget https://www.nuget.org/api/v2/package/Microsoft.Azure.Kinect.Sensor/1.4.1 -O microsoft.azure.kinect.sensor.1.4.1.nuget
+RUN mv microsoft.azure.kinect.sensor.1.4.1.nuget microsoft.azure.kinect.sensor.1.4.1.zip
+RUN unzip -d microsoft.azure.kinect.sensor.1.4.1 microsoft.azure.kinect.sensor.1.4.1.zip
+
+WORKDIR /root
+RUN git clone -b v1.4.1 https://github.com/microsoft/Azure-Kinect-Sensor-SDK.git
+RUN cd Azure-Kinect-Sensor-SDK/ && git checkout v1.4.1 && git fetch
+RUN mkdir -p Azure-Kinect-Sensor-SDK/build/bin/
+RUN cp /microsoft.azure.kinect.sensor.1.4.1/linux/lib/native/x64/release/libdepthengine.so.2.0 /root/Azure-Kinect-Sensor-SDK/build/bin/libdepthengine.so.2.0
+RUN cp /microsoft.azure.kinect.sensor.1.4.1/linux/lib/native/x64/release/libdepthengine.so.2.0 /lib/x86_64-linux-gnu/
+RUN cp /microsoft.azure.kinect.sensor.1.4.1/linux/lib/native/x64/release/libdepthengine.so.2.0 /usr/lib/x86_64-linux-gnu/
+
+RUN cd Azure-Kinect-Sensor-SDK/build && \
+    cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug &&\
+    ninja &&\
+    ninja install
+
+RUN mkdir -p /etc/udev/rules.d/
+RUN cp Azure-Kinect-Sensor-SDK/scripts/99-k4a.rules /etc/udev/rules.d/
+RUN chmod a+rwx /etc/udev/rules.d
+
+#######################################################################
+##                   install additional packages                     ##
+#######################################################################
+
+RUN apt-get update && apt-get install -y \
+    ros-melodic-tf2-geometry-msgs  ros-melodic-xacro && \
+    rm -rf /var/lib/apt/lists/*
+
+#######################################################################
+##                     install optional packages                     ##
+#######################################################################
+
+RUN apt-get update && apt-get install -y \
+    nautilus\
+    net-tools \
+    gedit \
+    && rm -rf /var/lib/apt/lists/*
+
+#######################################################################
+##                         catkin setting                            ##
+#######################################################################
+RUN mkdir -p catkin_ws/src && cd catkin_ws && \
+    /bin/bash -c 'source /opt/ros/melodic/setup.bash;catkin init' && \
+    cd src && git clone https://github.com/microsoft/Azure_Kinect_ROS_Driver.git
+    
+RUN cd catkin_ws && /bin/bash -c 'source /opt/ros/melodic/setup.bash;catkin build --force-cmake'
