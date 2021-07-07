@@ -14,11 +14,3 @@ services:
             args: 
                 - BASE_IMAGE=melodic-base
         image: melodic-kinect
-        environment: 
-            - DISPLAY=172.16.17.132:0
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        command: 
-            - k4aviewer

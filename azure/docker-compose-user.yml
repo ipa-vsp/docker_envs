@@ -1,0 +1,60 @@
+version: '3'
+
+services:
+    kinect_launch:
+        image: melodic-kinect
+        runtime: nvidia
+        environment: 
+            - ROS_IP=169.22.10.2
+            - ROS_MASTER_URI=http://$ROS_IP:11311
+        stdin_open: true
+        privileged: true
+        tty: true
+        networks:
+            ros_net:
+                ipv4_address: 169.22.10.2
+        ports: 
+            - "11311:11311"
+        restart: always
+        command:
+            -  /bin/bash
+            - -c
+            - source catkin_ws/devel/setup.bash && roslaunch azure_kinect_ros_driver driver.launch
+            #["/bin/bash", "-c", "source catkin_ws/devel/setup.bash && roslaunch azure_kinect_ros_driver driver.launch"]
+    
+    kinect_visualize:
+        image: melodic-kinect
+        depends_on:
+            - kinect_launch
+        runtime: nvidia
+        environment: 
+            - ROS_IP=169.22.10.3
+            - ROS_MASTER_URI=http://$ROS_IP:11311
+            - DISPLAY=$DISPLAY
+            - QT_X11_NO_MITSHM=1
+            - XAUTHORITY=/tmp/.docker.xauth
+        stdin_open: true
+        privileged: true
+        tty: true
+        networks:
+            ros_net:
+                ipv4_address: 169.22.10.3
+        ports: 
+            - "11311:11311"
+        volumes:
+            - /tmp/.docker.xauth:/tmp/.docker.xauth 
+            - /tmp/.X11-unix:/tmp/.X11-unix:rw
+            - $HOME/.Xauthority:/root/.Xauthority
+        command:
+            -  /bin/bash
+            - -c
+            - source catkin_ws/devel/setup.bash && rosrun rviz rviz
+
+networks:
+    ros_net:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: 169.22.10.0/24
+                  gateway: 169.22.10.1

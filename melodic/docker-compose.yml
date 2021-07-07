@@ -27,6 +27,5 @@ services:
             - /tmp/.docker.xauth:/tmp/.docker.xauth 
             - /tmp/.X11-unix:/tmp/.X11-unix:rw
             - $HOME/.Xauthority:/root/.Xauthority
-        
         command: 
             - roscore

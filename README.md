@@ -1,5 +1,7 @@
 # docker_envs
 
+## Docker commands
+1. Docker compose with file `docker-compose -f <file name> up --build`
 ## GUI with docker
 1. Install [Nvidia docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 2. Add `runtime: nvidia` in docker compose
@@ -10,7 +12,12 @@
 
 ## GUI with docker in Windows
 1. Download [VcXsrv](https://sourceforge.net/projects/vcxsrv/) and install.
-  - check the box **Disable access control**
+    - check the box **Disable access control**
+2. 
+```
+environment: 
+            - DISPLAY=172.16.17.132:0
+```
 
 Possible ros containers
 ```
