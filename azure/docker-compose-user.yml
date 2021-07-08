@@ -40,6 +40,7 @@ services:
         privileged: true
         tty: true
         network_mode: "host"
+        restart: always
         volumes:
             - /tmp/.docker.xauth:/tmp/.docker.xauth 
             - /tmp/.X11-unix:/tmp/.X11-unix:rw
@@ -47,7 +48,7 @@ services:
         command:
             -  /bin/bash
             - -c
-            - source catkin_ws/devel/setup.bash && rosrun rviz rviz
+            - source catkin_ws/devel/setup.bash && rosrun rviz rviz -d catkin_ws/src/Azure_Kinect_ROS_Driver/Points_visz.rviz
 
 #networks:
 #    ros_net:
