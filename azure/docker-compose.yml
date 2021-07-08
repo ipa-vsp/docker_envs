@@ -14,3 +14,18 @@ services:
             args: 
                 - BASE_IMAGE=melodic-base
         image: melodic-kinect
+        runtime: nvidia
+        environment: 
+            - DISPLAY=$DISPLAY
+            - QT_X11_NO_MITSHM=1
+            - XAUTHORITY=/tmp/.docker.xauth
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.docker.xauth:/tmp/.docker.xauth 
+            - /tmp/.X11-unix:/tmp/.X11-unix:rw
+            - $HOME/.Xauthority:/root/.Xauthority
+        command: 
+            - k4aviewer
