@@ -48,13 +48,19 @@ RUN colcon mixin add default \
       https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml && \
     colcon metadata update
 
-# reinstall ros2 packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-foxy-ros-core=0.9.2-1* \
-    && rm -rf /var/lib/apt/lists/*
+# upgrade current version
+RUN apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*
 
+# Include ros2 dependencies for the future
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-foxy-perception-pcl \
+    ros-foxy-ament-clang-formate \
+    ros-foxy-ament-tf2 \
+    && rm -rf /var/lib/apt/lists/*
+    
 # setup entrypoint
 COPY ./ros_entrypoint.sh /
+RUN chmod a+rwx ros_entrypoint.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
