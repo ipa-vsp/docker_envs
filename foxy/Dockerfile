@@ -1,4 +1,5 @@
 FROM ubuntu:focal
+ARG ROS_DISTRO=foxy
 
 # setup timezone
 RUN echo 'Etc/UTC' > /etc/timezone && \
@@ -23,11 +24,9 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-ENV ROS_DISTRO foxy
-
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-foxy-ros-core=0.9.2-1* \
+    ros-${ROS_DISTRO}-ros-core=0.9.2-1* \
     && rm -rf /var/lib/apt/lists/*
 
 # install bootstrap tools
@@ -53,12 +52,13 @@ RUN apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*
 
 # Include ros2 dependencies for the future
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-foxy-perception-pcl \
-    ros-foxy-ament-clang-formate \
-    ros-foxy-ament-tf2 \
+    ros-${ROS_DISTRO}-perception-pcl \
+    ros-${ROS_DISTRO}-ament-clang-format \
+    ros-${ROS_DISTRO}-tf2 \
     && rm -rf /var/lib/apt/lists/*
-    
+
 # setup entrypoint
+ENV ROS_DISTRO ${ROS_DISTRO}
 COPY ./ros_entrypoint.sh /
 RUN chmod a+rwx ros_entrypoint.sh
 

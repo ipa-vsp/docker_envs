@@ -2,5 +2,8 @@ version: '3'
 
 services:
     ros-foxy-base:
-        build: .
+        build:
+            context: .
+            args: 
+                - ROS_DISTRO=foxy
         image: prachandabhanu/env:ros-foxy-base
