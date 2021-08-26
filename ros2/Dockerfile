@@ -26,7 +26,7 @@ ENV LC_ALL C.UTF-8
 
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-${ROS_DISTRO}-ros-core=0.9.2-1* \
+    ros-${ROS_DISTRO}-ros-core \
     && rm -rf /var/lib/apt/lists/*
 
 # install bootstrap tools

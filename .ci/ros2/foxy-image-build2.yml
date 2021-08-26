@@ -24,13 +24,16 @@ variables:
 
 jobs:
   - job: BuildAndPush
-    displayName: "ROS2 Image Build"
+    displayName: "ROS2"
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
       matrix:
         Foxy:
           ROS_DISTRO: foxy
+          tag: $(ROS_DISTRO)-base
+        Galactic:
+          ROS_DISTRO: galactic
           tag: $(ROS_DISTRO)-base
     steps:
       - task: Docker@2
