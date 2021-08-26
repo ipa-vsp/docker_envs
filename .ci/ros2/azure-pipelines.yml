@@ -1,0 +1,55 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - .ci/ros2/azure-pipelines.yml
+      - ros2/Dockerfile
+pr:
+  paths:
+    include:
+      - ci/ros2/azure-pipelines.yml
+      - ros2/Dockerfile
+
+resources:
+- repo: self
+variables:
+  dockerHub: 'Docker Hub'
+  dockerHubID: 'prachandabhanu'
+
+jobs:
+  - job: BuildAndPush
+    displayName: "ROS2"
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      matrix:
+        Foxy:
+          ROS_DISTRO: foxy
+          tag: $(ROS_DISTRO)-base
+        Galactic:
+          ROS_DISTRO: galactic
+          tag: $(ROS_DISTRO)-base
+    steps:
+      - task: Docker@2
+        displayName: "Docker Image Build"
+        inputs:
+          command: build
+          arguments: |
+            --no-cache
+            --build-arg ROS_DISTRO=$(ROS_DISTRO)
+            -t $(dockerHubID)/env:$(tag)
+          Dockerfile: '$(Build.SourcesDirectory)/foxy/Dockerfile'
+          tags: "$(tag)"
+      - task: Docker@2
+        inputs:
+          command: 'push'
+          containerRegistry: $(dockerHub)
+          repository: $(dockerHubID)/env
+          tags: "$(tag)"
+
