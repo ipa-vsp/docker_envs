@@ -44,7 +44,7 @@ jobs:
             --no-cache
             --build-arg ROS_DISTRO=$(ROS_DISTRO)
             -t $(dockerHubID)/env:$(tag)
-          Dockerfile: '$(Build.SourcesDirectory)/foxy/Dockerfile'
+          Dockerfile: '$(Build.SourcesDirectory)/ros2/Dockerfile'
           tags: "$(tag)"
       - task: Docker@2
         inputs:
