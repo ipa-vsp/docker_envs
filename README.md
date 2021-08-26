@@ -1,5 +1,9 @@
 # docker_envs
 
+|  ROS2 |  foxy  | Galactic |
+|-------|--------|----------|
+| Azure Build Status| [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20Foxy)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) | [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20Galactic)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) | 
+
 ## Azure Kinect Docker
 Currently Azure kinect driver only avialable for Ubuntu 18.04.
 1. Build the image `cd azure` and `docker-compose up --build`. This should open the `k4aviewer`.
