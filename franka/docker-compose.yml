@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+    ros-noetic-base:
+        build:
+            context: .
+            dockerfile: Dockerfile.ros
+        image: ros-noetic-base
+    
+    franka_ros:
+        build: 
+            context: .
+            dockerfile: Dockerfile.panda
+            args: 
+                - BASE_IMAGE=ros-noetic-base
+        image: franka-ros
