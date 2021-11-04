@@ -57,6 +57,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-tf2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Addition dependencies for the future
+RUN apt-get update && apt-get install -q -y --no-install-recommends \
+    clang-format \
+    && rm -rf /var/lib/apt/lists/*
+
 # setup entrypoint
 ENV ROS_DISTRO ${ROS_DISTRO}
 COPY ./ros_entrypoint.sh /
