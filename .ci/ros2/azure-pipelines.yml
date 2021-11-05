@@ -10,11 +10,13 @@ trigger:
     include:
       - .ci/ros2/azure-pipelines.yml
       - ros2/Dockerfile
+      - format/Dockerfile
 pr:
   paths:
     include:
       - ci/ros2/azure-pipelines.yml
       - ros2/Dockerfile
+      - format/Dockerfile
 
 resources:
 - repo: self
@@ -52,4 +54,25 @@ jobs:
           containerRegistry: $(dockerHub)
           repository: $(dockerHubID)/env
           tags: "$(tag)"
+    
+  - job: 
+    displayName: "Alpine Clang Formating"
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - task: Docker@2
+        displayName: 'Docker Image for Clang Formating'
+        inputs:
+          command: build
+          arguments: |
+            --no-cache
+            -t $(dockerHubID)/env:fmt
+          Dockerfile: '$(Build.SourcesDirectory)/format/Dockerfile'
+          tags: "fmt"
 
+      - task: Docker@2
+        inputs:
+          command: 'push'
+          containerRegistry: $(dockerHub)
+          repository: $(dockerHubID)/env
+          tags: "fmt"
