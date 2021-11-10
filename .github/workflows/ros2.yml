@@ -32,6 +32,12 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
       
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/build_env
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
@@ -43,5 +49,6 @@ jobs:
             CUDA_VERSION=11.4.0
             UBUNTU_DISTRO=20.04
             ROS_DISTRO=$(ROS_DISTRO)
-          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:$(tag)
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
     
