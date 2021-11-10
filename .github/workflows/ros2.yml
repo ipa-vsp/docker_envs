@@ -20,30 +20,10 @@ jobs:
     strategy:
       matrix:
         env:
-          Foxy:
-            USE_CUDA: ""
-            CUDA_VERSION: 11.4.0
-            UBUNTU_DISTRO: 20.04
-            ROS_DISTRO: foxy
-            tag: $(ROS_DISTRO)-base
-          Galactic:
-            USE_CUDA: ""
-            CUDA_VERSION: 11.4.0
-            UBUNTU_DISTRO: 20.04
-            ROS_DISTRO: galactic
-            tag: $(ROS_DISTRO)-base
-          CudaFoxy:
-            USE_CUDA: true
-            CUDA_VERSION: 11.4.0
-            UBUNTU_DISTRO: 20.04
-            ROS_DISTRO: foxy
-            tag: CUDA$(ROS_DISTRO)-base
-          CudaGalactic:
-            USE_CUDA: true
-            CUDA_VERSION: 11.4.0
-            UBUNTU_DISTRO: 20.04
-            ROS_DISTRO: galactic
-            tag: CUDA$(ROS_DISTRO)-base
+          - {USE_CUDA: "", ROS_DISTRO: foxy, tag: $(ROS_DISTRO)-base}
+          - {USE_CUDA: "", ROS_DISTRO: galactic, tag: $(ROS_DISTRO)-base}
+          - {USE_CUDA: true, ROS_DISTRO: foxy, tag: CUDA$(ROS_DISTRO)-base}
+          - {USE_CUDA: true, ROS_DISTRO: galactic, tag: CUDA$(ROS_DISTRO)-base}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -62,8 +42,8 @@ jobs:
           push: true
           build-args: |
             USE_CUDA=$(USE_CUDA)
-            CUDA_VERSION=$(CUDA_VERSION)
-            UBUNTU_DISTRO=$(UBUNTU_DISTRO)
+            CUDA_VERSION=11.4.0
+            UBUNTU_DISTRO=20.04
             ROS_DISTRO=$(ROS_DISTRO)
           tags: ${{ env.dockerHubID }}/build_env:$(tag)
     
