@@ -50,7 +50,7 @@ jobs:
           ROS_DISTRO: foxy
           tag: CUDA$(ROS_DISTRO)-base
         CudaGalactic:
-          USE_CUDA: ""
+          USE_CUDA: true
           CUDA_VERSION: 11.4.0
           UBUNTU_DISTRO: 20.04
           ROS_DISTRO: galactic

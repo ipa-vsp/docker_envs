@@ -7,6 +7,8 @@ ARG BASE_IMAGE=${BASE_CUDA_IMAGE:-"ubuntu:${UBUNTU_DISTRO}"}
 FROM ${BASE_IMAGE}
 ARG ROS_DISTRO=foxy
 
+RUN echo "Building image: ${BASE_IMAGE}""
+
 # setup timezone
 RUN echo 'Etc/UTC' > /etc/timezone && \
     ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
