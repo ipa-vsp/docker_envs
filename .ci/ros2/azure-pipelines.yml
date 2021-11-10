@@ -32,11 +32,29 @@ jobs:
     strategy:
       matrix:
         Foxy:
+          USE_CUDA: ""
+          CUDA_VERSION: 11.4.0
+          UBUNTU_DISTRO: 20.04
           ROS_DISTRO: foxy
           tag: $(ROS_DISTRO)-base
         Galactic:
+          USE_CUDA: ""
+          CUDA_VERSION: 11.4.0
+          UBUNTU_DISTRO: 20.04
           ROS_DISTRO: galactic
           tag: $(ROS_DISTRO)-base
+        CudaFoxy:
+          USE_CUDA: true
+          CUDA_VERSION: 11.4.0
+          UBUNTU_DISTRO: 20.04
+          ROS_DISTRO: foxy
+          tag: CUDA$(ROS_DISTRO)-base
+        CudaGalactic:
+          USE_CUDA: ""
+          CUDA_VERSION: 11.4.0
+          UBUNTU_DISTRO: 20.04
+          ROS_DISTRO: galactic
+          tag: CUDA$(ROS_DISTRO)-base
     steps:
       - task: Docker@2
         displayName: "Docker Image Build"
