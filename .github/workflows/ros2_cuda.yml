@@ -48,6 +48,6 @@ jobs:
             CUDA_VERSION=11.4.0
             UBUNTU_DISTRO=20.04
             ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:CUDA${{ matrix.env.ROS_DISTRO }}
           labels: ${{ steps.meta.outputs.labels }}
     
