@@ -73,5 +73,5 @@ ENV ROS_DISTRO ${ROS_DISTRO}
 COPY ./ros_entrypoint.sh /
 RUN chmod a+rwx ros_entrypoint.sh
 
-ENTRYPOINT ["/ros_entrypoint.sh"]
+ENTRYPOINT ["ros_entrypoint.sh"]
 CMD ["bash"]
