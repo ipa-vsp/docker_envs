@@ -62,6 +62,9 @@ jobs:
           command: build
           arguments: |
             --no-cache
+            --build-arg USE_CUDA=$(USE_CUDA)
+            --build-arg CUDA_VERSION=$(CUDA_VERSION)
+            --build-arg UBUNTU_DISTRO=$(UBUNTU_DISTRO)
             --build-arg ROS_DISTRO=$(ROS_DISTRO)
             -t $(dockerHubID)/env:$(tag)
           Dockerfile: '$(Build.SourcesDirectory)/ros2/Dockerfile'
