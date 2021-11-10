@@ -18,10 +18,10 @@ jobs:
     strategy:
       matrix:
         env:
-          - {USE_CUDA: "", ROS_DISTRO: foxy, tag: $(ROS_DISTRO)-base}
-          - {USE_CUDA: "", ROS_DISTRO: galactic, tag: $(ROS_DISTRO)-base}
-          - {USE_CUDA: true, ROS_DISTRO: foxy, tag: CUDA$(ROS_DISTRO)-base}
-          - {USE_CUDA: true, ROS_DISTRO: galactic, tag: CUDA$(ROS_DISTRO)-base}
+          - {USE_CUDA: "", ROS_DISTRO: foxy}
+          - {USE_CUDA: "", ROS_DISTRO: galactic}
+          - {USE_CUDA: true, ROS_DISTRO: foxy}
+          - {USE_CUDA: true, ROS_DISTRO: galactic}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -48,7 +48,7 @@ jobs:
             USE_CUDA=$(USE_CUDA)
             CUDA_VERSION=11.4.0
             UBUNTU_DISTRO=20.04
-            ROS_DISTRO=$(ROS_DISTRO)
+            ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
     
