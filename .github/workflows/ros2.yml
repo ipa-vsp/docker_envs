@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         env:
-          - {USE_CUDA: "", ROS_DISTRO: foxy, tag: ${{ secrets.DOCKER_USERNAME }}}
+          - {USE_CUDA: "", ROS_DISTRO: foxy, tag: $(ROS_DISTRO)-base}
           - {USE_CUDA: "", ROS_DISTRO: galactic, tag: $(ROS_DISTRO)-base}
           - {USE_CUDA: true, ROS_DISTRO: foxy, tag: CUDA$(ROS_DISTRO)-base}
           - {USE_CUDA: true, ROS_DISTRO: galactic, tag: CUDA$(ROS_DISTRO)-base}
