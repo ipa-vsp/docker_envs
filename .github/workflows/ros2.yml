@@ -15,7 +15,7 @@ jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
-    vari:
+    env:
       dockerHubID: prachandabhanu
     strategy:
       matrix:
@@ -65,5 +65,5 @@ jobs:
             CUDA_VERSION=$(CUDA_VERSION)
             UBUNTU_DISTRO=$(UBUNTU_DISTRO)
             ROS_DISTRO=$(ROS_DISTRO)
-          tags: ${{ vari.dockerHubID }}/build_env:$(tag)
+          tags: ${{ env.dockerHubID }}/build_env:$(tag)
     
