@@ -14,6 +14,30 @@ Currently Azure kinect driver only avialable for Ubuntu 18.04.
     - First container launches ROS Azure Kinect driver.
     - Second Container launches RVIZ to visualize the camera data.
 
+## Docker Compose
+Reference: [link](https://docs.docker.com/compose/install/)
+1. Run this command to download the current stable release of Docker Compose:
+    ```
+    sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    ```
+2. Apply executable permissions to the binary:
+    ```
+    sudo chmod +x /usr/local/bin/docker-compose
+    ```
+    ---
+    **NOTE**
+
+    Note: If the command docker-compose fails after installation, check your path. You can also create a symbolic link to /usr/bin or any other directory in your path
+    ---
+For example:
+    ```
+    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-composee
+    ```
+3. Test Installation
+    ```
+    docker-compose --version
+    ```
+4. [Documentation GPU Integration](https://docs.docker.com/compose/gpu-support/)
 ## Docker for ROS2 Foxy
 todo
 

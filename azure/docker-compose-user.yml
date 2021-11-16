@@ -1,54 +1,68 @@
 version: '3'
 
 services:
-    kinect_launch:
-        image: melodic-kinect
-        runtime: nvidia
-        environment: 
-            - ROS_IP=$ROS_IP
-            - ROS_MASTER_URI=http://$ROS_IP:11311
-            - DISPLAY=$DISPLAY
-            - QT_X11_NO_MITSHM=1
-            - XAUTHORITY=/tmp/.docker.xauth
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        restart: always
-        volumes:
-            - /tmp/.docker.xauth:/tmp/.docker.xauth 
-            - /tmp/.X11-unix:/tmp/.X11-unix:rw
-            - $HOME/.Xauthority:/root/.Xauthority
-        command:
-            -  /bin/bash
-            - -c
-            - source catkin_ws/devel/setup.bash && roslaunch azure_kinect_ros_driver driver.launch
+  kinect_launch:
+    image: melodic-kinect
+    # runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+    environment: 
+      - ROS_IP=$ROS_IP
+      - ROS_MASTER_URI=http://$ROS_IP:11311
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+    stdin_open: true
+    privileged: true
+    tty: true
+    network_mode: "host"
+    restart: always
+    volumes:
+      - /tmp/.docker.xauth:/tmp/.docker.xauth 
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - $HOME/.Xauthority:/root/.Xauthority
+    command:
+      -  /bin/bash
+      - -c
+      - source catkin_ws/devel/setup.bash && roslaunch azure_kinect_ros_driver driver.launch
             #["/bin/bash", "-c", "source catkin_ws/devel/setup.bash && roslaunch azure_kinect_ros_driver driver.launch"]
     
-    visualize:
-        image: melodic-kinect
-        depends_on:
-            - kinect_launch
-        runtime: nvidia
-        environment: 
-            - ROS_IP=$ROS_IP
-            - ROS_MASTER_URI=http://$ROS_IP:11311
-            - DISPLAY=$DISPLAY
-            - QT_X11_NO_MITSHM=1
-            - XAUTHORITY=/tmp/.docker.xauth
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        restart: always
-        volumes:
-            - /tmp/.docker.xauth:/tmp/.docker.xauth 
-            - /tmp/.X11-unix:/tmp/.X11-unix:rw
-            - $HOME/.Xauthority:/root/.Xauthority
-        command:
-            -  /bin/bash
-            - -c
-            - source catkin_ws/devel/setup.bash && rosrun rviz rviz -d catkin_ws/src/Azure_Kinect_ROS_Driver/Points_visz.rviz
+  visualize:
+    image: melodic-kinect
+    depends_on:
+      - kinect_launch
+    # runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+              - driver: nvidia
+                count: all
+                capabilities: [gpu]
+    environment: 
+      - ROS_IP=$ROS_IP
+      - ROS_MASTER_URI=http://$ROS_IP:11311
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+    stdin_open: true
+    privileged: true
+    tty: true
+    network_mode: "host"
+    restart: always
+    volumes:
+      - /tmp/.docker.xauth:/tmp/.docker.xauth 
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - $HOME/.Xauthority:/root/.Xauthority
+    command:
+      -  /bin/bash
+      - -c
+      - source catkin_ws/devel/setup.bash && rosrun rviz rviz -d catkin_ws/src/Azure_Kinect_ROS_Driver/Points_visz.rviz
 
 #networks:
 #    ros_net:
