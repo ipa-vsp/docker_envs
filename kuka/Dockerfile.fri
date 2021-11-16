@@ -42,7 +42,7 @@ RUN apt-get clean && apt-get update \
     ros-${ROS_DISTRO}-hardware-interface \
     ros-${ROS_DISTRO}-moveit-ros-planning \
     python-docopt \
-    ros-${ROS_DISTRO}-prbt-pg70-support 
+    ros-${ROS_DISTRO}-prbt-pg70-support
 
 RUN apt-get clean && apt-get update \
     && apt-get -y install ros-${ROS_DISTRO}-moveit-core \
@@ -77,7 +77,7 @@ RUN apt-get update && apt-get -y upgrade
 
 RUN apt-get -y install ros-${ROS_DISTRO}-gazebo-ros-control ros-${ROS_DISTRO}-transmission-interface
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && apt-get update \ 
+    && apt-get update \
     && apt-get -y install python-mock \
     ros-${ROS_DISTRO}-gazebo-plugins
 
@@ -88,9 +88,9 @@ RUN cd kuka_fri \
     && ./waf \
     && ./waf install
 
-COPY ./kuka_fri_install.sh ./ 
+COPY ./kuka_fri_install.sh ./
 
-RUN chmod +x ./kuka_fri_install.sh 
+RUN chmod +x ./kuka_fri_install.sh
 RUN sed -i -e 's/\r$//' kuka_fri_install.sh && ./kuka_fri_install.sh
 
-RUN rm -rf SpaceVecAlg RBDyn mc_rbdyn_urdf corrade robot_controllers kuka_fri 
+RUN rm -rf SpaceVecAlg RBDyn mc_rbdyn_urdf corrade robot_controllers kuka_fri

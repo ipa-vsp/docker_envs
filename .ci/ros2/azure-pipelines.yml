@@ -75,9 +75,9 @@ jobs:
           containerRegistry: $(dockerHub)
           repository: $(dockerHubID)/env
           tags: "$(tag)"
-    
-  - job: 
-    displayName: "Alpine Clang Formating"
+
+  - job:
+    displayName: "Alpine Clang Formatting"
     pool:
       vmImage: 'ubuntu-latest'
     steps:

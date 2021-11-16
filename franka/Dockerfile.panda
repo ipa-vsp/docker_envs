@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -q -y linux-image-`cat /uname_r` \
     fakeroot \
     && rm -rf /var/lib/apt/lists/*
 
-# install buildinfo to retieve `raspi` kernel config
+# install buildinfo to retrieve `raspi` kernel config
 RUN apt-get update && apt-get install -q -y linux-buildinfo-`cat /uname_r` \
     && rm -rf /var/lib/apt/lists/*
 

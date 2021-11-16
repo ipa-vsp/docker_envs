@@ -6,11 +6,11 @@ services:
             context: .
             dockerfile: Dockerfile.ros
         image: ros-noetic-base
-    
+
     franka_ros:
-        build: 
+        build:
             context: .
             dockerfile: Dockerfile.panda
-            args: 
+            args:
                 - BASE_IMAGE=ros-noetic-base
         image: franka-ros

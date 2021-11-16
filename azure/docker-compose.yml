@@ -6,12 +6,12 @@ services:
       context: .
       dockerfile: Dockerfile.base
     image: melodic-base
-    
+
   melodic-kinect:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile.kinect
-      args: 
+      args:
         - BASE_IMAGE=melodic-base
     image: melodic-kinect
     # runtime: nvidia
@@ -22,7 +22,7 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    environment: 
+    environment:
       - DISPLAY=$DISPLAY
       - QT_X11_NO_MITSHM=1
       - XAUTHORITY=/tmp/.docker.xauth
@@ -31,8 +31,8 @@ services:
     tty: true
     network_mode: "host"
     volumes:
-      - /tmp/.docker.xauth:/tmp/.docker.xauth 
+      - /tmp/.docker.xauth:/tmp/.docker.xauth
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - $HOME/.Xauthority:/root/.Xauthority
-    command: 
+    command:
       - k4aviewer

@@ -22,7 +22,7 @@ RUN apt-get clean && apt-get update \
     tmux \
     man-db \
     ros-$ROS_DISTRO-rqt-tf-tree \
-    ros-$ROS_DISTRO-node-manager-fkie && \ 
+    ros-$ROS_DISTRO-node-manager-fkie && \
     pip install -U catkin_tools && \
     # create catkin_ws
     source /opt/ros/$ROS_DISTRO/setup.bash && \

@@ -3,14 +3,14 @@ ARG BASE_IMAGE=prachandabhabu/env:melodic-robot
 FROM ${BASE_IMAGE}
 
 RUN cd ~/catkin_ws/src \
-    && git clone --recurse-submodules https://github.com/LernFabrik/kuka_iiwa7_ros.git 
+    && git clone --recurse-submodules https://github.com/LernFabrik/kuka_iiwa7_ros.git
 
 RUN cd ~/catkin_ws \
     && rosdep install --ignore-src --from-paths src -y
 
 COPY ./vscode.sh ./
 
-#RUN chmod +x ./vscode.sh 
+#RUN chmod +x ./vscode.sh
 #RUN ./vscode.sh
 
 ENTRYPOINT ["top", "-b"]

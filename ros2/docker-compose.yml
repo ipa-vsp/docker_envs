@@ -4,6 +4,6 @@ services:
     ros-foxy-base:
         build:
             context: .
-            args: 
+            args:
                 - ROS_DISTRO=foxy
         image: prachandabhanu/env:ros-foxy-base

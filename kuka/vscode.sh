@@ -1,9 +1,9 @@
-  
+
 #!/bin/bash
 
 # Install vscode
 #cd /tmp && \
-#apt-get update && \ 
+#apt-get update && \
 apt-get install -y libxss1 libxss-dev && \
 #wget -c https://go.microsoft.com/fwlink/?LinkID=760868 -O vscode.deb
 
@@ -26,7 +26,7 @@ rm -rf /var/lib/apt/list/*
 code --user-data-dir --install-extension ms-vscode.cpptools && \
 code --user-data-dir --install-extension ms-python.python && \
 code --user-data-dir --install-extension austin.code-gnu-global && \
-code --user-data-dir --install-extension xaver.clang-format && \ 
+code --user-data-dir --install-extension xaver.clang-format && \
 code --user-data-dir --install-extension twxs.cmake && \
 code --user-data-dir --install-extension vector-of-bool.cmake-tools && \
 code --user-data-dir --install-extension christian-kohler.path-intellisense && \

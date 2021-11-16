@@ -23,4 +23,3 @@ done
 
 # check whether there are several RT patches with the same SUBLEVEL number exist, and take the latest
 echo "$patch_list" | tr ' ' '\n' | grep patch-5.4.$sl | tail -n 1 | cut -d '-' -f 2-3 | cut -d '.' -f 1-3
-

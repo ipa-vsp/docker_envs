@@ -3,4 +3,3 @@ Download and extract kuka fri. [here](https://github.com/LernFabrik/KUKA_FRI/arc
 ## Docker Compose Commands
 1. `docker run myimage`-> `docker-compose up`
 2. `docker build .` and `docker run myimage` -> `docker-compose up --build`
-

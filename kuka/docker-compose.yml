@@ -6,23 +6,23 @@ services:
             context: .
             dockerfile: Dockerfile.base
             args:
-                - ROS_DISTRO=melodic 
+                - ROS_DISTRO=melodic
         image: prachandabhanu/env:ros-melodic-robot
 
     ros-fri:
-        build: 
+        build:
             context: .
             dockerfile: Dockerfile.fri
-            args: 
+            args:
                 - ROS_DISTRO=melodic
                 - BASE_IMAGE=prachandabhanu/env:ros-melodic-robot
         image: prachandabhanu/env:ros-fri
-    
+
     ros-kuka:
-        build: 
+        build:
             context: .
             dockerfile: Dockerfile.kuka
-            args: 
+            args:
                 - ROS_DISTRO=melodic
                 - BASE_IMAGE=prachandabhanu/env:ros-fri
         image: prachandabhanu/env:ros-kuka

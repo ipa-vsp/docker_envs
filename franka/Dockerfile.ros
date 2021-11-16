@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN rosdep init && \
   rosdep update --rosdistro $ROS_DISTRO
 
-RUN pip3 install -U catkin_tools  
+RUN pip3 install -U catkin_tools
 
 # setup entrypoint
 COPY ./ros_entrypoint.sh /
