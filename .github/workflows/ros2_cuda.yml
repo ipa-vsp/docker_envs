@@ -37,7 +37,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/build_env
-          tag: CUDA${{ matrix.env.ROS_DISTRO }}
+          tag: ${{ matrix.env.ROS_DISTRO }}-cuda
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
@@ -50,7 +50,7 @@ jobs:
             CUDA_VERSION=11.4.0
             UBUNTU_DISTRO=20.04
             ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
-          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:CUDA${{ matrix.env.ROS_DISTRO }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:${{ matrix.env.ROS_DISTRO }}-cuda
           labels: ${{ steps.meta.outputs.labels }}
 
   ros2-sigle-image-build:
