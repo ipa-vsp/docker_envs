@@ -25,18 +25,20 @@ Reference: [link](https://docs.docker.com/compose/install/)
     sudo chmod +x /usr/local/bin/docker-compose
     ```
     ---
-    **NOTE**
+    NOTE
 
     Note: If the command docker-compose fails after installation, check your path. You can also create a symbolic link to /usr/bin or any other directory in your path
     ---
 For example:
     ```
-    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-composee
+    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
     ```
+
 3. Test Installation
     ```
     docker-compose --version
     ```
+
 4. [Documentation GPU Integration](https://docs.docker.com/compose/gpu-support/)
 ## Docker for ROS2 Foxy
 todo
