@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  turtlebot3_noetic:
+    build: .
+    image: prachandabhanu/env/turtlebot3_noetic
+
+    environment:
+      - ROS_IP=$ROS_IP
+      - ROS_MASTER_URI=http://$ROS_IP:11311
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=/tmp/.docker.xauth
+    stdin_open: true
+    privileged: true
+    tty: true
+    network_mode: "host"
+    restart: always
+    volumes:
+      - /tmp/.docker.xauth:/tmp/.docker.xauth
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - $HOME/.Xauthority:/root/.Xauthority
