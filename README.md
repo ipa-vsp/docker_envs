@@ -1,10 +1,14 @@
 # docker_envs
 
-|  ROS2 |  foxy  | Galactic |   CUDA Foxy  | CUDA Galactic |
-|-------|--------|----------|--------------|---------------|
-| Azure Build Status| [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20Foxy)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) | [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20Galactic)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) | [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20CudaFoxy)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) | [![Build Status](https://dev.azure.com/IWT-Digitization/BuildEnv/_apis/build/status/ROS2?branchName=main&jobName=ROS2&configuration=ROS2%20CudaGalactic)](https://dev.azure.com/IWT-Digitization/BuildEnv/_build/latest?definitionId=18&branchName=main) |
-|-------|--------|----------|--------------|----------------|
-| GitHub Action | [![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml) | [![ROS2 CUDA Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml) |
+|       Images                  |     Build Status    |
+|-------------------------------|---------------------|
+|       Foxy                    |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
+|      Galactic                 |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
+|  CUDA with Foxy               |[![ROS2 CUDA Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml)|
+|CUDA with Galactic             |[![ROS2 CUDA Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml)|
+| Turtlebot3 with Noetic        |[![ROS Turtlebot Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml)|
+|Pytorch 1.10.0 with Detectron2 |[![Pytorch with Detectron2](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml)|
+| Clang Formatting               |[![clang-format](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml)|
 
 ## Azure Kinect Docker
 Currently Azure kinect driver only available for Ubuntu 18.04.
