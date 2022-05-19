@@ -1,8 +1,9 @@
+ARG TB3_MODEL=burger
 FROM ros:noetic-robot
 
 ENV ROS_DISTRO noetic
 
-ENV TURTLEBOT3_MODEL burger
+ENV TURTLEBOT3_MODEL ${TB3_MODEL}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-joy ros-noetic-teleop-twist-joy \
@@ -18,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
     ros-noetic-dynamixel-sdk \
-    ros-noetic-turtlebot3-msgs \ 
+    ros-noetic-turtlebot3-msgs \
     ros-noetic-turtlebot3 \
     && rm -rf /var/lib/apt/lists/*
 
