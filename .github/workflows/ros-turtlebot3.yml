@@ -36,18 +36,15 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/build_env
-          tag: ros-turtlebot3-${{ matrix.env.TB3_MODEL }}
+          tag: noetic-turtlebot3-${{ matrix.env.TB3_MODEL }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ros2/Dockerfile
+          file: turtlebot/Dockerfile
           push: true
           build-args: |
-            USE_CUDA=${{ matrix.env.USE_CUDA }}
-            CUDA_VERSION=11.4.0
-            UBUNTU_DISTRO=20.04
-            ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
-          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:${{ matrix.env.ROS_DISTRO }}-cuda
+            TB3_MODEL=${{ matrix.env.TB3_MODEL }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:noetic-turtlebot3-${{ matrix.env.TB3_MODEL }}
           labels: ${{ steps.meta.outputs.labels }}
