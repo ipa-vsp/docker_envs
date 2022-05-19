@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y \
 	python3-opencv ca-certificates python3-dev git wget sudo ninja-build
 RUN ln -sv /usr/bin/python3 /usr/bin/python
 
-COPY bashrc /etc/bash.bashrc
-RUN chmod a+rwx /etc/bash.bashrc
+# COPY bashrc /etc/bash.bashrc
+# RUN chmod a+rwx /etc/bash.bashrc
 
 RUN useradd -ms /bin/bash pytorch
 USER pytorch
