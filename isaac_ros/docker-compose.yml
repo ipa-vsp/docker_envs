@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+    triton_22.03-py3:
+        build:
+            context: .
+            dockerfile: Dockerfile.x86_64
+        image: triton_22.03-py3
+
+    x86_64.humble:
+        build:
+            context: .
+            dockerfile: Dockerfile.humble
+            args:
+                - BASE_IMAGE=triton_22.03-py3
+        image: x86_64.humble
+
+    x86_64.humble.nav2:
+        build:
+            context: .
+            dockerfile: Dockerfile.nav2
+            args:
+                - BASE_IMAGE=x86_64.humble
+        image: x86_64.humble.nav2
+
+    x86_64.humble.nav2.user:
+        build:
+            context: .
+            dockerfile: Dockerfile.user
+            args:
+                - BASE_IMAGE=x86_64.humble.nav2
+        image: x86_64.humble.nav2
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - capabilities:
+                            - gpu
+        stdin_open: true
+        tty: true
+        privileged: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /dev/shm:/dev/shm
+            - /dev/*:/dev/*
+            - ../isaac_ros:/workspaces/isaac_ros-dev/src
+        environment:
+            - DISPLAY=$DISPLAY
+            - NVIDIA_VISIBLE_DEVICES=all
+            - NVIDIA_DRIVER_CAPABILITIES=all
+        entrypoint: workspace-entrypoint.sh

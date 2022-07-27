@@ -10,6 +10,12 @@
 |Pytorch 1.10.0 with Detectron2 |[![Pytorch with Detectron2](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml)|
 | Clang Formatting               |[![clang-format](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml)|
 
+## [Precommit hook](https://pre-commit.com/)
+1. Install: `pip install pre-commit`
+2. Check version: `pre-commit --version`
+3. Setup workspace: `pre-commit install`
+4. Run against all files: `pre-commit run --all-files` or `pre-commit run --all-files --hook-stage manual`
+
 ## Azure Kinect Docker
 Currently Azure kinect driver only available for Ubuntu 18.04.
 1. Build the image `cd azure` and `docker-compose up --build`. This should open the `k4aviewer`.
