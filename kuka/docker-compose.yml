@@ -26,5 +26,18 @@ services:
                 - ROS_DISTRO=melodic
                 - BASE_IMAGE=prachandabhanu/env:ros-fri
         image: prachandabhanu/env:ros-kuka
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - capabilities:
+                            - gpu
         stdin_open: true
         tty: true
+        privileged: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+        environment:
+            - DISPLAY=$DISPLAY
+            - NVIDIA_VISIBLE_DEVICES=all

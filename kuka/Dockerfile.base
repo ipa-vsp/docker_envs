@@ -2,7 +2,8 @@ ARG ROS_DISTRO=melodic
 FROM ros:${ROS_DISTRO}-robot
 
 ENV DEBIAN_FRONTEND noninteractive
-
+COPY bashrc /etc/bash.bashrc
+RUN chmod a+rwx /etc/bash.bashrc
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 WORKDIR /root
 
