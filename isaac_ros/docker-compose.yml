@@ -49,4 +49,5 @@ services:
             - DISPLAY=$DISPLAY
             - NVIDIA_VISIBLE_DEVICES=all
             - NVIDIA_DRIVER_CAPABILITIES=all
-        entrypoint: workspace-entrypoint.sh
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: bash -c "top"

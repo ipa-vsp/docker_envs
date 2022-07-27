@@ -41,8 +41,10 @@ RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
 
 # Copy scripts
 RUN mkdir -p /usr/local/bin/scripts
-COPY scripts/*entrypoint.sh /usr/local/bin/scripts/
+COPY *entrypoint.sh /usr/local/bin/scripts/
 RUN  chmod +x /usr/local/bin/scripts/*.sh
+
+WORKDIR /workspaces/isaac_ros-dev
 
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
