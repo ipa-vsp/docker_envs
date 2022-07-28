@@ -1,9 +1,32 @@
 version: '3'
 
 services:
-    ros-foxy-base:
+    ros-galactic-base:
         build:
             context: .
             args:
-                - ROS_DISTRO=foxy
-        image: prachandabhanu/env:ros-foxy-base
+                - ROS_DISTRO=galactic
+                - USE_CUDA="false"
+        image: ros-galactic-base
+        user: admin:1000
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - capabilities:
+                            - gpu
+        stdin_open: true
+        tty: true
+        privileged: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /dev/shm:/dev/shm
+            - /dev/*:/dev/*
+            - ../isaac_ros:/home/admin/src
+        environment:
+            - DISPLAY=$DISPLAY
+            - NVIDIA_VISIBLE_DEVICES=all
+            - NVIDIA_DRIVER_CAPABILITIES=all
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: bash -c "top"
