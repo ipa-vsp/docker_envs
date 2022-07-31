@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+    ros-melodic-base:
+        build:
+            context: .
+            args:
+                - ROS_DISTRO=melodic
+        image: ros-melodic-base
+        stdin_open: true
+        tty: true
+        privileged: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /dev/shm:/dev/shm
+            - /dev/*:/dev/*
+        environment:
+            - DISPLAY=$DISPLAY
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: bash -c "top"
