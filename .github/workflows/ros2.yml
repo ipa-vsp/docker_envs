@@ -20,8 +20,8 @@ jobs:
     strategy:
       matrix:
         env:
-          - {ROS_DISTRO: foxy}
           - {ROS_DISTRO: galactic}
+          - {ROS_DISTRO: humble}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
@@ -42,11 +42,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ros2/Dockerfile
+          file: ros2_ci_build/Dockerfile
+          path: ros2_ci_build
           push: true
           build-args: |
-            CUDA_VERSION=11.4.0
-            UBUNTU_DISTRO=20.04
             ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
           tags: ${{ secrets.DOCKER_USERNAME }}/build_env:${{ matrix.env.ROS_DISTRO }}
           labels: ${{ steps.meta.outputs.labels }}
