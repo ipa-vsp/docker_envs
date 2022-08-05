@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
-SHELL ["/bin/bash", "-c"] 
+SHELL ["/bin/bash", "-c"]
 
 # setup timezone
 RUN echo 'Etc/UTC' > /etc/timezone && \
