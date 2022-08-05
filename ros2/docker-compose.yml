@@ -23,7 +23,7 @@ services:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /dev/shm:/dev/shm
             - /dev/*:/dev/*
-            - ../isaac_ros:/home/admin/src
+            - ./src:/home/admin/src
         environment:
             - DISPLAY=$DISPLAY
             - NVIDIA_VISIBLE_DEVICES=all
