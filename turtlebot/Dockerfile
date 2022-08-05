@@ -3,6 +3,8 @@ FROM ros:noetic-robot
 
 ENV ROS_DISTRO noetic
 
+# Build test 1
+
 ENV TURTLEBOT3_MODEL ${TB3_MODEL}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
