@@ -2,7 +2,7 @@ FROM nvidia/cuda:11.1.1-cudnn8-devel-ubuntu20.04
 
 SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND noninteractive
-RUN apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
+
 RUN apt-get update && apt-get install -y \
 	python3-opencv ca-certificates python3-dev git wget sudo ninja-build
 RUN ln -sv /usr/bin/python3 /usr/bin/python
