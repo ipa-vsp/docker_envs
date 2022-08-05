@@ -17,5 +17,18 @@ services:
             - /dev/*:/dev/*
         environment:
             - DISPLAY=$DISPLAY
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        entrypoint: /usr/local/bin/scripts/ros_entrypoint.sh
         command: bash -c "top"
+
+    ros-melodic-new:
+        build:
+            context: .
+            args:
+                - ROS_DISTRO=melodic
+        image: ros-melodic-base
+        stdin_open: true
+        tty: true
+        privileged: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro

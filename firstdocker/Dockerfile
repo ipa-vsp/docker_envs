@@ -9,8 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # setup entrypoint
 ENV ROS_DISTRO ${ROS_DISTRO}
-COPY ./ros_entrypoint.sh /
-RUN chmod a+rwx ros_entrypoint.sh
+RUN mkdir -p /usr/local/bin/scripts
+COPY *entrypoint.sh /usr/local/bin/scripts/
+RUN  chmod +x /usr/local/bin/scripts/*.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
