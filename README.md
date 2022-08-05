@@ -2,10 +2,8 @@
 
 |       Images                  |     Build Status    |
 |-------------------------------|---------------------|
-|       Foxy                    |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
-|      Galactic                 |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
-|  CUDA with Foxy               |[![ROS2 CUDA Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml)|
-|CUDA with Galactic             |[![ROS2 CUDA Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2_cuda.yml)|
+|       Galactic                |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
+|      Humble                 |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
 | Turtlebot3 with Noetic        |[![ROS Turtlebot Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml)|
 |Pytorch 1.10.0 with Detectron2 |[![Pytorch with Detectron2](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml)|
 | Clang Formatting               |[![clang-format](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml)|
