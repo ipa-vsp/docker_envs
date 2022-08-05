@@ -11,7 +11,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES \
 ENV ROS_DISTRO=${ROS_DISTRO}
 
 ENV DEBIAN_FRONTEND=noninteractive
-COPY bashrc /etc/bash.bashrc
+COPY bashrc_ros /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-c"]
@@ -49,8 +49,8 @@ RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
 
 # Copy scripts
 RUN mkdir -p /usr/local/bin/scripts
-COPY *entrypoint.sh /usr/local/bin/scripts/
-RUN  chmod +x /usr/local/bin/scripts/*.sh
+COPY ros2_entrypoint.sh /usr/local/bin/scripts/
+RUN  chmod +x /usr/local/bin/scripts/ros2_entrypoint.sh
 
 WORKDIR /home/${USERNAME}
 
@@ -58,5 +58,5 @@ ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
 
-ENTRYPOINT [ "/usr/local/bin/scripts/*.sh" ]
+ENTRYPOINT [ "/usr/local/bin/scripts/ros2_entrypoint.sh" ]
 CMD [ "bash" ]
