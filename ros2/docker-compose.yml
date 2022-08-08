@@ -1,13 +1,13 @@
 version: '3'
 
 services:
-    ros-galactic-base:
+    ros-humble-base:
         build:
             context: .
             args:
                 - ROS_DISTRO=galactic
                 - USE_CUDA="false"
-        image: ros-galactic-base
+        image: ros-humble-base
         user: admin:1000
         deploy:
             resources:

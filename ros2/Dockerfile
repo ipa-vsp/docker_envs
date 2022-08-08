@@ -53,7 +53,7 @@ RUN rosdep init && \
 # setup colcon mixin and metadata
 RUN colcon mixin add default \
       https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml && \
-    colcon mixin update default && \
+    colcon mixin update && \
     colcon metadata add default \
       https://raw.githubusercontent.com/colcon/colcon-metadata-repository/master/index.yaml && \
     colcon metadata update
@@ -66,11 +66,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # install ros2 packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-perception=0.10.0-1* \
-    && rm -rf /var/lib/apt/lists/*
-
-# Addition dependencies for the future
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    clang-format \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NVIDIA_VISIBLE_DEVICES \
