@@ -33,7 +33,7 @@ repos:
 
   # Python hooks
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.37.3
+    rev: v3.1.0
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
@@ -46,7 +46,7 @@ repos:
       args: ["--ignore=D100,D101,D102,D103,D104,D105,D106,D107,D203,D212,D404"]
 
   - repo: https://github.com/pycqa/flake8
-    rev: 5.0.2
+    rev: 5.0.4
     hooks:
     - id: flake8
       args: ["--extend-ignore=E501"]
@@ -124,7 +124,7 @@ repos:
   # Spellcheck in comments and docs
   # skipping of *.svg files is not working...
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.2.2
     hooks:
       - id: codespell
         args: ['--write-changes']
