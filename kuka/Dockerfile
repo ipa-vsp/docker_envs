@@ -130,7 +130,7 @@ RUN apt-get update \
 
 # Install Extra dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-        ros-${ROS_DISTRO}-gazebo-ros \
+#         ros-${ROS_DISTRO}-gazebo-ros \
         ros-${ROS_DISTRO}-gazebo-ros2-control \
         ros-${ROS_DISTRO}-gazebo-plugins \
         ros-${ROS_DISTRO}-gazebo-msgs \
