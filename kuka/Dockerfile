@@ -3,10 +3,6 @@ FROM ${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
-COPY kuka/bashrc /etc/bash.bashrc
-RUN chmod a+rwx /etc/bash.bashrc
-ENV SHELL /bin/bash
-SHELL ["/bin/bash", "-c"]
 
 # Fundamentals
 RUN apt-get update && apt-get install -y \
@@ -169,39 +165,39 @@ RUN apt-get update && apt-get install -y \
 && rm -rf /var/lib/apt/lists/* \
 && apt-get clean
 
-# Reuse triton-server user as 'admin' user if exists
-RUN if [ $(getent group triton-server) ]; then \
-        groupmod --gid ${USER_GID} -n ${USERNAME} triton-server ; \
-        usermod -l ${USERNAME} -m -d /home/${USERNAME} triton-server ; \
-        mkdir -p /home/${USERNAME} ; \
-        sudo chown ${USERNAME}:${USERNAME} /home/${USERNAME} ; \
-    fi
+# # Reuse triton-server user as 'admin' user if exists
+# RUN if [ $(getent group triton-server) ]; then \
+#         groupmod --gid ${USER_GID} -n ${USERNAME} triton-server ; \
+#         usermod -l ${USERNAME} -m -d /home/${USERNAME} triton-server ; \
+#         mkdir -p /home/${USERNAME} ; \
+#         sudo chown ${USERNAME}:${USERNAME} /home/${USERNAME} ; \
+#     fi
 
-# Create the 'admin' user if not already exists
-RUN if [ ! $(getent passwd ${USERNAME}) ]; then \
-        groupadd --gid ${USER_GID} ${USERNAME} ; \
-        useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} ; \
-    fi
+# # Create the 'admin' user if not already exists
+# RUN if [ ! $(getent passwd ${USERNAME}) ]; then \
+#         groupadd --gid ${USER_GID} ${USERNAME} ; \
+#         useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} ; \
+#     fi
 
-# Update 'admin' user
-RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
-    && chmod 0440 /etc/sudoers.d/${USERNAME} \
-    && adduser ${USERNAME} video && adduser ${USERNAME} sudo
+# # Update 'admin' user
+# RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
+#     && chmod 0440 /etc/sudoers.d/${USERNAME} \
+#     && adduser ${USERNAME} video && adduser ${USERNAME} sudo
 
-# Copy scripts
-RUN mkdir -p /usr/local/bin/scripts
-COPY kuka/*entrypoint.sh /usr/local/bin/scripts/
-RUN  chmod +x /usr/local/bin/scripts/*.sh
+# # Copy scripts
+# RUN mkdir -p /usr/local/bin/scripts
+# COPY kuka/*entrypoint.sh /usr/local/bin/scripts/
+# RUN  chmod +x /usr/local/bin/scripts/*.sh
 
-USER ${USERNAME}
-WORKDIR /home/${USERNAME}
-RUN mkdir -p colcon_ws
+# USER ${USERNAME}
+# WORKDIR /home/${USERNAME}
+# RUN mkdir -p colcon_ws
 
-ENV USERNAME=${USERNAME}
-ENV USER_GID=${USER_GID}
-ENV USER_UID=${USER_UID}
+# ENV USERNAME=${USERNAME}
+# ENV USER_GID=${USER_GID}
+# ENV USER_UID=${USER_UID}
 
-ENV NVIDIA_VISIBLE_DEVICES \
-    ${NVIDIA_VISIBLE_DEVICES:-all}
-ENV NVIDIA_DRIVER_CAPABILITIES \
-    ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+# ENV NVIDIA_VISIBLE_DEVICES \
+#     ${NVIDIA_VISIBLE_DEVICES:-all}
+# ENV NVIDIA_DRIVER_CAPABILITIES \
+#     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
