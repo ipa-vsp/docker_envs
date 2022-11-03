@@ -3,6 +3,10 @@ FROM ${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
+COPY kuka/bashrc /etc/bash.bashrc
+RUN chmod a+rwx /etc/bash.bashrc
+ENV SHELL /bin/bash
+SHELL ["/bin/bash", "-c"]
 
 # Fundamentals
 RUN apt-get update && apt-get install -y \
