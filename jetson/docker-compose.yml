@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+    jetson-flash:
+        build:
+            context: .
+        image: jetson-sdkmanager
+        user: admin:1000
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - driver: nvidia
+                          count: all
+                          capabilities: [gpu]
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /dev/shm:/dev/shm
+            - /dev:/dev
+            - /dev/bus/usb:/dev/bus/usb/
+            - /media/$USER:/media/nvidia:slave
+        environment:
+            - DISPLAY=$DISPLAY
+            - NVIDIA_VISIBLE_DEVICES=all
+            - NVIDIA_DRIVER_CAPABILITIES=all
+        command: tail -f /dev/null # bash -c "top"
