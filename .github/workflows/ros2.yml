@@ -8,7 +8,7 @@ on:
   push:
     # branches: [ main ]
     paths:
-      - 'ros2_ci_build/**'
+      - 'dockerhub/ros2_ci_build/**'
   pull_request:
     branches: [ main ]
   schedule:
@@ -44,8 +44,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ros2_ci_build/Dockerfile
-          path: ros2_ci_build
+          file: dockerhub/ros2_ci_build/Dockerfile
+          path: dockerhub/ros2_ci_build
           push: true
           build-args: |
             ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}

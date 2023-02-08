@@ -8,7 +8,7 @@ on:
   push:
     # branches: [ main ]
     paths:
-      - 'pytorch/**'
+      - 'dockerhub/pytorch_1_10/**'
   pull_request:
     branches: [ main ]
   schedule:
@@ -44,7 +44,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: pytorch/Dockerfile
+          file: dockerhub/pytorch_1_10/Dockerfile
+          path: dockerhub/pytorch_1_10
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/build_env:pytorch-${{ matrix.env.TORCH_VERSION }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -6,7 +6,7 @@ on:
   push:
     # branches: [ main ]
     paths:
-      - 'kuka/**'
+      - 'dockerhub/kuka/**'
   pull_request:
     branches: [ main ]
   schedule:
@@ -36,8 +36,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: kuka/Dockerfile
-          path: kuka
+          file: dockerhub/kuka/Dockerfile
+          path: dockerhub/kuka
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/build_env:ros2-humble-kuka
           labels: ${{ steps.meta.outputs.labels }}
