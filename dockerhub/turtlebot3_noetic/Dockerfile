@@ -3,6 +3,11 @@ FROM ros:noetic-robot
 
 ENV ROS_DISTRO noetic
 
+COPY dockerhub/turtlebot3_noetic/bashrc /etc/bash.bashrc
+RUN chmod a+rwx /etc/bash.bashrc
+ENV SHELL /bin/bash
+SHELL ["/bin/bash", "-c"]
+
 # Build test 1
 
 ENV TURTLEBOT3_MODEL ${TB3_MODEL}
@@ -73,5 +78,5 @@ ENV NVIDIA_VISIBLE_DEVICES \
 ENV NVIDIA_DRIVER_CAPABILITIES \
     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
 
-ENTRYPOINT ["/usr/local/bin/scripts/*.sh"]
+ENTRYPOINT ["/usr/local/bin/scripts/ros_entrypoint.sh"]
 CMD ["bash"]
