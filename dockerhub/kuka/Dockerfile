@@ -165,7 +165,7 @@ ARG USER_GID=1000
 
 # Install prerequisites
 RUN apt-get update && apt-get install -y \
-        sudo \
+        sudo apt-utils\
 && rm -rf /var/lib/apt/lists/* \
 && apt-get clean
 

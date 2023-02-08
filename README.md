@@ -1,11 +1,11 @@
 # docker_envs
 
-|       Images                  |     Build Status    |
-|-------------------------------|---------------------|
-|       Galactic                |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
-|      Humble                 |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)|
-| Turtlebot3 with Noetic        |[![ROS Turtlebot Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml)|
-|Pytorch 1.10.0 with Detectron2 |[![Pytorch with Detectron2](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml)|
+|       Images                  |     Build Status    |     Dockerhub    |
+|-------------------------------|---------------------|------------------|
+|       Galactic                |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)| [prachandabhanu/build_env:galactic](https://hub.docker.com/layers/prachandabhanu/build_env/galactic/images/sha256-de9ea230f7c2d7978eca18db2a86b718121f8ef1bd914996716394fe5a76da6c?context=repo) |
+|      Humble                 |[![ROS2 Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros2.yml)| [prachandabhanu/build_env:humble](https://hub.docker.com/layers/prachandabhanu/build_env/humble/images/sha256-7b7eaecc9aba8c03698fdffe138103033e8061edc039822f17abb5b4ea734827?context=repo) |
+| Turtlebot3 with Noetic        |[![ROS Turtlebot Images](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/ros-turtlebot3.yml)| [prachandabhanu/build_env:noetic-turtlebot3-waffle](https://hub.docker.com/layers/prachandabhanu/build_env/noetic-turtlebot3-waffle/images/sha256-59aa966ee507cdedfecefa8071f9b7dabbf5c37b153683ac04cf1aea497d7b38?context=repo) [prachandabhanu/build_env:noetic-turtlebot3-burger](https://hub.docker.com/layers/prachandabhanu/build_env/noetic-turtlebot3-burger/images/sha256-1cdee6e3c50ae3b91cb8094168f9aef1d7cc1f8fa0c50998f08e5c75281b8e65?context=repo) |
+|Pytorch 1.10.0 with Detectron2 |[![Pytorch with Detectron2](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/pytorch-1-10.yml)| [prachandabhanu/build_env:pytorch-1_10_0](https://hub.docker.com/layers/prachandabhanu/build_env/pytorch-1_10_0/images/sha256-d28064941741b92076b2654e31b721425f4daeb91c5e393c4cf4df296e8fbb0d?context=repo) |
 | Clang Formatting               |[![clang-format](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml/badge.svg)](https://github.com/prachandabhanu/docker_envs/actions/workflows/docker-image.yml)|
 
 ## [Precommit hook](https://pre-commit.com/)
@@ -14,63 +14,4 @@
 3. Setup workspace: `pre-commit install`
 4. Run against all files: `pre-commit run --all-files` or `pre-commit run --all-files --hook-stage manual`
 
-## Azure Kinect Docker
-Currently Azure kinect driver only available for Ubuntu 18.04.
-1. Build the image `cd azure` and `docker-compose up --build`. This should open the `k4aviewer`.
-2. Please set your `ROS_IP` eviroment variable.
-3. Run `docker-compose -f docker-compose-user.yml up`. Open two containers
-    - First container launches ROS Azure Kinect driver.
-    - Second Container launches RVIZ to visualize the camera data.
-
-## Docker Compose
-Reference: [link](https://docs.docker.com/compose/install/)
-1. Run this command to download the current stable release of Docker Compose:
-    ```
-    sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    ```
-2. Apply executable permissions to the binary:
-    ```
-    sudo chmod +x /usr/local/bin/docker-compose
-    ```
-    ---
-    NOTE
-
-    Note: If the command docker-compose fails after installation, check your path. You can also create a symbolic link to /usr/bin or any other directory in your path
-    ---
-For example:
-    ```
-    sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-    ```
-
-3. Test Installation
-    ```
-    docker-compose --version
-    ```
-
-4. [Documentation GPU Integration](https://docs.docker.com/compose/gpu-support/)
-## Docker for ROS2 Foxy
-todo
-
-## Docker for KUKA IIWA7
-todo
-
-## Docker for ROS Melodic
-todo
-### Docker commands
-1. Docker compose with file `docker-compose -f <file name> up --build`
-### GUI with docker
-1. Install [Nvidia docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-2. Add `runtime: nvidia` in docker compose
-3. If there is problem with GUI in docker then run `xhost +` or `xhost -`
-4. To avoid the vulnerability use this instead of above,
-    - `xhost +SI:localuser:$(id -un)`
-    - To allow root in container access to X, run `xhost +SI:localuser:root`
-
-### GUI with docker in Windows
-1. Download [VcXsrv](https://sourceforge.net/projects/vcxsrv/) and install.
-    - check the box **Disable access control**
-2.
-```
-environment:
-            - DISPLAY=172.16.17.132:0
-```
+### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)

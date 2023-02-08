@@ -1,7 +1,11 @@
 #!/bin/bash
-set -e
+# Build ROS dependency
+echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc
+echo "export TURTLEBOT3_MODEL=${TURTLEBOT3_MODEL}" >> ~/.bashrc
+source /opt/ros/${ROS_DISTRO}/setup.bash
+export TURTLEBOT3_MODEL=${TURTLEBOT3_MODEL}
 
-# setup ros2 environment
-source "/opt/ros/$ROS_DISTRO/setup.bash"
-echo "Docker base image: ${BASE_IMAGE}"
-exec "$@"
+sudo apt-get update
+rosdep update
+
+$@
