@@ -41,11 +41,10 @@ jobs:
           images: ${{ secrets.DOCKER_USERNAME }}/build_env
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: dockerhub/ros2_ci_build/Dockerfile
-          path: dockerhub/ros2_ci_build
           push: true
           build-args: |
             ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
