@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  turtlebot3_noetic:
+    build: .
+    image: prachandabhanu/env/turtlebot3_noetic
+    stdin_open: true
+    privileged: true
+    tty: true
+    network_mode: "host"
+    volumes:
+      - \\wsl.localhost\Ubuntu-20.04\mnt\wslg:/tmp
+    environment:
+      - DISPLAY=:0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    command: tail -f /dev/null

@@ -1,28 +1,28 @@
 ARG TB3_MODEL=burger
-FROM ros:noetic-robot
+FROM ros:melodic-robot
 
-ENV ROS_DISTRO noetic
+ENV ROS_DISTRO melodic
 
 # Build test 1
 
 ENV TURTLEBOT3_MODEL ${TB3_MODEL}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-noetic-joy ros-noetic-teleop-twist-joy \
-    ros-noetic-teleop-twist-keyboard ros-noetic-laser-proc \
-    ros-noetic-rgbd-launch ros-noetic-rosserial-arduino \
-    ros-noetic-rosserial-python ros-noetic-rosserial-client \
-    ros-noetic-rosserial-msgs ros-noetic-amcl ros-noetic-map-server \
-    ros-noetic-move-base ros-noetic-urdf ros-noetic-xacro \
-    ros-noetic-compressed-image-transport ros-noetic-rqt* ros-noetic-rviz \
-    ros-noetic-gmapping ros-noetic-navigation ros-noetic-interactive-markers \
+    ros-melodic-joy ros-melodic-teleop-twist-joy \
+    ros-melodic-teleop-twist-keyboard ros-melodic-laser-proc \
+    ros-melodic-rgbd-launch ros-melodic-rosserial-arduino \
+    ros-melodic-rosserial-python ros-melodic-rosserial-client \
+    ros-melodic-rosserial-msgs ros-melodic-amcl ros-melodic-map-server \
+    ros-melodic-move-base ros-melodic-urdf ros-melodic-xacro \
+    ros-melodic-compressed-image-transport ros-melodic-rqt* ros-melodic-rviz \
+    ros-melodic-gmapping ros-melodic-navigation ros-melodic-interactive-markers \
     && rm -rf /var/lib/apt/lists/*
 
 
 RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    ros-noetic-dynamixel-sdk \
-    ros-noetic-turtlebot3-msgs \
-    ros-noetic-turtlebot3 \
+    ros-melodic-dynamixel-sdk \
+    ros-melodic-turtlebot3-msgs \
+    ros-melodic-turtlebot3 \
     && rm -rf /var/lib/apt/lists/*
 
 # setup entrypoint
