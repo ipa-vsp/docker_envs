@@ -1,8 +1,0 @@
-version: '3'
-
-services:
-    11.6.55-base-ubuntu2204:
-        build:
-            context: .
-            dockerfile: base/Dockerfile
-        image: 11.6.55-base-ubuntu2204
