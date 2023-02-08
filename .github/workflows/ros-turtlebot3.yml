@@ -7,7 +7,7 @@ on:
   push:
     # branches: [ main ]
     paths:
-      - 'turtlebot/**'
+      - 'dockerhub/turtlebot3_noetic/**'
   pull_request:
     branches: [ main ]
   schedule:
@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: turtlebot/Dockerfile
+          file: dockerhub/turtlebot3_noetic/Dockerfile
           push: true
           build-args: |
             TB3_MODEL=${{ matrix.env.TB3_MODEL }}
