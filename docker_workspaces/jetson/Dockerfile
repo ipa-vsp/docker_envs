@@ -10,7 +10,7 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 
 RUN apt-get update && apt-get install -y \
-        sudo \
+        sudo apt-utils wget\
 && rm -rf /var/lib/apt/lists/* \
 && apt-get clean
 
@@ -43,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
     libxshmfence1 libglu1 \
     libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev \
     libgconf-2-4 libatk1.0-0 libatk-bridge2.0-0 libgdk-pixbuf2.0-0 libgtk-3-0 libgbm-dev libnss3-dev libxss-dev \
+    usbutils net-tools \
     && rm -rf /var/lib/apt/lists/*
 
 USER ${USERNAME}
