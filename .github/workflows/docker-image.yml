@@ -1,10 +1,6 @@
-# This is a basic workflow to help you get started with Actions
+name: Clang-Format
 
-name: clang-format
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the foxy-dev branch
   push:
     branches: [ main ]
   pull_request:
@@ -14,15 +10,15 @@ jobs:
   pre-commit:
     name: Format
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.11.1
+      uses: actions/setup-python@v3
       with:
-        python-version: 3.9.7
-    - name: Install clang-format-10
-      run: sudo apt-get install clang-format-10 cppcheck
-    - name: Upgrade pip3
-      run: python3 -m pip install --upgrade pip
+        python-version: 3.11.1
+    - name: Install system hooks
+      run: sudo apt install -qq clang-format-14 cppcheck
     - uses: pre-commit/action@v2.0.3
       with:
         extra_args: --all-files --hook-stage manual

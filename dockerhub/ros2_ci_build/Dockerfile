@@ -49,7 +49,7 @@ RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
 
 # Copy scripts
 RUN mkdir -p /usr/local/bin/scripts
-COPY ros2_entrypoint.sh /usr/local/bin/scripts/
+COPY dockerhub/ros2_ci_build/ros2_entrypoint.sh /usr/local/bin/scripts/
 RUN  chmod +x /usr/local/bin/scripts/ros2_entrypoint.sh
 
 WORKDIR /home/${USERNAME}
