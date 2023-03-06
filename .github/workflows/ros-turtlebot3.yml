@@ -41,7 +41,7 @@ jobs:
           tag: noetic-turtlebot3-${{ matrix.env.TB3_MODEL }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: dockerhub/turtlebot3_noetic/Dockerfile
