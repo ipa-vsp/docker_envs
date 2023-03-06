@@ -26,7 +26,7 @@ services:
             args:
                 - BASE_IMAGE=x86_64.humble
         image: x86_64.humble.gazebo
-    
+
     x86_64.humble.gazebo.moveit:
         depends_on:
             - x86_64.humble.gazebo
