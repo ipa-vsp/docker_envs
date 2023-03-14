@@ -20,18 +20,19 @@ trap cleanup EXIT
 help()
 {
     echo ""
-    echo "Usage: $0 -v humble|rolling -u manipulation|navigation|both -s true|false -i image_name -b|-r"
+    echo "Usage: $0 -v humble|rolling -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws"
     echo -e "\t-v Select ROS version"
     echo -e "\t-u Select usage of the image"
     echo -e "\t-s Enable simulation"
     echo -e "\t-i Image Name"
     echo -e "\t-b Build mode"
     echo -e "\t-r Run mode"
+    echo -e "\t-w Attach your workspace only required while run (-r)"
     echo -e "\t-h Show help"
     exit 1
 }
 
-while getopts "v:u:s:i:brh" opt
+while getopts "v:u:s:i:w:brh" opt
 do
     case "$opt" in
         v) ROS_VERSION="$OPTARG" ;;
@@ -40,18 +41,19 @@ do
         i) FINAL_IMAGE="$OPTARG" ;;
         b) BUILD=true ;;
         r) RUN=true ;;
+        w) WORKSPACE="$OPTARG" ;;
         h | ?) help ;;
     esac
 done
 
 if [[ -z "$ROS_VERSION" ]]; then
-    echo "Select ROS Version"
-    help
+    echo "Select ROS Version | Default: rolling"
+    ROS_VERSION="rolling"
 fi
 
 if [[ -z "$ROS_USAGE" ]]; then
-    echo "Select the docker usage is mandatory"
-    help
+    echo "Select the docker usage| Default: manipulation"
+    ROS_USAGE="manipulation"
 fi
 
 if [[ -z "$FINAL_IMAGE" ]]; then
@@ -77,13 +79,14 @@ DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
 BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
 IMAGE_NAME="ubuntu2204"
-${ROOT}/build_image.sh $BASE_FILE "" $IMAGE_NAME
 DOCKERFILES+=(${BASE_FILE})
 
 if [[ "$BUILD" == false && "$RUN" == false ]] || [[ "$BUILD" == true && "$RUN" == true ]]; then
     echo "You must specify either a build(-b) or run(-r) mode"
     help
 elif [[ "$BUILD" == true ]]; then
+    ${ROOT}/build_image.sh $BASE_FILE "" $IMAGE_NAME
+
     if [[ "$ROS_VERSION" == "rolling" ]]; then
         DOCKER_DIR="${ROOT}/../rolling"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
@@ -146,5 +149,29 @@ elif [[ "$BUILD" == true ]]; then
     if [[ -f "${DOCKERFILE}" ]]; then
         ${ROOT}/build_image.sh $DOCKERFILE $IMAGE_NAME $FINAL_IMAGE
     fi
-# elif [[ "$RUN" == true ]]; then
+
+elif [[ "$RUN" == true ]]; then
+    if [[ -z "$WORKSPACE" ]]; then
+        echo "Workspace path is not selected"
+        echo $WORKSPACE
+        help
+    fi
+    CONTAINER="${FINAL_IMAGE}_container"
+
+    docker run -it \
+               --rm \
+               --net=host \
+               --privileged \
+               --gpus=all \
+               --user="admin:1000" \
+               --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
+               --name "$CONTAINER" \
+               -e DISPLAY=$DISPLAY \
+               -v /etc/timezone:/etc/timezone:ro \
+               -v /etc/localtime:/etc/localtime:ro \
+               -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+               -v $WORKSPACE:/home/admin/colcon_ws:rw \
+               --device=/dev/bus/usb:/dev/bus/usb \
+               $FINAL_IMAGE \
+               bash
 fi
