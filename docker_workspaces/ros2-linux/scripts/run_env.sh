@@ -74,12 +74,11 @@ if [[ -z "$RUN" ]]; then
     RUN=false
 fi
 
-# DOCKERFILES=()
 DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
 BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
 IMAGE_NAME="ubuntu2204"
-DOCKERFILES+=(${BASE_FILE})
+
 
 if [[ "$BUILD" == false && "$RUN" == false ]] || [[ "$BUILD" == true && "$RUN" == true ]]; then
     echo "You must specify either a build(-b) or run(-r) mode"
@@ -158,20 +157,32 @@ elif [[ "$RUN" == true ]]; then
     fi
     CONTAINER="${FINAL_IMAGE}_container"
 
+    DOCKER_ARGS=()
+    DOCKER_ARGS+=("-e DISPLAY=$DISPLAY")
+    DOCKER_ARGS+=("-v /tmp/.X11-unix:/tmp/.X11-unix:ro")
+    DOCKER_ARGS+=("-v $HOME/.Xauthority:/home/admin/.Xauthority:rw")
+    DOCKER_ARGS+=("-v /etc/timezone:/etc/timezone:ro")
+    DOCKER_ARGS+=("-v /etc/localtime:/etc/localtime:ro")
+    DOCKER_ARGS+=("-v $WORKSPACE:/home/admin/colcon_ws:rw")
+
+    if type nvidia-smi &>/dev/null; then
+        GPU_ATTACHED=(`nvidia-smi -a | grep "Attached GPUs"`)
+        if [ ! -z $GPU_ATTACHED ]; then
+            DOCKER_ARGS+=("--gpus=all")
+            DOCKER_ARGS+=("-e NVIDIA_VISIBLE_DEVICES=all")
+            DOCKER_ARGS+=("-e NVIDIA_DRIVER_CAPABILITIES=all")
+            print_info "Using nvidia GPU"
+        fi
+    fi
+
     docker run -it \
                --rm \
                --net=host \
                --privileged \
-               --gpus=all \
                --user="admin:1000" \
                --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
                --name "$CONTAINER" \
-               -e DISPLAY=$DISPLAY \
-               -v /etc/timezone:/etc/timezone:ro \
-               -v /etc/localtime:/etc/localtime:ro \
-               -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-               -v $WORKSPACE:/home/admin/colcon_ws:rw \
-               --device=/dev/bus/usb:/dev/bus/usb \
+               ${DOCKER_ARGS[@]} \
                $FINAL_IMAGE \
                bash
 fi
