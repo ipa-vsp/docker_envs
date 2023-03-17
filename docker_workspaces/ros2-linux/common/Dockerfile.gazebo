@@ -12,7 +12,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 RUN if [[ "$ROS_DISTRO" == "rolling" || "$ROS_DISTRO" == "humble" ]] ; then \
         apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-gazebo-ros2-control \
-        && rm -rf /var/lib/apt/lists/* && apt-get clean \ 
+        && rm -rf /var/lib/apt/lists/* && apt-get clean \
    else \
         apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-gazebo-ros-control \

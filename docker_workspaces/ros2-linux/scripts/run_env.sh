@@ -135,7 +135,7 @@ elif [[ "$BUILD" == true ]]; then
         print_error "Check your command again!"
         help
     fi
-    
+
     if [[ "$SIMULATION" == true ]]; then
         DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.gazebo"
         if [[ -f "${DOCKERFILE}" ]]; then

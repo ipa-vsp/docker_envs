@@ -14,4 +14,16 @@
 3. Setup workspace: `pre-commit install`
 4. Run against all files: `pre-commit run --all-files` or `pre-commit run --all-files --hook-stage manual`
 
+## Creating custom workspace
+A new method is being created (under test) to adopt your docker workspaces flexibly.
+
+`cd <your path>/docker_workspace/ros2_linux/script`
+
+run: `./run_env.sh -h ` to get the options that are available for you.
+
+| Options | Description |
+|---------|-------------|
+|  -v     | Select ROS version. Currently `humble` and `rolling` is available. ToDo: `noetic` |
+| -u      | Select usage of the image such as for manipulation or navigation or both. ToDo: only base |
+| -s      | Enable simulation. Default it is disabled |
 ### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)
