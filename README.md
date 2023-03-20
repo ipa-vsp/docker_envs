@@ -27,9 +27,17 @@ run: `./run_env.sh -h ` to get the options that are available for you.
 |  -u     | `manipulation|navigation|both`|Select usage of the image such as for manipulation or navigation or both. ToDo: only base |
 |  -s     | `true|false` | Enable simulation. Default it is disabled |
 |  -i     | `name of the image` | Provide the Image Name |
-|  -b     | `NULL` | Choose build mode | 
+|  -b     | `NULL` | Choose build mode |
 |  -r     | `NULL` | Run mode |
 |  -w     | `/path/to/your/workspace` | Attach your workspace only required while run (-r) |
 |  -h     | `NULL` | Show help |
+
+### Build
+Example: `./run_env.sh -v rolling -u manipulation -i canopen_image -b`
+### Run
+Example: `./run_env.sh -v rolling -u manipulation -i canopen -w ~/ros_ws/colcon_can_ws -r`
+
+### Dev Containers
+todo
 
 ### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)
