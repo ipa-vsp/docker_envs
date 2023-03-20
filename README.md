@@ -21,9 +21,15 @@ A new method is being created (under test) to adopt your docker workspaces flexi
 
 run: `./run_env.sh -h ` to get the options that are available for you.
 
-| Options | Description |
-|---------|-------------|
-|  -v     | Select ROS version. Currently `humble` and `rolling` is available. ToDo: `noetic` |
-| -u      | Select usage of the image such as for manipulation or navigation or both. ToDo: only base |
-| -s      | Enable simulation. Default it is disabled |
+| Options | Argument  | Description |
+|---------|-----------|-------------|
+|  -v     | `humble|rolling` | Select ROS version. Currently `humble` and `rolling` is available. ToDo: `noetic` |
+|  -u     | `manipulation|navigation|both`|Select usage of the image such as for manipulation or navigation or both. ToDo: only base |
+|  -s     | `true|false` | Enable simulation. Default it is disabled |
+|  -i     | `name of the image` | Provide the Image Name |
+|  -b     | `NULL` | Choose build mode | 
+|  -r     | `NULL` | Run mode |
+|  -w     | `/path/to/your/workspace` | Attach your workspace only required while run (-r) |
+|  -h     | `NULL` | Show help |
+
 ### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)
