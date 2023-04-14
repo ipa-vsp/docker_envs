@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=22.04
+ARG BASE_IMAGE=22.04 
 FROM ubuntu:${BASE_IMAGE}
 
 # disable terminal interaction for apt
@@ -59,3 +59,4 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
         clang gdb gdbserver\
 && rm -rf /var/lib/apt/lists/* \
 && apt-get clean
+
