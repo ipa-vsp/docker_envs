@@ -1,0 +1,27 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "humble" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+        ros-${ROS_DISTRO}-moveit \
+        ros-${ROS_DISTRO}-rviz-visual-tools \
+        ros-${ROS_DISTRO}-moveit-resources \
+        ros-${ROS_DISTRO}-ros2-control \
+        ros-${ROS_DISTRO}-ros2-controllers \
+        ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean ; else echo Selected ROS1 ; fi
+
+RUN if [[ "${ROS_DISTRO}" = "noetic" || "${ROS_DISTRO}" = "melodic" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+        ros-${ROS_DISTRO}-moveit \
+        ros-${ROS_DISTRO}-rviz-visual-tools \
+        ros-${ROS_DISTRO}-moveit-resources \
+        ros-${ROS_DISTRO}-ros-control \
+        ros-${ROS_DISTRO}-ros-controllers \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean ; else echo Selected ROS2 ; fi
+
+# RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+#         ros-${ROS_DISTRO}-moveit-servo \
+#         ros-${ROS_DISTRO}-moveit-visual-tools \
+# && rm -rf /var/lib/apt/lists/* \
+# && apt-get clean
