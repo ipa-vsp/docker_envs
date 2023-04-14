@@ -153,8 +153,9 @@ elif [[ "$BUILD" == true ]]; then
     if [[ "$SIMULATION" == true ]]; then
         DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.gazebo"
         if [[ -f "${DOCKERFILE}" ]]; then
-            BASE="${BASE}.gazeo"
-            ${ROOT}/build_image.sh $DOCKERFILE $BASE
+            BASE="${IMAGE_NAME}"
+            IMAGE_NAME="${IMAGE_NAME}.gazebo"
+            ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
         fi
     fi
 
