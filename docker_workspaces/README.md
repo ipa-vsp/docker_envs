@@ -81,7 +81,7 @@
 - Example Dockerfile.
 
     ```dockerfile
-    FROM ubuntu2204.rolling.moveit
+    FROM myenvos:22.04.rolling.moveit
 
     RUN apt-get update && apt-get install -y \
             software-properties-common sudo \
@@ -151,3 +151,8 @@
     ENV NVIDIA_DRIVER_CAPABILITIES \
         ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
     ```
+
+## Description of the devcontainer.json file
+There is two way to utilize the image built by the script the devcontainer.
+- During `./run_env.sh` exports the final image as my_image:latest. You can use this image in the devcontainer.json file. This is the recommended way. However, this might have necessary packages that you require.
+- Use dockerfile to build the image. Main advantage of this is that you can add any packages that you require.

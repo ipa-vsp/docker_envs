@@ -84,7 +84,7 @@ fi
 DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
 BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
-IMAGE_NAME="os:${OS_VERSION}"
+IMAGE_NAME="myenvos:${OS_VERSION}"
 
 
 if [[ "$BUILD" == false && "$RUN" == false ]] || [[ "$BUILD" == true && "$RUN" == true ]]; then
