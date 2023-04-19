@@ -2,7 +2,7 @@
 # ==============================
 - `cd scripts`. This directory contains the scripts to create a new Docker workspace.
 - `./run_env.sh`. This script will create a new Docker workspace and run it.
-    - `./run_env.sh -h` for help. 
+    - `./run_env.sh -h` for help.
 
     ```bash
         Usage: ./run_env.sh -o 22.04|20.04 -v humble|rolling|noetic -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws
@@ -46,7 +46,7 @@
                 "extensions":[
                     "ms-vscode.cpptools",
                     "ms-vscode.cpptools-themes",
-                    "ms-azuretools.vscode-docker", 
+                    "ms-azuretools.vscode-docker",
                     "ms-vscode.cpptools-extension-pack",
                     "donjayamanne.python-extension-pack",
                     "josetr.cmake-language-support-vscode",
@@ -78,7 +78,7 @@
         "postCreateCommand": "/usr/local/bin/scripts/workspace-entrypoint.sh && sudo chown -R admin:admin /home/admin/colcon_ws" // Caution: This will run the entrypoint script in the dockerfile. You can modify it according to your requirements. Remember to change user name and workspace path.
     }
     ```
-- Example Dockerfile. 
+- Example Dockerfile.
 
     ```dockerfile
     FROM ubuntu2204.rolling.moveit
@@ -151,4 +151,3 @@
     ENV NVIDIA_DRIVER_CAPABILITIES \
         ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
     ```
-
