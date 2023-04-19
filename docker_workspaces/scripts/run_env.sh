@@ -84,7 +84,7 @@ fi
 DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
 BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
-IMAGE_NAME="ubuntu:${OS_VERSION}"
+IMAGE_NAME="os:${OS_VERSION}"
 
 
 if [[ "$BUILD" == false && "$RUN" == false ]] || [[ "$BUILD" == true && "$RUN" == true ]]; then
@@ -94,17 +94,16 @@ elif [[ "$BUILD" == true ]]; then
     ${ROOT}/build_image.sh $BASE_FILE $OS_VERSION $IMAGE_NAME
 
     if [[ "$ROS_VERSION" == "rolling" ]]; then
-        DOCKER_DIR="${ROOT}/../rolling"
+        DOCKER_DIR="${ROOT}/../ros2"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.rolling"
         if [[ -f "${DOCKERFILE}" ]]; then
-            # DOCKERFILES+=(${DOCKERFILE})
             BASE="${IMAGE_NAME}"
             IMAGE_NAME="${IMAGE_NAME}.rolling"
             ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
         fi
     elif [[ "$ROS_VERSION" == "humble" ]]; then
-        DOCKER_DIR="${ROOT}/../humble"
+        DOCKER_DIR="${ROOT}/../ros2"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.humble"
         if [[ -f "${DOCKERFILE}" ]]; then
