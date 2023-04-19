@@ -24,17 +24,21 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 && apt-get clean
 
 # Python basics
-RUN apt-get update && apt-get install -y \
+RUN if [[ "${BASE_IMAGE}" = "22.04" || "${BASE_IMAGE}" = "20.04" ]] ; then apt-get update && apt-get install -y \
         python3-flake8 \
         python3-pip \
         python3-pybind11 \
         python3-pytest-cov \
         python3-setuptools \
 && rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
+&& apt-get clean ; else apt-get update && apt-get install -y \
+        python-flake8 \
+        python-pip \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean ; fi
 
 # Python3 (PIP)
-RUN python3 -m pip install -U \
+RUN if [[ "${BASE_IMAGE}" = "22.04" || "${BASE_IMAGE}" = "20.04" ]] ; then python3 -m pip install -U \
         argcomplete \
         autopep8 \
         flake8 \
@@ -51,7 +55,7 @@ RUN python3 -m pip install -U \
         pytest-rerunfailures \
         pytest \
         pydocstyle \
-        scikit-learn
+        scikit-learn ; else echo using 16.04 ; fi
 
 # Install Git-LFS
 RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \

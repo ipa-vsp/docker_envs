@@ -20,7 +20,7 @@ trap cleanup EXIT
 help()
 {
     echo ""
-    echo "Usage: $0 -o 22.04|20.04 -v humble|rolling|noetic -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws"
+    echo "Usage: $0 -o 22.04|20.04|18.04|16.04 -v humble|rolling|noetic|kinetic -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws"
     echo -e "\t-o Select OS version 22.04 or 20.04"
     echo -e "\t-v Select ROS version"
     echo -e "\t-u Select usage of the image"
@@ -115,6 +115,15 @@ elif [[ "$BUILD" == true ]]; then
         DOCKER_DIR="${ROOT}/../ros1"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.noetic"
+        if [[ -f "${DOCKERFILE}" ]]; then
+            BASE="${IMAGE_NAME}"
+            IMAGE_NAME="${IMAGE_NAME}.noetic"
+            ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
+        fi
+    elif [[ "$ROS_VERSION" == "kinetic" ]]; then
+        DOCKER_DIR="${ROOT}/../ros1"
+        DOCKER_SEARCH_DIR=(${DOCKER_DIR})
+        DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.kinetic"
         if [[ -f "${DOCKERFILE}" ]]; then
             BASE="${IMAGE_NAME}"
             IMAGE_NAME="${IMAGE_NAME}.noetic"
