@@ -3,11 +3,6 @@
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $ROOT/print_color.sh
 
-function usage(){
-    print_info "Usage: run_env.sh"
-    print_info "Author: Vishnuprasad Prachandabhanu"
-}
-
 ON_EXIT=()
 function cleanup {
     for command in "${ON_EXIT[@]}"
@@ -209,3 +204,10 @@ elif [[ "$RUN" == true ]]; then
                $FINAL_IMAGE \
                bash
 fi
+
+function usage() {
+    print_info "Author: Vishnuprasad Prachandabhanu"
+}
+
+usage
+exit 0
