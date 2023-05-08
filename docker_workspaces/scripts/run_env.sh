@@ -121,7 +121,7 @@ elif [[ "$BUILD" == true ]]; then
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.kinetic"
         if [[ -f "${DOCKERFILE}" ]]; then
             BASE="${IMAGE_NAME}"
-            IMAGE_NAME="${IMAGE_NAME}.noetic"
+            IMAGE_NAME="${IMAGE_NAME}.kinetic"
             ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
         fi
     else
