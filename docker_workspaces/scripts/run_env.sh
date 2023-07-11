@@ -89,6 +89,7 @@ elif [[ "$BUILD" == true ]]; then
     ${ROOT}/build_image.sh $BASE_FILE $OS_VERSION $IMAGE_NAME
 
     if [[ "$ROS_VERSION" == "rolling" ]]; then
+        print_warning "Rolling"
         DOCKER_DIR="${ROOT}/../ros2"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.rolling"
@@ -98,6 +99,7 @@ elif [[ "$BUILD" == true ]]; then
             ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
         fi
     elif [[ "$ROS_VERSION" == "humble" ]]; then
+        print_warning "Humble"
         DOCKER_DIR="${ROOT}/../ros2"
         DOCKER_SEARCH_DIR=(${DOCKER_DIR})
         DOCKERFILE="${DOCKER_SEARCH_DIR}/Dockerfile.humble"
