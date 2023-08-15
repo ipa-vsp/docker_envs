@@ -5,7 +5,7 @@
 |      ROS2                 |[![ROS2 Images](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml)| [prachandabhanu/build_env:humble](https://hub.docker.com/layers/prachandabhanu/build_env/humble/images/sha256-7b7eaecc9aba8c03698fdffe138103033e8061edc039822f17abb5b4ea734827?context=repo) |
 |Pytorch 2.0.1 with Detectron2 and Pytorch3D |[![Pytorch with Detectron2 and Pytorch3D](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-2-0-1.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-2-0-1.yml)| [prachandabhanu/build_env:pytorch-1_10_0](https://hub.docker.com/layers/prachandabhanu/build_env/pytorch-1_10_0/images/sha256-d28064941741b92076b2654e31b721425f4daeb91c5e393c4cf4df296e8fbb0d?context=repo) |
 | Clang Formatting               |[![Clang-Format](https://github.com/ipa-vsp/docker_envs/actions/workflows/ci-formater.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ci-formater.yml)|
-| Pre-commit formatting         | [![Pre-commit Format](https://github.com/ipa-vsp/docker_envs/actions/workflows/formatter.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/formatter.yml) |
+| Pre-commit formatting         | [![Pre-commit Formatting](https://github.com/ipa-vsp/docker_envs/actions/workflows/pre-formater.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pre-formater.yml) |
 
 ## [Precommit hook](https://pre-commit.com/)
 1. Install: `pip install pre-commit`
