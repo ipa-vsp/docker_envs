@@ -41,7 +41,7 @@ ENV TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST}"
 
 RUN pip3 install scikit-image matplotlib imageio plotly opencv-python
 RUN pip3 install black usort flake8 flake8-bugbear flake8-comprehensions
-# RUN pip3 install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
+RUN pip3 install "git+https://github.com/facebookresearch/pytorch3d.git@v0.7.4"
 
 RUN pip3 install --user jupyter numpy pandas matplotlib pillow plotly scikit-learn seaborn wandb albumentations
 
