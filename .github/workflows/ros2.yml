@@ -9,8 +9,8 @@ on:
     # branches: [ main ]
     paths:
       - 'dockerhub/ros2_ci_build/**'
-  pull_request:
-    branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
   schedule:
     - cron: '0 0 * * 0'
 
