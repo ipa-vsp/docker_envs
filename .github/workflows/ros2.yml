@@ -22,8 +22,9 @@ jobs:
     strategy:
       matrix:
         env:
-          - {ROS_DISTRO: galactic}
           - {ROS_DISTRO: humble}
+          - {ROS_DISTRO: iron}
+          - {ROS_DISTRO: rolling}
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
