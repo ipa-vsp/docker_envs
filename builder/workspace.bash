@@ -103,6 +103,15 @@ function apt_get_install {
     fi
 }
 
+function apt_get_update {
+    local cmd=()
+    if command -v sudo > /dev/null; then
+        cmd+=(sudo)
+    fi
+    cmd+=(apt-get update -qq)
+    "${cmd[@]}"
+}
+
 function pass_ci_token {
     local rosinstall_file=$1; shift
     if ! command -v gettext > /dev/null; then
@@ -185,6 +194,7 @@ function install_dep_python {
 
 function build_workspace {
     local ws=$1; shift
+    apt_get_update
     apt_get_install build-essential
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"
