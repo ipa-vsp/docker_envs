@@ -1,2 +1,2 @@
 FROM scratch
-COPY installation.bash /
+COPY builder/workspace.bash /
