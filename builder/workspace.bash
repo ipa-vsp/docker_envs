@@ -41,6 +41,11 @@ function install_from_rosinstall {
     rm "$rosinstall_file"
 }
 
+function resolve_depends {
+    local ws=$1
+    rosdep install --from-paths "$ws" --ignore-src -y -r
+}
+
 function install_dep_python {
     local ws=$1
     apt_get_install python3-pip >/dev/null
@@ -53,6 +58,8 @@ function build_workspace {
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"
     find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)' -exec install_from_rosinstall {} "$ws/src/" \;
+    resolve_depends "$ws/src"
+    install_dep_python "$ws/src"
     if [ "$ROS_VERSION" -eq 1 ]; then
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=0 "$CMAKE_ARGS"
     elif [ "$ROS_VERSION" -eq 2 ]; then
