@@ -81,32 +81,38 @@ function test_workspace {
 
 function install_workspace {
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    if [ "$ROS_VERSION" -eq 1 ]; then
-        local ws=$1
-        "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" --install --install-space "/opt/ros/$ROS_DISTRO"
-    elif [ "$ROS_VERSION" -eq 2 ]; then
-        local ws=$1
-        rm -rf "$ws/build"
+    echo "ROS_VERSION: $ROS_VERSION"
+    echo "ROS_DISTRO: $ROS_DISTRO"
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        echo "It is: $ROS_DISTRO"
+        local ws=$1; shift
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws" --install --install-space "/opt/ros/$ROS_DISTRO"
+    fi
+    if [[ "$ROS_VERSION" -eq 2 ]]; then
+        echo "It is: $ROS_DISTRO"
+        local ws=$1; shift
+        rm -r "$ws"/build
         make_ros_entrypoint "$ws" > /ros_entrypoint.sh
         source "/ros_entrypoint.sh"
+    fi
+    if [[ "$ROS_VERSION" -ne 2 ]] && [[ "$ROS_VERSION" -ne 1 ]]; then
+        exit 1
     fi
 }
 
 function make_ros_entrypoint {
-    local ws=$1
-cat <<- _EOF_ > /ros_entrypoint.sh
+    local ws=$1; shift
+cat <<- _EOF_
 #!/bin/bash
 set -e
 
-# setup ros environment
-source "/opt/ros/$ROS_DISTRO/setup.bash"
-if [ -f "$ws/install/setup.bash" ]; then
-    source "$ws/install/setup.bash"
+# setup ros2 environment
+source "/opt/ros/$ROS_DISTRO/setup.bash" --
+if [ -f "$ws"/install/setup.bash ]; then
+source "$ws/install/setup.bash" --
 fi
 exec "\$@"
 _EOF_
-
-chmod +x /ros_entrypoint.sh
 }
 
 if [ -n "$*" ]; then
