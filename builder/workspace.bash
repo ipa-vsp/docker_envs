@@ -43,7 +43,29 @@ function install_from_rosinstall {
 
 function resolve_depends {
     local ws=$1
-    rosdep install --from-paths "$ws" --ignore-src -y -r
+    if [ -z "$ws" ]; then
+        echo "Error: Workspace path is not provided."
+        return 1
+    fi
+
+    case "$ROS_VERSION" in
+        1)
+            # For ROS1, you can directly use your provided logic or the logic from the given function.
+            echo "Resolving dependencies for ROS1..."
+            rosdep install --from-paths "$ws" --ignore-src -y -r
+            ;;
+
+        2)
+            # For ROS2, similar to above. You can customize this.
+            echo "Resolving dependencies for ROS2..."
+            rosdep install --from-paths "$ws" --ignore-src -y -r
+            ;;
+
+        *)
+            echo "Error: Unsupported ROS version. Please use ROS 1 or 2."
+            return 1
+            ;;
+    esac
 }
 
 function install_dep_python {
