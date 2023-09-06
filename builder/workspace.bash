@@ -70,15 +70,17 @@ function resolve_depends {
 
     case "$ROS_VERSION" in
         1)
-            # For ROS1, you can directly use your provided logic or the logic from the given function.
+            # For ROS1
             echo "Resolving dependencies for ROS1..."
-            rosdep install --from-paths "$ws" --ignore-src -y -r
+            rosdep keys --from-paths "$ws/src" --ignore-src > "$ws/DEPENDS"
+            rosdep install --from-paths "$ws/src" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
             ;;
 
         2)
-            # For ROS2, similar to above. You can customize this.
+            # For ROS2
             echo "Resolving dependencies for ROS2..."
-            rosdep install --from-paths "$ws" --ignore-src -y -r
+            rosdep keys --from-paths "$ws/src" --ignore-src > "$ws/DEPENDS"
+            rosdep install --from-paths "$ws/src" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
             ;;
 
         *)
@@ -103,7 +105,7 @@ function build_workspace {
         echo "Installing from $file..."
         install_from_rosinstall "$file" "$ws/src"
     done
-    resolve_depends "$ws/src"
+    resolve_depends "$ws"
     install_dep_python "$ws/src"
     if [ "$ROS_VERSION" -eq 1 ]; then
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=0 "$CMAKE_ARGS"
