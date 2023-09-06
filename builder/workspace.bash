@@ -3,6 +3,58 @@
 set -e
 set -o pipefail
 
+function builder_setup {
+    apt_get_install python3-colcon-common-extensions python3-catkin-pkg python3-pip
+    python3 -m pip install catkin_pkg
+}
+function grep_opt {
+    grep "$@" || [[ $? = 1 ]]
+}
+
+function update_list {
+    local ws=$1; shift
+    setup_rosdep
+    if [ -f "$ws"/src/extra.sh ]; then
+        "$ws"/src/extra.sh
+    fi
+}
+
+function run_sh_files() {
+    local ws=$1; shift
+    local sh_files=("$@")
+    setup_rosdep
+    for file in "${sh_files[@]}";
+    do
+       if [ -f "$ws"/src/"$file" ]; then
+        chmod +x "$ws"/src/"$file"
+        "$ws"/src/"$file"
+        fi
+    done
+}
+
+function read_depends {
+    local src=$1; shift
+    for dt in "$@"; do
+        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src"
+    done
+}
+
+function list_packages {
+    if [ "$ROS_VERSION" -eq 1 ]; then
+        local src=$1; shift
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_topological_order --only-names "/opt/ros/$ROS_DISTRO/share"
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_topological_order --only-names "$src"
+    fi
+    if [ "$ROS_VERSION" -eq 2 ]; then
+        if ! command -v colcon > /dev/null; then
+            apt_get_install python3-colcon-common-extensions
+        fi
+        local src=$1; shift
+        colcon list --base-paths "/opt/ros/$ROS_DISTRO/share" --names-only
+        colcon list --base-paths "$src" --names-only
+    fi
+}
+
 function apt_get_install {
     local cmd=()
     if command -v sudo > /dev/null; then
@@ -82,15 +134,13 @@ function resolve_depends {
         1)
             # For ROS1
             echo "Resolving dependencies for ROS1..."
-            rosdep keys --from-paths "$ws/src" --ignore-src > "$ws/DEPENDS"
-            rosdep install --from-paths "$ws/src" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
+            rosdep install --from-paths "$ws" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
             ;;
 
         2)
             # For ROS2
             echo "Resolving dependencies for ROS2..."
-            rosdep keys --from-paths "$ws/src" --ignore-src > "$ws/DEPENDS"
-            rosdep install --from-paths "$ws/src" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
+            rosdep install --from-paths "$ws" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
             ;;
 
         *)
@@ -98,6 +148,21 @@ function resolve_depends {
             return 1
             ;;
     esac
+}
+
+function create_depends {
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        local src=$1; shift
+        comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
+    fi
+    if [[ "$ROS_VERSION" -eq 2 ]]; then
+        local src=$1; shift
+        comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r rosdep resolve | grep_opt -v '^#' | sort -u
+    fi
+    if [ "$ROS_VERSION" -ne 2 ] && [ "$ROS_VERSION" -ne 1 ]; then
+        echo "Cannot get ROS_VERSION"
+        exit 1
+    fi
 }
 
 function install_dep_python {
@@ -115,7 +180,9 @@ function build_workspace {
         echo "Installing from $file..."
         install_from_rosinstall "$file" "$ws/src"
     done
-    resolve_depends "$ws"
+    resolve_depends "$ws/src"
+    create_depends "$ws/src" depend build_export_depend exec_depend run_depend > "$ws/DEPENDS"
+    create_depends "$ws/src" depend build_depend build_export_depend | apt_get_install
     install_dep_python "$ws/src"
     if [ "$ROS_VERSION" -eq 1 ]; then
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=0 "$CMAKE_ARGS"
@@ -127,6 +194,7 @@ function build_workspace {
 function test_workspace {
     local ws=$1
     source "/opt/ros/$ROS_DISTRO/setup.bash"
+    create_depends "$ws/src" depend exec_depend run_depend test_depend | apt_get_install
     if [ "$ROS_VERSION" -eq 1 ]; then
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=1
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_test_results --verbose "$ws"
