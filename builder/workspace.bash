@@ -36,7 +36,27 @@ function setup_rosdep {
 function install_from_rosinstall {
     local rosinstall_file=$1
     local location=$2
-    apt_get_install git vcstool >/dev/null
+    source "/opt/ros/$ROS_DISTRO/setup.bash"
+    if ! command -v vcstool > /dev/null; then
+        if [[ "$ROS_VERSION" -eq 1 ]]; then
+            if [ "$ROS_DISTRO" = "noetic" ]; then
+                apt_get_install python3-vcstool > /dev/null
+            else
+                apt_get_install python-vcstool > /dev/null
+            fi
+        fi
+        if [[ "$ROS_VERSION" -eq 2 ]]; then
+            apt_get_install python3-vcstool > /dev/null
+        fi
+        if [[ "$ROS_VERSION" -ne 2 ]] && [[ "$ROS_VERSION" -ne 1 ]]; then
+            echo "Cannot get ROS_VERSION"
+            exit 1
+        fi
+    fi
+    # install git
+    if ! command -v git > /dev/null; then
+        apt_get_install git > /dev/null
+    fi
     vcs import "$location" < "$rosinstall_file"
     rm "$rosinstall_file"
 }
