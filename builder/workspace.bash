@@ -79,7 +79,7 @@ function build_workspace {
     apt_get_install build-essential
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    for file in (find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
+    for file in $(find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
         echo "Installing from $file..."
         install_from_rosinstall "$file" "$ws/src"
     done
