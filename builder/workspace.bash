@@ -79,7 +79,10 @@ function build_workspace {
     apt_get_install build-essential
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)' -exec install_from_rosinstall {} "$ws/src/" \;
+    for file in (find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
+        echo "Installing from $file..."
+        install_from_rosinstall "$file" "$ws/src"
+    done
     resolve_depends "$ws/src"
     install_dep_python "$ws/src"
     if [ "$ROS_VERSION" -eq 1 ]; then
