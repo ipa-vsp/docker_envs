@@ -155,6 +155,7 @@ function install_from_rosinstall {
     # cat "$rosinstall_file"
     vcs import "$location" < "$rosinstall_file"
     rm "$rosinstall_file"
+    echo "vcs import done"
 }
 
 function install_from_rosinstall_folder {
