@@ -18,17 +18,27 @@ function apt_get_install {
 
 function setup_rosdep {
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    if ! command -v rosdep > /dev/null; then
-        if [ "$ROS_VERSION" -eq 1 ] && [ "$ROS_DISTRO" != "noetic" ]; then
-            apt_get_install python-rosdep
+    if [ "$ROS_VERSION" -eq 1 ]; then
+        if [ "$ROS_DISTRO" == "noetic" ]; then
+            if ! command -v rosdep > /dev/null; then
+                apt_get_install python3-rosdep > /dev/null
+            fi
         else
-            apt_get_install python3-rosdep
+            if ! command -v rosdep > /dev/null; then
+                apt_get_install python-rosdep > /dev/null
+            fi
         fi
     fi
+    if [ "$ROS_VERSION" -eq 2 ]; then
+        if ! command -v rosdep > /dev/null; then
+            apt_get_install python3-rosdep > /dev/null
+        fi
+    fi
+
     if command -v sudo > /dev/null; then
         sudo rosdep init || true
     else
-        rosdep init || true
+        rosdep init | true
     fi
     rosdep update
 }
