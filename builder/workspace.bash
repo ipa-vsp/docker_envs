@@ -126,6 +126,11 @@ function test_workspace {
     fi
 }
 
+function install_depends {
+    local ws=$1; shift
+    apt_get_install < "$ws/DEPENDS"
+}
+
 function install_workspace {
     source "/opt/ros/$ROS_DISTRO/setup.bash"
     echo "ROS_VERSION: $ROS_VERSION"
