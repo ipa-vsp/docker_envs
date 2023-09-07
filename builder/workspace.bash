@@ -193,7 +193,7 @@ function build_workspace {
 function test_workspace {
     local ws=$1
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    create_depends "$ws/src" depend exec_depend run_depend test_depend | apt_get_install
+    # create_depends "$ws/src" depend exec_depend run_depend test_depend | apt_get_install
     if [ "$ROS_VERSION" -eq 1 ]; then
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=1
         "/opt/ros/$ROS_DISTRO/env.sh" catkin_test_results --verbose "$ws"
