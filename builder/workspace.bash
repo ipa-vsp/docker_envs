@@ -32,10 +32,14 @@ function run_sh_files() {
     done
 }
 
+function strip_xml_comments {
+    sed -e 's/<!--.*-->//g'
+}
+
 function read_depends {
     local src=$1; shift
     for dt in "$@"; do
-        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src"
+        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src" | strip_xml_comments
     done
 }
 
@@ -154,12 +158,10 @@ function create_depends {
     if [[ "$ROS_VERSION" -eq 1 ]]; then
         local src=$1; shift
         comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
-    fi
-    if [[ "$ROS_VERSION" -eq 2 ]]; then
+    elif [[ "$ROS_VERSION" -eq 2 ]]; then
         local src=$1; shift
         comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r rosdep resolve | grep_opt -v '^#' | sort -u
-    fi
-    if [ "$ROS_VERSION" -ne 2 ] && [ "$ROS_VERSION" -ne 1 ]; then
+    else
         echo "Cannot get ROS_VERSION"
         exit 1
     fi
