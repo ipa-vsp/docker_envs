@@ -32,10 +32,14 @@ function run_sh_files() {
     done
 }
 
+function strip_xml_comments {
+    sed -e '/<!--/ , /-->/d'
+}
+
 function read_depends {
     local src=$1; shift
     for dt in "$@"; do
-        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src" | grep -vP "(<!--.*-->)"
+        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src" | strip_xml_comments
     done
 }
 
