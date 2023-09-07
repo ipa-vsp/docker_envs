@@ -32,16 +32,13 @@ function run_sh_files() {
     done
 }
 
-function strip_xml_comments {
-    sed -e 's/<!--.*-->//g'
-}
-
 function read_depends {
     local src=$1; shift
     for dt in "$@"; do
-        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src" | strip_xml_comments
+        grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src" | grep -vP "(<!--.*-->)"
     done
 }
+
 
 function list_packages {
     if [ "$ROS_VERSION" -eq 1 ]; then
