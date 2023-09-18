@@ -42,7 +42,7 @@ jobs:
           images: ${{ secrets.DOCKER_USERNAME }}/build_env
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: dockerhub/ros2_ci_build/Dockerfile
