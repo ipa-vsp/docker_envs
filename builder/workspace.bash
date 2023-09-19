@@ -155,21 +155,21 @@ function resolve_depends {
     esac
 }
 
-function remove_comments {
-    local src=$1
-    find "$src" -name 'package.xml' | while read -r file; do
-        sed -i '/<!--/,/-->/d' "$file"
-    done
-}
+# function remove_comments {
+#     local src=$1
+#     find "$src" -name 'package.xml' | while read -r file; do
+#         sed -i '/<!--/,/-->/d' "$file"
+#     done
+# }
 
 function create_depends {
     if [[ "$ROS_VERSION" -eq 1 ]]; then
         local src=$1; shift
-        remove_comments "$src"
+        # remove_comments "$src"
         comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
     elif [[ "$ROS_VERSION" -eq 2 ]]; then
         local src=$1; shift
-        remove_comments "$src"
+        # remove_comments "$src"
         comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r rosdep resolve | grep_opt -v '^#' | sort -u
     else
         echo "Cannot get ROS_VERSION"
