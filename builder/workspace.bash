@@ -242,6 +242,18 @@ function install_workspace {
     fi
 }
 
+function finalize_workspace {
+    local ws=$1
+    apt_get_install build-essential
+    setup_rosdep
+    source "/opt/ros/$ROS_DISTRO/setup.bash"
+    for file in $(find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
+        echo "Installing from $file..."
+        install_from_rosinstall "$file" "$ws/src"
+    done
+    resolve_depends "$ws/src"
+}
+
 function make_ros_entrypoint {
     local ws=$1; shift
 cat <<- _EOF_
