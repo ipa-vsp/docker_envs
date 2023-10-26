@@ -6,23 +6,15 @@ ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# Install prerequisites
+# Install prerequisites and cleanup in a single step
 RUN apt-get update && apt-get install -y \
         sudo \
-&& rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Reuse triton-server user as 'admin' user if exists
-RUN if [ $(getent group triton-server) ]; then \
-        groupmod --gid ${USER_GID} -n ${USERNAME} triton-server ; \
-        usermod -l ${USERNAME} -m -d /home/${USERNAME} triton-server ; \
-        mkdir -p /home/${USERNAME} ; \
-        sudo chown ${USERNAME}:${USERNAME} /home/${USERNAME} ; \
-    fi
-
-# Create the 'admin' user if not already exists
+# Create/modify the 'admin' user and group if necessary
 RUN if [ ! $(getent passwd ${USERNAME}) ]; then \
-        groupadd --gid ${USER_GID} ${USERNAME} ; \
+        groupadd --gid ${USER_GID} ${USERNAME} && \
         useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} ; \
     fi
 
@@ -31,22 +23,39 @@ RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME} \
     && adduser ${USERNAME} video && adduser ${USERNAME} sudo
 
-# Copy scripts
+# Copy and set permissions for scripts
 RUN mkdir -p /usr/local/bin/scripts
 COPY *entrypoint.sh /usr/local/bin/scripts/
-RUN  chmod +x /usr/local/bin/scripts/*.sh
+RUN chmod +x /usr/local/bin/scripts/*.sh
 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
-#  RUN mkdir -p colcon_ws
-RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "humble" ]] ; then mkdir -p colcon_ws ; else echo Selected ROS1 ; fi
-RUN if [[ "${ROS_DISTRO}" = "noetic" || "${ROS_DISTRO}" = "melodic" ]] ; then mkdir -p catkin_ws ; else echo Selected ROS2 ; fi
 
+# Create appropriate workspace depending on ROS_DISTRO
+RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "humble" ]]; then mkdir -p colcon_ws ; else echo Selected ROS1 ; fi && \
+    if [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then mkdir -p catkin_ws ; else echo Selected ROS2 ; fi
+
+# Update .bashrc for git prompt
+RUN echo "# Function to get the current git branch \
+force_color_prompt=yes \
+color_prompt=yes \
+parse_git_branch() { \
+    command -v git >/dev/null 2>&1 || return \
+    local branch_name=$(git symbolic-ref --short HEAD 2>/dev/null) \
+    if [ -n \"$branch_name\" ]; then \
+        echo \"($branch_name)\" \
+    fi \
+} \
+if [ \"$color_prompt\" = yes ]; then \
+ PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;31m\]$(parse_git_branch)\[\033[00m\]\$ ' \
+else \
+ PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w$(parse_git_branch)\$ ' \
+fi \
+unset color_prompt force_color_prompt" >> ~/.bashrc
+
+# Set Environment Variables
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
-
-ENV NVIDIA_VISIBLE_DEVICES \
-    ${NVIDIA_VISIBLE_DEVICES:-all}
-ENV NVIDIA_DRIVER_CAPABILITIES \
-    ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics

@@ -27,5 +27,27 @@ which should map to the ID and group for your user on the Docker host. Great!
 EXPL
 fi
 
+# Function to get the current git branch
+force_color_prompt=yes
+color_prompt=yes
+parse_git_branch() {
+    # Check if git command exists
+    command -v git >/dev/null 2>&1 || return
+
+    # Use git to directly fetch the current branch name
+    local branch_name=$(git symbolic-ref --short HEAD 2>/dev/null)
+    if [ -n "$branch_name" ]; then
+        echo "($branch_name)"
+    fi
+}
+
+if [ "$color_prompt" = yes ]; then
+ PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;31m\]$(parse_git_branch)\[\033[00m\]\$ '
+else
+ PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w$(parse_git_branch)\$ '
+fi
+
+unset color_prompt force_color_prompt
+
 # Turn off colors
 echo -e "\e[m"
