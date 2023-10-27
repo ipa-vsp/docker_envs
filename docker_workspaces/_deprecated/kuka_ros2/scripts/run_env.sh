@@ -82,8 +82,8 @@ if [ "$(docker ps -a --quiet --filter status=exited --filter name=$CONTAINER_NAM
     docker rm $CONTAINER_NAME > /dev/null
 fi
 
-# Re-use existing container
-# Re-use existing container.
+# Reuse existing container
+# Reuse existing container.
 if [ "$(docker ps -a --quiet --filter status=running --filter name=$CONTAINER_NAME)" ]; then
     print_info "Attaching to running container: $CONTAINER_NAME"
     docker exec -i -t -u admin --workdir /ros_ws/colcon_kuka_ws $CONTAINER_NAME /bin/bash $@
