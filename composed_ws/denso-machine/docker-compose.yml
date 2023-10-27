@@ -1,0 +1,20 @@
+version: '3.9'
+# Demo
+services:
+    bt_framework_humble:
+        image: bt_framework:ws
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_bt_ws/src:/home/admin/colcon_ws/src
+            - ../denso-machine:/home/admin/colcon_ws
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top"
