@@ -1,0 +1,68 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+RUN locale-gen en_US en_US.UTF-8
+RUN update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV ROS_PYTHON_VERSION=3
+
+# Basics
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+        curl \
+        gnupg \
+        lsb-release \
+        software-properties-common \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean
+
+RUN apt-get update && add-apt-repository universe \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Add ROS2 apt repository
+RUN wget -qO - https://isaac.download.nvidia.com/isaac-ros/repos.key | apt-key add -
+RUN wget -qO - https://isaac.download.nvidia.cn/isaac-ros/repos.key | apt-key add -
+RUN echo 'deb https://isaac.download.nvidia.com/isaac-ros/ubuntu/main focal main' | tee -a "/etc/apt/sources.list"
+RUN echo 'deb https://isaac.download.nvidia.cn/isaac-ros/ubuntu/main focal main' | tee -a "/etc/apt/sources.list"
+
+# ROS fundamentals
+RUN apt-get update && apt-get install -y \
+        build-essential \
+        cmake \
+        git \
+        python3-flake8 \
+        python3-flake8-blind-except \
+        python3-flake8-builtins \
+        python3-flake8-class-newline \
+        python3-flake8-comprehensions \
+        python3-flake8-deprecated \
+        python3-flake8-docstrings \
+        python3-flake8-import-order \
+        python3-flake8-quotes \
+        python3-pip \
+        python3-pytest \
+        python3-pytest-cov \
+        python3-pytest-repeat \
+        python3-pytest-rerunfailures \
+        python3-rosinstall-generator \
+        wget \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean
+
+ENV ROS_DISTRO=humble
+ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
+
+RUN python3 -m pip install setuptools==58.2.0
+
+RUN apt update && apt --fix-broken install -y \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean
+
+RUN apt update && apt --fix-broken install -y \
+        ros-${ROS_DISTRO}-desktop-full \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean
+
+RUN apt-get update \
+    && rosdep init \
+    && rosdep update
