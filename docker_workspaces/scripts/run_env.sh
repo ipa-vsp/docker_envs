@@ -22,7 +22,7 @@ trap cleanup EXIT
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
     echo "  -o: OS version (22.04, 20.04, 18.04, 16.04) | Default: 22.04"
-    echo "  -v: ROS version (rolling, humble, noetic, kinetic) | Default: rolling"
+    echo "  -v: ROS version (rolling, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both) | Default: manipulation"
     echo "  -s: Enable simulation | Default: false"
     echo "  -i: Final image name"
@@ -69,15 +69,22 @@ fi
 # Define and manage Docker images
 DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
-BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
+echo "ROS_VERSION: $ROS_VERSION"
+if [[ "$ROS_VERSION" == "isaachumble" ]]; then
+    BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.cuda"
+else
+    BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
+fi
 IMAGE_NAME="myenvos:${ROS_VERSION}"
 
 # Build section
 if [[ "$BUILD" == true ]]; then
     # List all the potential Dockerfiles and their final image names
+    echo "Building docker base file $BASE_FILE"
     ${ROOT}/build_image.sh "$BASE_FILE" "$OS_VERSION" "$IMAGE_NAME"
     declare -A DOCKERFILES=( ["rolling"]="${ROOT}/../ros2/Dockerfile.rolling"
                              ["humble"]="${ROOT}/../ros2/Dockerfile.humble"
+                             ["isaachumble"]="${ROOT}/../ros2/Dockerfile.isaachumble"
                              ["noetic"]="${ROOT}/../ros1/Dockerfile.noetic"
                              ["kinetic"]="${ROOT}/../ros1/Dockerfile.kinetic" )
 
