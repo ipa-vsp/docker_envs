@@ -1,0 +1,34 @@
+version: '3.9'
+
+networks:
+    local:
+        driver: bridge
+        internal: false
+        external: false
+        ipam:
+            config:
+                - subnet: "172.20.0.0/24"
+                  ip_range: "172.20.0.64/26"
+                  gateway: "172.20.0.1"
+
+# Demo
+services:
+    bt_framework_humble:
+        image: bt_framework:ws
+        networks:
+            local:
+                priority: 1000
+                ipv4_address: 172.20.0.8
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_bt_ws/src:/home/admin/colcon_ws/src
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top"
