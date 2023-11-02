@@ -1,8 +1,8 @@
 version: '3.9'
-# Demo
+
 services:
-    bt_framework_humble:
-        image: bt_framework:ws
+    humble_test:
+        image: canopen_humble:test
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -11,7 +11,7 @@ services:
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_bt_ws/src:/home/admin/colcon_ws/src
+            - ../../../colcon_minimax_ws/src:/home/admin/colcon_ws/src
         environment:
             - DISPLAY=$DISPLAY
             - ROS_DOMAIN_ID=73
