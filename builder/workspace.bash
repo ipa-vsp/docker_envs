@@ -185,6 +185,7 @@ function install_dep_python {
 
 function build_workspace {
     local ws=$1
+    echo "$ws"
     apt_get_install build-essential
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"

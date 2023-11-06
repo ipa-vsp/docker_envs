@@ -22,7 +22,7 @@ trap cleanup EXIT
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
     echo "  -o: OS version (22.04, 20.04, 18.04, 16.04) | Default: 22.04"
-    echo "  -v: ROS version (rolling, humble, isaachumble, noetic, kinetic) | Default: rolling"
+    echo "  -v: ROS version (rolling, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both) | Default: manipulation"
     echo "  -s: Enable simulation | Default: false"
     echo "  -i: Final image name"
@@ -83,6 +83,7 @@ if [[ "$BUILD" == true ]]; then
     echo "Building docker base file $BASE_FILE"
     ${ROOT}/build_image.sh "$BASE_FILE" "$OS_VERSION" "$IMAGE_NAME"
     declare -A DOCKERFILES=( ["rolling"]="${ROOT}/../ros2/Dockerfile.rolling"
+                             ["iron"]="${ROOT}/../ros2/Dockerfile.iron"
                              ["humble"]="${ROOT}/../ros2/Dockerfile.humble"
                              ["isaachumble"]="${ROOT}/../ros2/Dockerfile.isaachumble"
                              ["noetic"]="${ROOT}/../ros1/Dockerfile.noetic"
