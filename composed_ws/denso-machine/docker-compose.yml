@@ -7,9 +7,9 @@ networks:
         external: false
         ipam:
             config:
-                - subnet: "172.20.0.0/24"
-                  ip_range: "172.20.0.64/26"
-                  gateway: "172.20.0.1"
+                - subnet: "192.168.56.0/24"
+                  ip_range: "192.168.56.64/26"
+                  gateway: "192.168.56.1"
 
 # Demo
 services:
@@ -18,7 +18,7 @@ services:
         networks:
             local:
                 priority: 1000
-                ipv4_address: 172.20.0.8
+                ipv4_address: 192.168.56.8
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -38,7 +38,7 @@ services:
         networks:
             local:
                 priority: 1000
-                ipv4_address: 172.20.0.9
+                ipv4_address: 192.168.56.9
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -52,3 +52,24 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
+
+    opcua-test-server:
+        image: registry.gitlab.cc-asp.fraunhofer.de/ipa326/denso_nextgen/denso_ua_plc_sim
+        stdin_open: true
+        tty: true
+        networks:
+            local:
+                priority: 1000
+                ipv4_address: 192.168.56.4
+        ports:
+            - 4840:4840
+        environment:
+            - "OPCUA_IP=192.168.56.4"
+            - "OPCUA_PORT=4840"
+        command:
+        - bash
+        - -c
+        - |
+            source "/opt/ros/humble/setup.bash"
+            source "/ros_ws/install/setup.bash"
+            ros2 run opcua_test_server opcua_test_server
