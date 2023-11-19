@@ -1,0 +1,93 @@
+#!/bin/bash
+#
+# Script to run inside a docker runtime container
+# For snapcraft core* installation it follows the following description: 
+# https://raw.githubusercontent.com/snapcore/snapcraft/master/docker/Dockerfile
+
+mkdir -p snap
+
+apt-get update
+apt-get install -y curl jq squashfs-tools
+apt-get install -y git
+apt-get install -y make 
+apt-get install -y build-essential
+apt-get install -y zlib1g-dev
+apt-get install -y liblzma-dev
+apt-get install -y liblzo2-dev
+apt-get install -y liblz4-dev
+apt-get install -y ca-certificates
+git clone https://github.com/plougher/squashfs-tools.git
+cd squashfs-tools && \
+	git checkout 4.5.1 && \
+	sed -Ei 's/#(XZ_SUPPORT.*)/\1/' squashfs-tools/Makefile && \
+	sed -Ei 's/#(LZO_SUPPORT.*)/\1/' squashfs-tools/Makefile && \
+	sed -Ei 's/#(LZ4_SUPPORT.*)/\1/' squashfs-tools/Makefile && \
+	sed -Ei 's|(INSTALL_PREFIX = ).*|\1 /usr|' squashfs-tools/Makefile && \
+	sed -Ei 's/\$\(INSTALL_DIR\)/$(DESTDIR)$(INSTALL_DIR)/g' squashfs-tools/Makefile && \
+	cd squashfs-tools && \
+	make -j$(nproc) && \
+	make install
+
+# Download and unpack snapd
+mkdir -p /snap/snapd/current
+snap download snapd
+unsquashfs -f -d /snap/snapd/current snapd_*.snap
+
+# Replace mksquashfs and unsqusahfs with our own As reported here: https://bugs.launchpad.net/snapd/+bug/1916552
+cp /usr/bin/mksquashfs /snap/snapd/current/usr/bin
+cp /usr/bin/unsquashfs /snap/snapd/current/usr/bin
+
+# Repack snapd
+mksquashfs /snap/snapd/current /snapd.snap
+cd ../..
+pwd
+# Grab the core snap (for backwards compatibility) from the stable channel and
+# unpack it in the proper place.
+if [ ! -d "/snap/core" ]; then
+    curl -L -H 'Snap-CDN: none' $(curl -kH 'X-Ubuntu-Series: 16' -H "X-Ubuntu-Architecture: arm64" 'https://api.snapcraft.io/api/v1/snaps/details/core' | jq '.download_url' -r) --output core.snap
+    mkdir -p /snap/core
+    unsquashfs -d /snap/core/x1 core.snap
+    ln -s x1 /snap/core/current
+fi
+
+# Grab the core18 snap (which snapcraft uses as a base) from the stable channel
+# and unpack it in the proper place.
+if [ ! -d "/snap/core18" ]; then
+    curl -L -H 'Snap-CDN: none' $(curl -kH 'X-Ubuntu-Series: 16' -H "X-Ubuntu-Architecture: arm64" 'https://api.snapcraft.io/api/v1/snaps/details/core18' | jq '.download_url' -r) --output core18.snap
+    mkdir -p /snap/core18
+    unsquashfs -d /snap/core18/x1 core18.snap
+    ln -s x1 /snap/core18/current
+fi
+
+# Grab the core20 snap from the stable channel and
+# unpack it in the proper place.
+if [ ! -d "/snap/core20" ]; then
+    curl -L -H 'Snap-CDN: none' $(curl -kH 'X-Ubuntu-Series: 16' -H "X-Ubuntu-Architecture: arm64" 'https://api.snapcraft.io/api/v1/snaps/details/core20' | jq '.download_url' -r) --output core20.snap
+    mkdir -p /snap/core20
+    unsquashfs -d /snap/core20/x1 core20.snap
+    ln -s x1 /snap/core20/current
+fi
+
+# Grab the core22 snap from the stable channel and
+# unpack it in the proper place.
+if [ ! -d "/snap/core22" ]; then
+    curl -L -H 'Snap-CDN: none' $(curl -kH 'X-Ubuntu-Series: 16' -H "X-Ubuntu-Architecture: arm64" 'https://api.snapcraft.io/api/v1/snaps/details/core22' | jq '.download_url' -r) --output core20.snap
+    mkdir -p /snap/core22
+    unsquashfs -d /snap/core22/x1 core22.snap
+    ln -s x1 /snap/core22/current
+fi
+
+# Grab the snapcraft snap from the $SNAPCRAFT channel and unpack it in the proper
+# place.
+if [ ! -d "/snap/snapcraft" ]; then
+    curl -L -H 'Snap-CDN: none' $(curl -kH 'X-Ubuntu-Series: 16' -H "X-Ubuntu-Architecture: arm64" 'https://api.snapcraft.io/api/v1/snaps/details/snapcraft?channel='$SNAPCRAFT | jq '.download_url' -r) --output snapcraft.snap
+    mkdir -p /snap/snapcraft
+    unsquashfs -d /snap/snapcraft/x1 snapcraft.snap
+    ln -s x1 /snap/snapcraft/current
+fi
+
+# Fix Python3 Installation: 
+unlink /snap/snapcraft/current/usr/bin/python3
+ln -s /snap/snapcraft/current/usr/bin/python3.* /snap/snapcraft/current/usr/bin/python3
+echo /snap/snapcraft/current/lib/python3.*/site-packages >> /snap/snapcraft/current/usr/lib/python3/dist-packages/site-packages.pth
+
