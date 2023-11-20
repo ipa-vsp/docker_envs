@@ -64,4 +64,4 @@ services:
     stdin_open: true
     tty: true
     command: tail -f /dev/null
-    entrypoint: /ros_ws/entrypoint.sh
+    # entrypoint: /ros_ws/entrypoint.sh
