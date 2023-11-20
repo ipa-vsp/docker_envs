@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Script to run inside a docker runtime container
-# For snapcraft core* installation it follows the following description: 
+# For snapcraft core* installation it follows the following description:
 # https://raw.githubusercontent.com/snapcore/snapcraft/master/docker/Dockerfile
 
 mkdir -p snap
@@ -9,7 +9,7 @@ mkdir -p snap
 apt-get update
 apt-get install -y curl jq squashfs-tools
 apt-get install -y git
-apt-get install -y make 
+apt-get install -y make
 apt-get install -y build-essential
 apt-get install -y zlib1g-dev
 apt-get install -y liblzma-dev
@@ -86,8 +86,18 @@ if [ ! -d "/snap/snapcraft" ]; then
     ln -s x1 /snap/snapcraft/current
 fi
 
-# Fix Python3 Installation: 
+# Fix Python3 Installation:
 unlink /snap/snapcraft/current/usr/bin/python3
 ln -s /snap/snapcraft/current/usr/bin/python3.* /snap/snapcraft/current/usr/bin/python3
 echo /snap/snapcraft/current/lib/python3.*/site-packages >> /snap/snapcraft/current/usr/lib/python3/dist-packages/site-packages.pth
 
+# Create a snapcraft runner (TODO: move version detection to the core of
+# snapcraft).
+mkdir -p /snap/bin
+echo '#!/bin/sh' > /snap/bin/snapcraft
+snap_version="$(awk '/^version:/{print $2}' /snap/snapcraft/current/meta/snap.yaml)" && echo "export SNAP_VERSION=\"$snap_version\"" >> /snap/bin/snapcraft
+echo 'export SNAP="/snap/snapcraft/current"' >> /snap/bin/snapcraft
+echo 'export SNAP_NAME="snapcraft"' >> /snap/bin/snapcraft
+echo "export SNAP_ARCH=\"arm64\"" >> /snap/bin/snapcraft
+echo 'exec "$SNAP/usr/bin/python3" "$SNAP/bin/snapcraft" "$@"' >> /snap/bin/snapcraft
+chmod +x /snap/bin/snapcraft

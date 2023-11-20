@@ -6,13 +6,14 @@ services:
     privileged: true
     command: ["--reset", "-p", "yes"]
 
-  rosdeb:
+  ctrlx-runtime-container:
     build:
       context: .
       dockerfile: Docker/runtime.Dockerfile
       args:
         - BASE_IMAGE=arm64v8/ubuntu:22.04
     image: arm64v8/ubuntu:jammy
+    # user: admin:1000
     platform: linux/arm64
     privileged: true
     volumes:
@@ -29,9 +30,38 @@ services:
     security_opt:
       - apparmor:unconfined
       - seccomp:unconfined
-    command: ["/bin/bash", "-c", "install_snap_deps.sh"]
     stdin_open: true
     tty: true
+    command: |
+      - /bin/bash
+      - -c
+      - /ros_ws/install_snapcraft.sh && /ros_ws/entrypoint.sh && /ros_ws/install_ros_humble.sh && /ros_ws/build_snap.sh
 
-# volumes:
-#   ros_ws:
+  ctrlx-develpment-container:
+    build:
+      context: .
+      dockerfile: Docker/development.Dockerfile
+      args:
+        - BASE_IMAGE=arm64v8/ubuntu:22.04
+    image: arm64v8/ubuntu:jammy
+    # user: admin:1000
+    platform: linux/arm64
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - /lib/modules:/lib/modules:rw
+      - ~/ros_ws/ctrlx-automation-sdk:/ros_ws/
+    tmpfs:
+      - /run
+      - /run/lock
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - "/dev/fuse:/dev/fuse"
+    security_opt:
+      - apparmor:unconfined
+      - seccomp:unconfined
+    stdin_open: true
+    tty: true
+    command: tail -f /dev/null
+    entrypoint: /ros_ws/entrypoint.sh
