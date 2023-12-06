@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
 RUN mkdir -p /usr/local/bin/scripts
 COPY dockerhub/ros2_ci_build/*entrypoint.sh /usr/local/bin/scripts/
 RUN  chmod +x /usr/local/bin/scripts/*entrypoint.sh
-RUN mkdir -p colcon_ws/src
 
 # Create/modify the 'admin' user and group if necessary
 RUN if [ ! $(getent passwd ${USERNAME}) ]; then \
@@ -41,6 +40,8 @@ RUN echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
+
+RUN mkdir -p colcon_ws/src
 
 # Set Environment Variables
 ENV USERNAME=${USERNAME}
