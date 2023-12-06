@@ -12,7 +12,7 @@ networks:
                   gateway: "192.168.56.1"
 
 services:
-    canopen: 
+    canopen:
         image: ghcr.io/ipa-vsp/docker_envs:rolling
         user: admin:1000
         stdin_open: true
@@ -28,8 +28,8 @@ services:
             - ROS_DOMAIN_ID=73
         # entrypoint: /usr/local/bin/scripts/ros2_entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
-    
-    ctrlx-controller: 
+
+    ctrlx-controller:
         image: ghcr.io/ipa-vsp/docker_envs:humble
         user: admin:1000
         stdin_open: true
@@ -47,7 +47,7 @@ services:
         # entrypoint: /usr/local/bin/scripts/ros2_entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
 
-    denso-ua-controller: 
+    denso-ua-controller:
         image: ghcr.io/ipa-vsp/docker_envs:humble
         user: admin:1000
         stdin_open: true
@@ -59,14 +59,14 @@ services:
                 ipv4_address: 192.168.56.9
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro 
+            - /etc/localtime:/etc/localtime:ro
             - ../../../denso-ua-plc:/home/admin/colcon_ws/src
         environment:
             - DISPLAY=$DISPLAY
             - ROS_DOMAIN_ID=73
         # entrypoint: /usr/local/bin/scripts/ros2_entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
-    
+
     opcua-test-server:
         image: registry.gitlab.cc-asp.fraunhofer.de/ipa326/denso_nextgen/denso_ua_plc_sim
         stdin_open: true
