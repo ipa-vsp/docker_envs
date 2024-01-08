@@ -17,7 +17,7 @@ jobs:
         fetch-depth: 0 # fetch all history for all branches and tags, which might be needed when pushing commits.
         token: ${{ secrets.BOT_PAT }}
         ref: ${{ github.head_ref }}
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: 3.10.6
     - name: Install system hooks
