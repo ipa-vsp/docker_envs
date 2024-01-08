@@ -31,6 +31,7 @@ services:
       - apparmor:unconfined
       - seccomp:unconfined
     stdin_open: true
+    cgroup: host
     tty: true
     command: |
       - /bin/bash
@@ -43,7 +44,7 @@ services:
       dockerfile: Docker/development.Dockerfile
       args:
         - BASE_IMAGE=arm64v8/ubuntu:22.04
-    image: arm64v8/ubuntu:jammy
+    image: arm64v8/ubuntu:jammy-dev
     # user: admin:1000
     platform: linux/arm64
     privileged: true
@@ -62,6 +63,7 @@ services:
       - apparmor:unconfined
       - seccomp:unconfined
     stdin_open: true
+    cgroup: host
     tty: true
     command: tail -f /dev/null
     # entrypoint: /ros_ws/entrypoint.sh
