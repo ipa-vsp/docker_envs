@@ -23,7 +23,7 @@ jobs:
     - name: Install system hooks
       run: sudo apt update && sudo apt install -qq clang-format-14 cppcheck
     - name: Run pre-commit checks
-      uses: pre-commit/action@v3.0.0
+      uses: pre-commit/action@v3.0.1
       with:
         extra_args: --all-files --hook-stage manual
       continue-on-error: true
