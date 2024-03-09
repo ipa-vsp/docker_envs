@@ -23,7 +23,7 @@ function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
     echo "  -o: OS version (22.04, 20.04, 18.04, 16.04) | Default: 22.04"
     echo "  -v: ROS version (rolling, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
-    echo "  -u: ROS usage (manipulation, navigation, both) | Default: manipulation"
+    echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -s: Enable simulation | Default: false"
     echo "  -i: Final image name"
     echo "  -w: Workspace path (mandatory for run mode)"
@@ -102,9 +102,10 @@ if [[ "$BUILD" == true ]]; then
     declare -A USAGE_DOCKERFILES=( ["manipulation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.moveit"
                                    ["navigation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.nav2"
                                    ["both"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.both" )
+                                   
 
     DOCKERFILE=${USAGE_DOCKERFILES[$ROS_USAGE]}
-    if [[ -f "$DOCKERFILE" ]]; then
+    if [[ -f "$DOCKERFILE" && $ROS_USAGE != "skip" ]]; then
         BASE="$IMAGE_NAME"
         IMAGE_NAME="$IMAGE_NAME.$ROS_USAGE"
         ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
