@@ -11,7 +11,7 @@ services:
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
-            - ../../../catkin_pf_ws:/home/admin/catkin_ws/src
+            - ../../../catkin_pf_ws:/home/admin/catkin_ws
         environment:
             - DISPLAY=$DISPLAY
             - ROS_DOMAIN_ID=73
