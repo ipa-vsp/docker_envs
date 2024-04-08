@@ -102,7 +102,7 @@ if [[ "$BUILD" == true ]]; then
     declare -A USAGE_DOCKERFILES=( ["manipulation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.moveit"
                                    ["navigation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.nav2"
                                    ["both"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.both" )
-                                   
+
 
     DOCKERFILE=${USAGE_DOCKERFILES[$ROS_USAGE]}
     if [[ -f "$DOCKERFILE" && $ROS_USAGE != "skip" ]]; then
