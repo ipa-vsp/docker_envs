@@ -4,3 +4,7 @@
 kuka/kuka_fri/
 
 ros2/src/
+
+**/parts/*
+**/prime/*
+**/stage/*

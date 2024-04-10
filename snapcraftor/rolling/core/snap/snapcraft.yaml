@@ -1,0 +1,90 @@
+name: my-ros2-rolling-snap  # Change this to the name of your snap package
+version: '0.1'  # Update this with your version
+summary: ROS 2 Rolling Ridley Snap  # Short summary of your snap
+description: |
+  This snap includes the ROS 2 Rolling Ridley distribution for easy deployment
+  and development of ROS 2 applications.
+
+base: core22  # Base snap providing the execution environment. Use core20 or later
+confinement: devmode  # Use 'strict' for production snaps and 'devmode' for development
+grade: devel  # Use 'stable' for production snaps and 'devel' for development
+
+parts:
+  ros2-rolling-base:
+    plugin: colcon
+    source: .
+    colcon-cmake-args:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+      - -DBUILD_DOCS=OFF
+    build-packages:
+      - make
+      - gcc
+      - g++
+      - git
+      - python3-vcstool
+      - python3-colcon-common-extensions
+      - python3-rosdep
+      - ros-rolling-ros-core
+    stage-packages:
+      - software-properties-common
+      - python3-argcomplete
+      - ca-certificates
+      - libspdlog-dev
+      - libdw-dev
+      - libelf-dev
+      - python-babel-localedata
+      - python3-babel
+      - python3-jinja2
+      - python3-markupsafe
+      - python3-typeguard
+      - python3-tz
+      - ros-rolling-ros-base
+      - ros-rolling-rmw-fastrtps-cpp
+      - ros-rolling-xacro
+      - ros-rolling-pluginlib
+      - ros-rolling-backward-ros
+      - ros-rolling-generate-parameter-library
+      - ros-rolling-generate-parameter-library-py
+      - ros-rolling-parameter-traits
+      - ros-rolling-rsl
+      - ros-rolling-tcb-span
+      - ros-rolling-tl-expected
+      - ros-rolling-realtime-tools
+      - ros-rolling-hardware-interface
+      - ros-rolling-controller-manager
+      - ros-rolling-control-msgs
+      - ros-rolling-controller-interface
+      - ros-rolling-controller-manager-msgs
+      - ros-rolling-ros2-control-test-assets
+      - ros-rolling-forward-command-controller
+      - ros-rolling-joint-state-broadcaster
+        # Additional DDS Vendors
+      - ros-rolling-rmw-cyclonedds-cpp
+      # - ros-rolling-rmw-fastrtps-cpp
+      # - ros-rolling-rmw-gurumdds-cpp
+      # - ros-rolling-rmw-connextdds
+    build-environment:
+      - ROS_VERSION: '2'
+      - ROS_DISTRO: rolling
+
+  helper:
+    plugin: python
+    source: .
+    build-environment:
+      - PYTHONPATH: "$SNAPCRAFT_PART_INSTALL/usr/lib/python3/dist-packages"
+    stage-packages:
+      - python3-wheel
+    python-packages:
+      - empty
+      - numpy
+      - rosdep
+      - rosdistro
+      - colcon-core
+      - lark
+
+slots:
+  ros2-rolling-base:
+    interface: content
+    content: ros2-content
+    read: [/]
