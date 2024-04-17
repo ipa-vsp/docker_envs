@@ -17,3 +17,37 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
+
+    pf_humble_test:
+        image: pf_humble_testing
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_pf_ws:/home/admin/colcon_ws
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top
+
+    pf_rolling_test:
+        image: pf_rolling_testing
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_pf_ws:/home/admin/colcon_ws
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top
