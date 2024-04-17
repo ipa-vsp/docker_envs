@@ -21,7 +21,7 @@ trap cleanup EXIT
 
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
-    echo "  -o: OS version (22.04, 20.04, 18.04, 16.04) | Default: 22.04"
+    echo "  -o: OS version (24.04, 22.04, 20.04, 18.04, 16.04) | Default: 24.04"
     echo "  -v: ROS version (rolling, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -s: Enable simulation | Default: false"
@@ -33,7 +33,7 @@ function help() {
 }
 
 # Default values
-OS_VERSION="22.04"
+OS_VERSION="24.04"
 ROS_VERSION="rolling"
 ROS_USAGE="manipulation"
 SIMULATION=false

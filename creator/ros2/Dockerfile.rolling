@@ -1,6 +1,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
+RUN apt-get update && apt-get install -y locales
 RUN locale-gen en_US en_US.UTF-8
 RUN update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
@@ -21,7 +22,7 @@ RUN apt-get update && add-apt-repository universe \
 
 # setup timezone
 RUN echo 'Etc/UTC' > /etc/timezone && \
-    ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
+    ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime && \
     apt-get update && \
     apt-get install -q -y --no-install-recommends tzdata && \
     rm -rf /var/lib/apt/lists/*
@@ -66,7 +67,16 @@ RUN apt-get update && apt-get install -y \
 ENV ROS_DISTRO=rolling
 ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
 
-RUN python3 -m pip install setuptools==58.2.0
+# RUN case $(uname -r -s) in \
+#     24.04) \
+#         python3 -m pip install --upgrade pip \
+#         python3 -m pip install setuptools \
+#     ;; \
+#     *) \
+#         python3 -m pip install --upgrade pip \
+#         python3 -m pip install setuptools==58.2.0 \
+#     ;; \
+#     esac
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-desktop \
