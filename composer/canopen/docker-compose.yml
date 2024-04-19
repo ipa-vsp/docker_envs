@@ -34,6 +34,23 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
+    
+    nobel_rolling_opcua_test:
+        image: opcua_rolling_nobel
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_opcua_ws/src:/home/admin/colcon_ws/src
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top"
 
     rolling_test:
         image: canopen_rolling:test
