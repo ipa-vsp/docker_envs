@@ -18,7 +18,7 @@ services:
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
 
-    nobel_rolling_test:
+    nobel_rolling_canopen_test:
         image: canopen_rolling_nobel
         user: admin:1000
         stdin_open: true
