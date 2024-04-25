@@ -34,7 +34,7 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
-    
+
     nobel_rolling_opcua_test:
         image: opcua_rolling_nobel
         user: admin:1000
