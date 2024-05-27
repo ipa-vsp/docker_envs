@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
     pf_test:
-        image: pf_lidar_testing
+        image: noetic_jammy:pf
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -19,7 +19,7 @@ services:
         command: tail -f /dev/null # bash -c "top"
 
     pf_humble_test:
-        image: pf_humble_testing
+        image: humble_jammy:pf
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -36,7 +36,7 @@ services:
         command: tail -f /dev/null # bash -c "top
 
     pf_rolling_test:
-        image: pf_rolling_testing
+        image: rolling_noble:pf
         user: admin:1000
         stdin_open: true
         privileged: true
