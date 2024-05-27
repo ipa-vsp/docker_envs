@@ -1,8 +1,8 @@
 version: '3.9'
 
 services:
-    pf_test:
-        image: noetic_jammy:pf
+    pf_neotic_test:
+        image: noetic_focal:pf
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -11,7 +11,7 @@ services:
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
-            - ../../../catkin_pf_ws:/home/admin/catkin_ws
+            - ../../../catkin_pf_ws/src:/home/admin/catkin_ws/src
         environment:
             - DISPLAY=$DISPLAY
             - ROS_DOMAIN_ID=73
