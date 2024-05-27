@@ -19,7 +19,7 @@ services:
         command: tail -f /dev/null # bash -c "top"
 
     nobel_rolling_canopen_test:
-        image: canopen_rolling_nobel
+        image: rolling_noble:canopen
         user: admin:1000
         stdin_open: true
         privileged: true
@@ -36,7 +36,7 @@ services:
         command: tail -f /dev/null # bash -c "top"
 
     nobel_rolling_opcua_test:
-        image: opcua_rolling_nobel
+        image: rolling_nobel:opcua
         user: admin:1000
         stdin_open: true
         privileged: true
