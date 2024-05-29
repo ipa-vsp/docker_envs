@@ -3,7 +3,7 @@ version: '3.9'
 services:
     pf_neotic_test:
         image: noetic_focal:pf
-        user: admin:1000
+        user: admin:1001
         stdin_open: true
         privileged: true
         tty: true

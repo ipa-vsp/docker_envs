@@ -3,7 +3,7 @@ version: '3.9'
 services:
     humble_test:
         image: humble_jammy:test
-        user: admin:1000
+        user: turtle:1001
         stdin_open: true
         privileged: true
         tty: true
@@ -20,7 +20,7 @@ services:
 
     nobel_rolling_canopen_test:
         image: rolling_noble:canopen
-        user: admin:1000
+        user: admin:1001
         stdin_open: true
         privileged: true
         tty: true
@@ -37,7 +37,7 @@ services:
 
     nobel_rolling_opcua_test:
         image: rolling_noble:opcua
-        user: admin:1000
+        user: admin:1001
         stdin_open: true
         privileged: true
         tty: true
