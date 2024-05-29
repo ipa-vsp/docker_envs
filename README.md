@@ -39,4 +39,7 @@ Example: `./run_env.sh -v rolling -u manipulation -i canopen -w ~/ros_ws/colcon_
 ### Dev Containers
 todo
 
+### New error:
+``` sudo chown -R 1000:1000 || sudo chmod -R u+w ```
+
 ### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)

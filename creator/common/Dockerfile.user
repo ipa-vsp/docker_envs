@@ -32,16 +32,22 @@ RUN mkdir -p /usr/local/bin/scripts
 COPY *entrypoint.sh /usr/local/bin/scripts/
 RUN chmod +x /usr/local/bin/scripts/*.sh
 
+USER root
+
+# Create appropriate workspace depending on ROS_DISTRO and set permissions
+RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || "${ROS_DISTRO}" == "iron" || "${ROS_DISTRO}" == "humble" ]]; then \
+        mkdir -p /home/${USERNAME}/colcon_ws/src && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws ; \
+    else echo "Selected ROS1" ; fi && \
+    if [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then \
+        mkdir -p /home/${USERNAME}/catkin_ws/src && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws; \
+    else echo "Selected ROS2" ; fi
+
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
-
-# Create appropriate workspace depending on ROS_DISTRO
-RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "iron" || "${ROS_DISTRO}" == "humble" ]]; then mkdir -p colcon_ws ; else echo Selected ROS1 ; fi && \
-    if [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then mkdir -p catkin_ws ; else echo Selected ROS2 ; fi
 
 # Set Environment Variables
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
-ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
-ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+# ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+# ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
