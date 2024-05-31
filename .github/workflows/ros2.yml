@@ -4,8 +4,9 @@ name: ROS2 Images
 
 on:
   push:
-    paths:
-      - 'creator/**'
+     branches: [ main ]
+    # paths:
+     #  - 'creator/**'
   schedule:
     - cron: '0 0 * * 0'
 
