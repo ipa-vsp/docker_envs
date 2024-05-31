@@ -33,7 +33,7 @@ jobs:
           - {ROS_DISTRO: jazzy, OS_VERSION: 24.04}
           - {ROS_DISTRO: humble, OS_VERSION: 22.04}
           - {ROS_DISTRO: noetic, OS_VERSION: 20.04}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

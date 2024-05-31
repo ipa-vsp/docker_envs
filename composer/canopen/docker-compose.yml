@@ -28,7 +28,7 @@ services:
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src 
+            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src
         environment:
             - DISPLAY=$DISPLAY
             - ROS_DOMAIN_ID=73
