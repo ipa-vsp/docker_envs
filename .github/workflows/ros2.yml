@@ -2,15 +2,10 @@
 
 name: ROS2 Images
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    # branches: [ main ]
     paths:
       - 'creator/**'
-  # pull_request:
-  #   branches: [ main ]
   schedule:
     - cron: '0 0 * * 0'
 
@@ -18,7 +13,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME:  ${{ github.repository }}
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   push_to_registry:
     name: Push Docker image to GHCR
@@ -54,11 +48,14 @@ jobs:
           chmod +x creator/scripts/build_image.sh
           ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }} -b
 
+      - name: List Docker images
+        run: docker images
+
       - name: Push Docker image
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}
 
-  push_to_registory_manipulation:
+  push_to_registry_manipulation:
     needs: push_to_registry
     name: Push Docker image MOVEIT to GHCR
     runs-on: ubuntu-latest
@@ -93,11 +90,14 @@ jobs:
           chmod +x creator/scripts/build_image.sh
           ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u manipulation -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_moveit -b
 
+      - name: List Docker images
+        run: docker images
+
       - name: Push Docker image
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_moveit
 
-  push_to_registory_navigation:
+  push_to_registry_navigation:
     needs: push_to_registry
     name: Push Docker image NAVIGATION to GHCR
     runs-on: ubuntu-latest
@@ -132,6 +132,10 @@ jobs:
           chmod +x creator/scripts/build_image.sh
           ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u navigation -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_nav2 -b
 
+      - name: List Docker images
+        run: docker images
+
       - name: Push Docker image
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_nav2
+
