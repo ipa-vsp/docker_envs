@@ -39,7 +39,8 @@ Example: `./run_env.sh -v rolling -u manipulation -i canopen -w ~/ros_ws/colcon_
 ### Dev Containers
 todo
 
-### New error:
+### Attaching your workspace
+To attach your workspace other than `UID` is `1000` of your host machine, you need to run the following command in your host machine to change the ownership of the workspace.
 ``` sudo chown -R 1000:1000 || sudo chmod -R u+w ```
 
 ### [GUI with docker in Windows](https://github.com/prachandabhanu/docker_gui_windows11.git)
