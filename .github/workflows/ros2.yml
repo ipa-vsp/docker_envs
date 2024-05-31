@@ -28,7 +28,11 @@ jobs:
       packages: write
     strategy:
       matrix:
-        ros_distro: [ rolling, jazzy ]
+        env:
+          - {ROS_DISTRO: rolling, OS_VERSION: 24.04}
+          - {ROS_DISTRO: jazzy, OS_VERSION: 24.04}
+          - {ROS_DISTRO: humble, OS_VERSION: 22.04}
+          - {ROS_DISTRO: noetic, OS_VERSION: 20.04}
     
     steps:
       - name: Checkout repository
@@ -48,8 +52,8 @@ jobs:
         run: |
           chmod +x creator/scripts/run_env.sh
           chmod +x creator/scripts/build_image.sh
-          ./creator/scripts/run_env.sh -o 24.04 -v ${{ matrix.ros_distro }} -u skip -i ${{ env.IMAGE_NAME }}:${{ matrix.ros_distro }} -b
+          ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -i ${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }} -b
 
       - name: Push Docker image
         run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.ros_distro }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}
