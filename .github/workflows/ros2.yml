@@ -6,9 +6,9 @@ name: ROS2 Images
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    # branches: [ main ]
-    paths:
-      - 'dockerhub/ros2_ci_build/**'
+    branches: [ main ]
+    # paths:
+    #   - 'dockerhub/ros2_ci_build/**'
   # pull_request:
   #   branches: [ main ]
   schedule:
@@ -17,37 +17,35 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   push_to_registry:
-    name: Push Docker image to Docker Hub
+    name: Push Docker image to GHCR
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
-        env:
-          - {ROS_DISTRO: humble}
-          - {ROS_DISTRO: iron}
-          - {ROS_DISTRO: rolling}
+        ros_distro: [ rolling, jazzy, iron, humble, isaachumble, noetic, kinetic ]
+    
     steps:
-      - name: Check out the repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKER_USERNAME }}/build_env
+      - name: Build Docker image
+        run: |
+          chmod +x docker_envs/creator/scripts/run_env.sh
+          chmod +x docker_envs/creator/scripts/build_image.sh
+          ./docker_envs/creator/scripts/run_env.sh -o 24.04 -v ${{ matrix.ros_distro }} -u skip -i ${{ env.IMAGE_NAME }}:${{ matrix.ros_distro }} -b
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: dockerhub/ros2_ci_build/Dockerfile
-          push: true
-          build-args: |
-            ROS_DISTRO=${{ matrix.env.ROS_DISTRO }}
-          tags: ${{ secrets.DOCKER_USERNAME }}/build_env:${{ matrix.env.ROS_DISTRO }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.ros_distro }}
