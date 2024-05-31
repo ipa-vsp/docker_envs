@@ -46,8 +46,8 @@ jobs:
 
       - name: Build Docker image
         run: |
-          chmod +x docker_envs/creator/scripts/run_env.sh
-          chmod +x docker_envs/creator/scripts/build_image.sh
+          chmod +x creator/scripts/run_env.sh
+          chmod +x creator/scripts/build_image.sh
           ./creator/scripts/run_env.sh -o 24.04 -v ${{ matrix.ros_distro }} -u skip -i ${{ env.IMAGE_NAME }}:${{ matrix.ros_distro }} -b
 
       - name: Push Docker image
