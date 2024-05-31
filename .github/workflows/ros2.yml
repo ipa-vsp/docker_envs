@@ -28,7 +28,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        ros_distro: [ rolling, jazzy, iron, humble, isaachumble, noetic, kinetic ]
+        ros_distro: [ rolling, jazzy ]
     
     steps:
       - name: Checkout repository
