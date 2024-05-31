@@ -1,7 +1,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "humble" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "jazzy" || "${ROS_DISTRO}" = "iron" || "${ROS_DISTRO}" = "humble" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-moveit \
         ros-${ROS_DISTRO}-rviz-visual-tools \
         ros-${ROS_DISTRO}-moveit-resources \

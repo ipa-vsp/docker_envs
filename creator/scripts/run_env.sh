@@ -100,15 +100,16 @@ if [[ "$BUILD" == true ]]; then
         print_warning "ROS version is not supported. Check your command again!"
     fi
 
-    declare -A USAGE_DOCKERFILES=( ["manipulation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.moveit"
-                                   ["navigation"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.nav2"
-                                   ["both"]="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.both" )
+    declare -A USAGE_DOCKERFILES=( ["manipulation"]="${ROOT}/../usage/Dockerfile.moveit"
+                                   ["navigation"]="${ROOT}/../usage/Dockerfile.nav2"
+                                   ["both"]="${ROOT}/../usage/Dockerfile.both" )
 
 
     DOCKERFILE=${USAGE_DOCKERFILES[$ROS_USAGE]}
-    if [[ -f "$DOCKERFILE" && $ROS_USAGE != "skip" ]]; then
+    if [[ $ROS_USAGE != "skip" ]]; then
         BASE="$IMAGE_NAME"
         IMAGE_NAME="$IMAGE_NAME.$ROS_USAGE"
+        echo "Building image $IMAGE_NAME and file $DOCKERFILE"
         ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
     fi
 

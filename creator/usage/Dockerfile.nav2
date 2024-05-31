@@ -1,0 +1,19 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "jazzy" || "${ROS_DISTRO}" = "iron" || "${ROS_DISTRO}" = "humble" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+        ros-${ROS_DISTRO}-navigation2 \
+        ros-${ROS_DISTRO}-nav2-bringup \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean ; else echo Selected ROS1 ; fi
+
+RUN if [[ "${ROS_DISTRO}" = "noetic" || "${ROS_DISTRO}" = "melodic" || "${ROS_DISTRO}" = "kinetic" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+        ros-${ROS_DISTRO}-navigation \
+&& rm -rf /var/lib/apt/lists/* \
+&& apt-get clean ; else echo Selected ROS2 ; fi
+
+# RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+#         ros-${ROS_DISTRO}-moveit-servo \
+#         ros-${ROS_DISTRO}-moveit-visual-tools \
+# && rm -rf /var/lib/apt/lists/* \
+# && apt-get clean
