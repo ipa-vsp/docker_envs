@@ -1,14 +1,15 @@
 version: '3.9'
 
 services:
-
     nobel_rolling_opcua_test:
         image: ghcr.io/ipa-vsp/docker_envs:rolling
         user: admin:1001
         stdin_open: true
         privileged: true
         tty: true
-        network_mode: "host"
+        networks:
+            custom_network:
+                ipv4_address: 192.168.50.2
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
@@ -20,3 +21,10 @@ services:
             - 4840:4840
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
+
+networks:
+  custom_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.50.0/24
