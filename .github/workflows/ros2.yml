@@ -75,13 +75,8 @@ jobs:
   #     - name: Checkout repository
   #       uses: actions/checkout@v4
 
-<<<<<<< HEAD
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v2
-=======
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
->>>>>>> origin/main
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3
 
   #     - name: Log in to the Container registry
   #       uses: docker/login-action@v3
@@ -122,13 +117,8 @@ jobs:
   #     - name: Checkout repository
   #       uses: actions/checkout@v4
 
-<<<<<<< HEAD
   #     - name: Set up Docker Buildx
   #       uses: docker/setup-buildx-action@v2
-=======
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
->>>>>>> origin/main
 
   #     - name: Log in to the Container registry
   #       uses: docker/login-action@v3
@@ -146,13 +136,7 @@ jobs:
   #     - name: List Docker images
   #       run: docker images
 
-<<<<<<< HEAD
   #     - name: Push Docker image
   #       run: |
   #         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_nav2
 
-=======
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_nav2
->>>>>>> origin/main
