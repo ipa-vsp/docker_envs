@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
 
-    nobel_rolling_canopen_test:
+    nobel_rolling_opcua_test:
         image: ghcr.io/ipa-vsp/docker_envs:rolling
         user: admin:1001
         stdin_open: true
@@ -12,9 +12,11 @@ services:
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src
+            - ../../../colcon_opcua_ws/src:/home/admin/colcon_ws/src
         environment:
-            - DISPLAY=$DISPLAY
+            - DISPLAY=${DISPLAY}
             - ROS_DOMAIN_ID=73
+        ports:
+            - 4840:4840
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
