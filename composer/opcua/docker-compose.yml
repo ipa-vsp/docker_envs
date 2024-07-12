@@ -9,7 +9,7 @@ services:
         tty: true
         networks:
             custom_network:
-                ipv4_address: 192.168.50.2
+                ipv4_address: 172.108.50.2
         volumes:
             - /tmp/.X11-unix:/tmp/.X11-unix:ro
             - /etc/localtime:/etc/localtime:ro
@@ -27,4 +27,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.50.0/24
+        - subnet: 172.108.50.0/24
