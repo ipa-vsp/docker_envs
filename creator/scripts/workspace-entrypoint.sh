@@ -18,5 +18,10 @@ echo 'parse_git_branch() {
 # Add PROMPT_COMMAND with parse_git_branch to .bashrc
 echo 'PROMPT_COMMAND='\''PS1="\[\e[0;32m\]\u@\h:\[\e[0;34m\]\w$(parse_git_branch)\[\e[0m\]$ "'\''' >> ~/.bashrc
 
+# if RMW_IMPLEMENTATION=rmw_zenoh_cpp is set, source the zenoh workspace
+if [ "$RMW_IMPLEMENTATION" = "rmw_zenoh_cpp" ]; then
+    echo "source /root/ws_rmw_zenoh/local_setup.bash" >> ~/.bashrc
+fi
+
 # Execute any command passed to the entrypoint
 exec "$@"

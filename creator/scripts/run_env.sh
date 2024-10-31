@@ -24,6 +24,7 @@ function help() {
     echo "  -o: OS version (24.04, 22.04, 20.04, 18.04, 16.04) | Default: 24.04"
     echo "  -v: ROS version (rolling, jazzy, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
+    echo "  -z: Enable zehno | Default: false"
     echo "  -s: Enable simulation | Default: false"
     echo "  -i: Final image name"
     echo "  -w: Workspace path (mandatory for run mode)"
@@ -36,16 +37,18 @@ function help() {
 OS_VERSION="24.04"
 ROS_VERSION="rolling"
 ROS_USAGE="manipulation"
+ZEHNO=false
 SIMULATION=false
 BUILD=false
 RUN=false
 FINAL_IMAGE=""
 
-while getopts "o:v:u:i:w:bsr" opt; do
+while getopts "o:v:u:z:i:w:bsr" opt; do
     case $opt in
         o) OS_VERSION=$OPTARG ;;
         v) ROS_VERSION=$OPTARG ;;
         u) ROS_USAGE=$OPTARG ;;
+        z) ZEHNO=true ;;
         i) FINAL_IMAGE=$OPTARG ;;
         w) WORKSPACE=$OPTARG ;;
         b) BUILD=true ;;
@@ -111,6 +114,15 @@ if [[ "$BUILD" == true ]]; then
         IMAGE_NAME="$IMAGE_NAME.$ROS_USAGE"
         echo "Building image $IMAGE_NAME and file $DOCKERFILE"
         ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
+    fi
+
+    if [[ "$ZEHNO" == true ]]; then
+        DOCKERFILE="${ROOT}/../usage/Dockerfile.zehno"
+        if [[ -f "$DOCKERFILE" ]]; then
+            BASE="$IMAGE_NAME"
+            IMAGE_NAME="$IMAGE_NAME.zehno"
+            ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
+        fi
     fi
 
     if [[ "$SIMULATION" == true ]]; then
