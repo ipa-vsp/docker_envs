@@ -55,7 +55,7 @@ jobs:
       - name: Push Docker image
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}
-    
+
   push_to_registry_zenho:
     needs: push_to_registry
     name: Push Docker image ZENOH to GHCR
