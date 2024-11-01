@@ -1,0 +1,132 @@
+{
+  // Unique identifier for the Zenoh node (can be set or left to auto-generate)
+  // id: "1234567890abcdef",
+
+  // Define the node's mode as a peer to connect to the router
+  mode: "peer",
+
+  // Specify the endpoint to connect to the Zenoh router
+  connect: {
+    endpoints: [
+      "tcp/172.20.0.6:7447"  // Connect to the zenoh-router at its fixed IP and port
+    ],
+  },
+
+  // Specify endpoints to listen on, only if local connections are needed
+  listen: {
+    endpoints: [
+      "tcp/localhost:0"
+    ],
+  },
+
+  // Configure scouting mechanisms to locate other nodes
+  scouting: {
+    timeout: 3000,
+    delay: 1,
+    multicast: {
+      enabled: false,
+      address: "224.0.0.224:7446",
+      interface: "auto",
+      autoconnect: { router: "", peer: "router|peer" },
+      listen: true,
+    },
+    gossip: {
+      enabled: true,
+      multihop: false,
+      autoconnect: { router: "", peer: "router|peer" },
+    },
+  },
+
+  // Data message timestamping configuration
+  timestamping: {
+    enabled: { router: true, peer: true, client: false },
+    drop_future_timestamp: false,
+  },
+
+  // Default query timeout in milliseconds
+  queries_default_timeout: 10000,
+
+  // Routing strategy configuration
+  routing: {
+    peer: {
+      mode: "peer_to_peer",
+    },
+  },
+
+  // Transport configuration for communication
+  transport: {
+    unicast: {
+      accept_timeout: 10000,
+      accept_pending: 100,
+      max_sessions: 1000,
+      max_links: 1,
+      lowlatency: false,
+      qos: {
+        enabled: true,
+      },
+      compression: {
+        enabled: false,
+      },
+    },
+    link: {
+      tx: {
+        sequence_number_resolution: "32bit",
+        lease: 10000,
+        keep_alive: 4,
+        batch_size: 65535,
+        queue: {
+          size: {
+            control: 1,
+            real_time: 1,
+            interactive_high: 1,
+            interactive_low: 1,
+            data_high: 2,
+            data: 4,
+            data_low: 4,
+            background: 4,
+          },
+          backoff: 100,
+        },
+      },
+      rx: {
+        buffer_size: 65535,
+        max_message_size: 1073741824,
+      },
+      tls: {
+        root_ca_certificate: null,
+        server_private_key: null,
+        server_certificate: null,
+        client_auth: false,
+        client_private_key: null,
+        client_certificate: null,
+        server_name_verification: null,
+      },
+    },
+    shared_memory: {
+      enabled: false,
+    },
+    auth: {
+      usrpwd: {
+        user: null,
+        password: null,
+        dictionary_file: null,
+      },
+      pubkey: {
+        public_key_pem: null,
+        private_key_pem: null,
+        public_key_file: null,
+        private_key_file: null,
+        key_size: null,
+        known_keys_file: null,
+      },
+    },
+  },
+
+  // Admin space configuration (read/write permissions)
+  adminspace: {
+    permissions: {
+      read: true,
+      write: false,
+    },
+  },
+}

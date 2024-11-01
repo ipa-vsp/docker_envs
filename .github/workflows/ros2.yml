@@ -56,7 +56,7 @@ jobs:
         run: |
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}
 
-  push_to_registry_zenho:
+  push_to_registry_zenoh:
     needs: push_to_registry
     name: Push Docker image ZENOH to GHCR
     runs-on: ubuntu-latest
@@ -87,14 +87,14 @@ jobs:
         run: |
           chmod +x creator/scripts/run_env.sh
           chmod +x creator/scripts/build_image.sh
-          ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -z true -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_zenoh -b
+          ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -z true -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-zenoh -b
 
       - name: List Docker images
         run: docker images
 
       - name: Push Docker image
         run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}_zenoh
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-zenoh
 
   # push_to_registry_manipulation:
   #   needs: push_to_registry

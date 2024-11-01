@@ -1,0 +1,42 @@
+version: '3.8'
+
+networks:
+  rosnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+services:
+  ros-zenho-router:
+    image: container-registry.gitlab.cc-asp.fraunhofer.de/ipa326/densoit/nextgen/usecases/green_machine/zenho_jazzy_router:latest
+    stdin_open: true
+    tty: true
+    networks:
+      rosnet:
+        ipv4_address: 172.20.0.6
+    environment:
+      - RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - ROS_DOMAIN_ID=73
+    command:
+      - bash
+      - -c
+      - |
+        source "/opt/ros/jazzy/setup.bash"
+        source "/root/ws_rmw_zenoh/install/local_setup.bash"
+        export ZENOH_ROUTER_CONFIG_URI=/root/DEFAULT_RMW_ZENOH_ROUTER_CONFIG.json5
+        ros2 run rmw_zenoh_cpp rmw_zenohd
+
+  ros-zenoh-router-2:
+    image: container-registry.gitlab.cc-asp.fraunhofer.de/ipa326/densoit/nextgen/usecases/green_machine/zenho_jazzy_router:latest
+    stdin_open: true
+    tty: true
+    networks:
+      rosnet:
+        ipv4_address: 172.20.0.5
+    volumes:
+      - ./dds:/root/dds
+    environment: 
+      - RMW_IMPLEMENTATION=rmw_zenoh_cpp
+      - ROS_DOMAIN_ID=73
+    command: tail -f /dev/null
