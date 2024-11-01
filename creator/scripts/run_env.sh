@@ -117,10 +117,10 @@ if [[ "$BUILD" == true ]]; then
     fi
 
     if [[ "$ZEHNO" == true ]]; then
-        DOCKERFILE="${ROOT}/../usage/Dockerfile.zehno"
+        DOCKERFILE="${ROOT}/../usage/Dockerfile.zenoh"
         if [[ -f "$DOCKERFILE" ]]; then
             BASE="$IMAGE_NAME"
-            IMAGE_NAME="$IMAGE_NAME.zehno"
+            IMAGE_NAME="$IMAGE_NAME.zenoh"
             ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
         fi
     fi

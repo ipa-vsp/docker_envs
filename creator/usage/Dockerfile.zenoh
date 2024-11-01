@@ -17,17 +17,17 @@ RUN apt-get update -qq && \
 RUN rosdep update
 
 # Clone the rmw_zenoh package and install dependencies
-RUN mkdir -p /root/ws_rmw_zenoh/src && \
-    cd /root/ws_rmw_zenoh/src && \
+RUN mkdir -p /home/ws_rmw_zenoh/src && \
+    cd /home/ws_rmw_zenoh/src && \
     git clone https://github.com/ros2/rmw_zenoh.git && \
-    cd /root/ws_rmw_zenoh && \
+    cd /home/ws_rmw_zenoh && \
     apt-get update -qq && \
     rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y
 
-RUN cd /root/ws_rmw_zenoh && \
+RUN cd /home/ws_rmw_zenoh && \
     /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 # Clean up folders
-RUN rm -rf /root/ws_rmw_zenoh/src && \
-    rm -rf /root/ws_rmw_zenoh/build && \
-    rm -rf /root/ws_rmw_zenoh/log
+RUN rm -rf /home/ws_rmw_zenoh/src && \
+    rm -rf /home/ws_rmw_zenoh/build && \
+    rm -rf /home/ws_rmw_zenoh/log
