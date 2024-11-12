@@ -2,7 +2,6 @@
 
 set -e
 set -o pipefail
-
 function builder_setup {
     apt_get_install python3-colcon-common-extensions python3-catkin-pkg python3-pip
     python3 -m pip install catkin_pkg
@@ -10,59 +9,147 @@ function builder_setup {
 function grep_opt {
     grep "$@" || [[ $? = 1 ]]
 }
-
 function update_list {
-    local ws=$1; shift
+    local ws=$1
+    shift
     setup_rosdep
     if [ -f "$ws"/src/extra.sh ]; then
         "$ws"/src/extra.sh
     fi
 }
-
 function run_sh_files() {
-    local ws=$1; shift
+    local ws=$1
+    shift
     local sh_files=("$@")
     setup_rosdep
-    for file in "${sh_files[@]}";
-    do
-       if [ -f "$ws"/src/"$file" ]; then
-        chmod +x "$ws"/src/"$file"
-        "$ws"/src/"$file"
+    for file in "${sh_files[@]}"; do
+        if [ -f "$ws"/src/"$file" ]; then
+            chmod +x "$ws"/src/"$file"
+            "$ws"/src/"$file"
         fi
     done
 }
 
-function strip_xml_comments {
-    sed -e '/<!--/ , /-->/d'
-}
-
 function read_depends {
-    local src=$1; shift
+    local src=$1
+    shift
     for dt in "$@"; do
         grep_opt -rhoP "(?<=<$dt>)[\w-]+(?=</$dt>)" "$src"
     done
 }
 
-
+# list_packages /ws/src --underlay (underlayed workspaces)
 function list_packages {
+    local src=$1
+    shift
+
+    local rest="$*"
+    while [[ $rest =~ (.*)"--"(.*) ]]; do
+        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
+        v="${eles[0]}"
+        if [[ -n "${eles[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        fi
+        rest=${BASH_REMATCH[1]}
+        unset IFS
+    done
+
+    local cmd=("/opt/ros/$ROS_DISTRO/share")
+
     if [ "$ROS_VERSION" -eq 1 ]; then
-        local src=$1; shift
         "/opt/ros/$ROS_DISTRO"/env.sh catkin_topological_order --only-names "/opt/ros/$ROS_DISTRO/share"
         "/opt/ros/$ROS_DISTRO"/env.sh catkin_topological_order --only-names "$src"
+        if [[ -n "${underlay[@]}" ]]; then
+            for ws in "${underlay[@]}"; do
+                if [ -d "$ws" ]; then
+                    "/opt/ros/$ROS_DISTRO"/env.sh catkin_topological_order --only-names "$ws"
+                fi
+            done
+        fi
     fi
+
+    if [[ -n "${underlay[@]}" ]]; then
+        if [ "$ROS_VERSION" -eq 2 ]; then
+            for ws in "${underlay[@]}"; do
+                # cmd+=("$ws/install/*")
+                if [ -d "$ws/install" ]; then
+                    cmd+=("$ws/install/*")
+                fi
+            done
+        fi
+    fi
+
+    cmd+=("$src")
+
     if [ "$ROS_VERSION" -eq 2 ]; then
-        if ! command -v colcon > /dev/null; then
+        if ! command -v colcon >/dev/null; then
             apt_get_install python3-colcon-common-extensions
         fi
-        local src=$1; shift
-        colcon list --base-paths "/opt/ros/$ROS_DISTRO/share" --names-only
-        colcon list --base-paths "$src" --names-only
+        echo "check path: ${cmd[@]}"
+        colcon list --base-paths "${cmd[@]}" --names-only
+    fi
+}
+
+function setup_rosdep {
+    source "/opt/ros/$ROS_DISTRO/setup.bash"
+    if [ "$ROS_VERSION" -eq 1 ]; then
+        if [ "$ROS_DISTRO" == "noetic" ]; then
+            if ! command -v rosdep >/dev/null; then
+                apt_get_install python3-rosdep >/dev/null
+            fi
+        else
+            if ! command -v rosdep >/dev/null; then
+                apt_get_install python-rosdep >/dev/null
+            fi
+        fi
+    fi
+    if [ "$ROS_VERSION" -eq 2 ]; then
+        if ! command -v rosdep >/dev/null; then
+            apt_get_install python3-rosdep >/dev/null
+        fi
+    fi
+
+    if command -v sudo >/dev/null; then
+        sudo rosdep init || true
+    else
+        rosdep init | true
+    fi
+    rosdep update
+}
+
+# resolve_depends /ws/src --deptypes --underlay
+function resolve_depends {
+    local src=$1
+    shift
+
+    local rest="$*"
+    while [[ $rest =~ (.*)"--"(.*) ]]; do
+        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
+        v="${eles[0]}"
+        if [[ -n "${eles[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        fi
+        rest=${BASH_REMATCH[1]}
+        unset IFS
+    done
+
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        # get required deps but remove deps already exist in /opt/ros/*/share, or current source folder or underlayed workspaces
+        comm -23 <(read_depends "$src" "${deptypes[@]}" | sort -u) <(list_packages "$src" --underlay "${underlay[@]}" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
+    fi
+
+    if [[ "$ROS_VERSION" -eq 2 ]]; then
+        comm -23 <(read_depends "$src" "${deptypes[@]}" | sort -u) <(list_packages "$src" --underlay "${underlay[@]}" | sort -u) | xargs -r rosdep resolve | grep_opt -v '^#' | sort -u || true
+    fi
+    if [ "$ROS_VERSION" -ne 2 ] && [ "$ROS_VERSION" -ne 1 ]; then
+        echo "Cannot get ROS_VERSION"
+        exit 1
     fi
 }
 
 function apt_get_install {
     local cmd=()
-    if command -v sudo > /dev/null; then
+    if command -v sudo >/dev/null; then
         cmd+=(sudo)
     fi
     cmd+=(apt-get install --no-install-recommends -qq -y)
@@ -73,47 +160,37 @@ function apt_get_install {
     fi
 }
 
-function setup_rosdep {
-    source "/opt/ros/$ROS_DISTRO/setup.bash"
-    if [ "$ROS_VERSION" -eq 1 ]; then
-        if [ "$ROS_DISTRO" == "noetic" ]; then
-            if ! command -v rosdep > /dev/null; then
-                apt_get_install python3-rosdep > /dev/null
-            fi
-        else
-            if ! command -v rosdep > /dev/null; then
-                apt_get_install python-rosdep > /dev/null
-            fi
-        fi
+function pass_ci_token {
+    local rosinstall_file=$1
+    shift
+    if ! command -v gettext >/dev/null; then
+        apt_get_install gettext >/dev/null
     fi
-    if [ "$ROS_VERSION" -eq 2 ]; then
-        if ! command -v rosdep > /dev/null; then
-            apt_get_install python3-rosdep > /dev/null
-        fi
-    fi
-
-    if command -v sudo > /dev/null; then
-        sudo rosdep init || true
-    else
-        rosdep init | true
-    fi
-    rosdep update
+    sed -i 's/https:\/\/git-ce\./https:\/\/gitlab-ci-token:\$\{CI_JOB_TOKEN\}\@git-ce\./g' "$rosinstall_file"
+    # Replace CI_JOB_TOKEN by its content
+    envsubst <"$rosinstall_file" >tmp.rosinstall
+    rm "$rosinstall_file"
+    mv tmp.rosinstall "$rosinstall_file"
 }
 
 function install_from_rosinstall {
     local rosinstall_file=$1
     local location=$2
+    # install vcstool
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    if ! command -v vcstool > /dev/null; then
+    if ! command -v vcstool >/dev/null; then
         if [[ "$ROS_VERSION" -eq 1 ]]; then
+            # echo "It is: $ROS_VERSION"
             if [ "$ROS_DISTRO" = "noetic" ]; then
-                apt_get_install python3-vcstool > /dev/null
+                # echo "It is: $ROS_DISTRO"
+                apt_get_install python3-vcstool >/dev/null
             else
-                apt_get_install python-vcstool > /dev/null
+                apt_get_install python-vcstool >/dev/null
             fi
         fi
         if [[ "$ROS_VERSION" -eq 2 ]]; then
-            apt_get_install python3-vcstool > /dev/null
+            # echo "It is: $ROS_DISTRO, $ROS_VERSION"
+            apt_get_install python3-vcstool >/dev/null
         fi
         if [[ "$ROS_VERSION" -ne 2 ]] && [[ "$ROS_VERSION" -ne 1 ]]; then
             echo "Cannot get ROS_VERSION"
@@ -121,121 +198,394 @@ function install_from_rosinstall {
         fi
     fi
     # install git
-    if ! command -v git > /dev/null; then
-        apt_get_install git > /dev/null
+    if ! command -v git >/dev/null; then
+        apt_get_install git >/dev/null
     fi
-    vcs import "$location" < "$rosinstall_file"
+    # echo "ROSINSTALL_CI_JOB_TOKEN = $ROSINSTALL_CI_JOB_TOKEN"
+    # Use GitLab CI tokens if required by the user
+    # This allows to clone private repositories using wstool
+    # Requires the private repositories are on the same GitLab server
+    if [[ "${ROSINSTALL_CI_JOB_TOKEN}" == "true" ]]; then
+        echo "Modify rosinstall file to use GitLab CI job token"
+        pass_ci_token "${rosinstall_file}" >/dev/null
+    fi
+    # echo "vcs import"
+    # cat "$rosinstall_file"
+    vcs import "$location" <"$rosinstall_file"
     rm "$rosinstall_file"
 }
 
-function resolve_depends {
+function install_from_rosinstall_folder {
     local ws=$1
-    if [ -z "$ws" ]; then
-        echo "Error: Workspace path is not provided."
-        return 1
-    fi
-
-    case "$ROS_VERSION" in
-        1)
-            # For ROS1
-            echo "Resolving dependencies for ROS1..."
-            rosdep install --from-paths "$ws" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
-            ;;
-
-        2)
-            # For ROS2
-            echo "Resolving dependencies for ROS2..."
-            rosdep install --from-paths "$ws" --ignore-src -y -r --rosdistro "$ROS_DISTRO"
-            ;;
-
-        *)
-            echo "Error: Unsupported ROS version. Please use ROS 1 or 2."
-            return 1
-            ;;
-    esac
-}
-
-# function remove_comments {
-#     local src=$1
-#     find "$src" -name 'package.xml' | while read -r file; do
-#         sed -i '/<!--/,/-->/d' "$file"
-#     done
-# }
-
-function create_depends {
-    if [[ "$ROS_VERSION" -eq 1 ]]; then
-        local src=$1; shift
-        comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
-    fi
-    if [[ "$ROS_VERSION" -eq 2 ]]; then
-        local src=$1; shift
-        comm -23 <(read_depends "$src" "$@"| sort -u) <(list_packages "$src" | sort -u) | xargs -r rosdep resolve | grep_opt -v '^#' | sort -u
-    fi
-    if [ "$ROS_VERSION" -ne 2 ] && [ "$ROS_VERSION" -ne 1 ]; then
-        echo "Cannot get ROS_VERSION"
-        exit 1
-    fi
+    shift
+    for f in $(find "$ws/src" -type f -name '*.repos' -o -name "*.repo"); do
+        echo "Find $f"
+        install_from_rosinstall "$f" "$ws/src"
+    done
 }
 
 function install_dep_python {
     local ws=$1
-    apt_get_install python3-pip >/dev/null
-    find "$ws" -type f -name 'requirements.txt' -exec pip install -r {} \;
+    shift
+    for f in $(find "$ws" -type f -name 'requirements.txt'); do
+        echo "Find $f"
+        # install pip
+        if ! command -v pip >/dev/null; then
+            if ! command -v python >/dev/null; then
+                apt_get_install python3-pip >/dev/null
+            else
+                apt_get_install python-pip >/dev/null
+            fi
+        fi
+        pip install -r "$f"
+    done
+}
+
+# download_repos "workspace name"
+function download_repos {
+    local ws=$1
+    shift
+    for file in $(find "$ws/src" -type f -name '*.rosinstall' -o -name 'rosinstall' -o -name '*.repo' -o -name '*.repos'); do
+        echo "$file"
+        install_from_rosinstall "$file" "$ws"/src/
+    done
+}
+
+# get_dependencies "workspace name" "ROS_DISTRO name" "ubderlayered workspace(s)"
+function get_dependencies {
+    # require source workspace before
+    local ws=$1
+    shift
+    local ROS_DISTRO=$1
+    shift
+
+    setup_rosdep
+    download_repos "$ws"
+
+    get_ros_version "$ROS_DISTRO"
+
+    local underlay_wss="$*"
+    local wss
+    if [[ -n "${underlay_wss[@]}" ]]; then
+        for ele in "${underlay_wss[@]}"; do
+            wss+=("$ele")
+        done
+        resolve_depends "$ws/src" --deptypes depend build_export_depend exec_depend run_depend --underlay "${underlay_wss[@]}" >"$ws/DEPENDS"
+        resolve_depends "$ws/src" --deptypes depend build_depend --underlay "${underlay_wss[@]}" | apt_get_install
+
+    else
+        resolve_depends "$ws/src" --deptypes depend build_export_depend exec_depend run_depend >"$ws/DEPENDS"
+        resolve_depends "$ws/src" --deptypes depend build_depend build_export_depend | apt_get_install
+
+    fi
+
+}
+
+# setup_ws --ros_distro "ROS_DISTRO name" --underlay "ubderlayered workspace(s)"
+function setup_ws {
+    local rest="$*"
+    while [[ $rest =~ (.*)"--"(.*) ]]; do
+        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
+        v="${eles[0]}"
+        if [[ -n "${eles[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        fi
+        rest=${BASH_REMATCH[1]}
+        unset IFS
+    done
+
+    if [ -v "$ros_distro" ]; then
+        source "/opt/ros/$ros_distro/setup.bash"
+    else
+        source "/opt/ros/$ROS_DISTRO/setup.bash"
+    fi
+
+    if [[ -n "${underlay[@]}" ]]; then
+        for underlay_ws in "${underlay[@]}"; do
+            if [[ "$ROS_VERSION" -eq 1 ]]; then
+                if [ -f "$underlay_ws/devel_isolated/setup.bash" ]; then
+                    source "$underlay_ws/devel_isolated/setup.bash"
+                elif [ -f "$underlay_ws/devel/setup.bash" ]; then
+                    source "$underlay_ws/devel/setup.bash"
+                fi
+                echo "ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}"
+            fi
+            if [[ "$ROS_VERSION" -eq 2 ]]; then
+                if [ -f "$underlay_ws/install/local_setup.bash" ]; then
+                    source "$underlay_ws/install/local_setup.bash"
+                fi
+            fi
+        done
+    fi
+}
+
+function get_ros_version {
+    local distro=$1
+    if [ -v "$ROS_VERSION" ]; then
+        echo "check ROS_VERSION=$ROS_VERSION"
+        if [ "$distro" = "noetic" ]; then
+            export ROS_VERSION=1
+        elif [ "$distro" = "humble" ] || [ "$distro" = "rolling" ] || [ "$distro" = "iron" ]; then
+            export ROS_VERSION=2
+        fi
+    else
+        echo "alreasy ROS_VERSION=$ROS_VERSION"
+    fi
+}
+
+# only_build_workspace "workspace path" "ROS_DISTRO name" --underlay "ubderlayered workspace(s)" --pkgs "select pkgs"
+function only_build_workspace {
+    # require source workspace before
+    local ws=$1
+    shift
+    local ROS_DISTRO=$1
+    shift
+    apt_get_install build-essential
+
+    local rest="$*"
+
+    while [[ $rest =~ (.*)"--"(.*) ]]; do
+        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
+        v="${eles[0]}"
+        if [[ -n "${eles[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        fi
+
+        unset IFS
+        rest=${BASH_REMATCH[1]}
+    done
+
+    if [[ -n "${underlay[@]}" ]]; then
+        setup_ws --ros_distro "$ROS_DISTRO" --underlay "${underlay[@]}"
+    else
+        setup_ws --ros_distro "$ROS_DISTRO"
+    fi
+
+    # local ROS_VERSION=0
+    echo "ROS_VERSION=$ROS_VERSION"
+    get_ros_version "$ROS_DISTRO"
+
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        local cmd=("/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws")
+
+        if [[ -n "${ignore[@]}" ]]; then
+            cmd+=(--ignore-pkg)
+            for pkg in "${ignore[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        if [[ -n "${pkgs[@]}" ]]; then
+            cmd+=(--from-pkg)
+            for pkg in "${pkgs[@]}"; do
+                local new_cmd=()
+                new_cmd=${cmd[@]}
+                new_cmd+=("$pkg")
+                new_cmd+=(-DCATKIN_ENABLE_TESTING=0)
+
+                if [[ -n "${CMAKE_ARGS[@]}" ]]; then
+                    for str in "${CMAKE_ARGS[@]}"; do
+                        new_cmd+=("$str")
+                    done
+                fi
+                echo "Build command: ${new_cmd[@]}"
+                ${new_cmd[@]}
+            done
+        fi
+    fi
+
+    if [[ "$ROS_VERSION" -eq 2 ]]; then
+        if ! command -v colcon >/dev/null; then
+            apt_get_install python3-colcon-common-extensions
+        fi
+        local cmd=(colcon build)
+        if [[ -n "${pkgs[@]}" ]]; then
+            if [[ -n "${COLCON_OPTION}" ]]; then
+                cmd+=("${COLCON_OPTION}")
+            else
+                cmd+=(--packages-up-to)
+            fi
+            for pkg in "${pkgs[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        if [[ -n "${ignore[@]}" ]]; then
+            echo "ignore-pkg=${ignore[@]}"
+            cmd+=(--packages-ignore)
+            for pkg in "${ignore[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        cmd+=("--cmake-args")
+        cmd+=("-DBUILD_TESTING=OFF")
+        if [[ -n "${CMAKE_ARGS[@]}" ]]; then
+            for str in "${CMAKE_ARGS[@]}"; do
+                cmd+=("$str")
+            done
+        fi
+
+        echo "Build command: ${cmd[@]}"
+        cd "$ws" && ${cmd[@]}
+    fi
 }
 
 function build_workspace {
     local ws=$1
-    echo "$ws"
+    shift
+    local pkgs="$*"
     apt_get_install build-essential
     setup_rosdep
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    for file in $(find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
-        echo "Installing from $file..."
-        install_from_rosinstall "$file" "$ws/src"
-    done
-    resolve_depends "$ws/src"
-    create_depends "$ws/src" depend build_export_depend exec_depend run_depend > "$ws/DEPENDS"
-    create_depends "$ws/src" depend build_depend build_export_depend | apt_get_install
+    # ls "$ws"/src
+
+    # download repos from .rosinstall or .repo, or .repos
+    download_repos "$ws"
+
+    resolve_depends "$ws/src" --deptypes depend build_export_depend exec_depend run_depend >"$ws/DEPENDS"
+    resolve_depends "$ws/src" --deptypes depend build_depend build_export_depend | apt_get_install
+
+    # install python deps
     install_dep_python "$ws/src"
-    if [ "$ROS_VERSION" -eq 1 ]; then
-        "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=0 "$CMAKE_ARGS"
-    elif [ "$ROS_VERSION" -eq 2 ]; then
-        cd "$ws" && colcon build --cmake-args -DBUILD_TESTING=OFF "$CMAKE_ARGS"
+    echo "CMAKE_ARGS = $CMAKE_ARGS"
+
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        local cmd=("/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws")
+
+        if [[ -n "${ignore[@]}" ]]; then
+            cmd+=(--ignore-pkg)
+            for pkg in "${ignore[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        if [[ -n "${pkgs[@]}" ]]; then
+            cmd+=(--from-pkg)
+            for pkg in "${pkgs[@]}"; do
+                local new_cmd=()
+                new_cmd=${cmd[@]}
+                new_cmd+=("$pkg")
+                new_cmd+=(-DCATKIN_ENABLE_TESTING=0)
+
+                if [[ -n "${CMAKE_ARGS[@]}" ]]; then
+                    for str in "${CMAKE_ARGS[@]}"; do
+                        new_cmd+=("$str")
+                    done
+                fi
+                echo "Build command: ${new_cmd[@]}"
+                ${new_cmd[@]}
+            done
+        fi
+    fi
+
+    if [[ "$ROS_VERSION" -eq 2 ]]; then
+        if ! command -v colcon >/dev/null; then
+            apt_get_install python3-colcon-common-extensions
+        fi
+        local cmd=(colcon build)
+        if [[ -n "${pkgs[@]}" ]]; then
+            if [[ -n "${COLCON_OPTION}" ]]; then
+                cmd+=("${COLCON_OPTION}")
+            else
+                cmd+=(--packages-up-to)
+            fi
+            for pkg in "${pkgs[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        cmd+=("--cmake-args")
+        cmd+=("-DBUILD_TESTING=OFF")
+        if [[ -n "${CMAKE_ARGS[@]}" ]]; then
+            for str in "${CMAKE_ARGS[@]}"; do
+                cmd+=("$str")
+            done
+        fi
+
+        echo "Build command: ${cmd[@]}"
+        cd "$ws" && ${cmd[@]}
     fi
 }
 
+# test_workspace ws --pkgs --underlay
 function test_workspace {
     local ws=$1
-    source "/opt/ros/$ROS_DISTRO/setup.bash"
-    # create_depends "$ws/src" depend exec_depend run_depend test_depend | apt_get_install
-    if [ "$ROS_VERSION" -eq 1 ]; then
-        "/opt/ros/$ROS_DISTRO/env.sh" catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=1
-        "/opt/ros/$ROS_DISTRO/env.sh" catkin_test_results --verbose "$ws"
-    elif [ "$ROS_VERSION" -eq 2 ]; then
-        cd "$ws" && colcon test
+    shift
+    local rest="$*"
+
+    while [[ $rest =~ (.*)"--"(.*) ]]; do
+        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
+        v="${eles[0]}"
+        if [[ -n "${eles[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        fi
+
+        unset IFS
+        rest=${BASH_REMATCH[1]}
+    done
+
+    echo "ROS_VERSION=$ROS_VERSION"
+    echo "ROS_DISTRO=$ROS_DISTRO"
+    get_ros_version "$ROS_DISTRO"
+
+    if [[ -n "${underlay[@]}" ]]; then
+        setup_ws --ros_distro "$ROS_DISTRO" --underlay "${underlay[@]}"
+        resolve_depends "$ws/src" --deptypes depend exec_depend run_depend test_depend --underlay "${underlay[@]}" | apt_get_install
+        echo "setup_ws --ros_distro ""$ROS_DISTRO"" --underlay "${underlay[@]}""
+    else
+        setup_ws --ros_distro "$ROS_DISTRO"
+        resolve_depends "$ws/src" --deptypes depend exec_depend run_depend test_depend | apt_get_install
+        echo "setup_ws --ros_distro ""$ROS_DISTRO"""
+    fi
+
+    if [[ "$ROS_VERSION" -eq 1 ]]; then
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws" -DCATKIN_ENABLE_TESTING=1
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws" --make-args run_tests -j1
+        "/opt/ros/$ROS_DISTRO"/env.sh catkin_test_results --verbose "$ws"
+    else
+        if ! command -v colcon >/dev/null; then
+            apt_get_install python3-colcon-common-extensions
+        fi
+        local cmd=(colcon test)
+        if [[ -n "${pkgs[@]}" ]]; then
+            if [[ -n "${COLCON_OPTION}" ]]; then
+                cmd+=("${COLCON_OPTION}")
+            else
+                cmd+=(--packages-up-to)
+            fi
+            for pkg in "${pkgs[@]}"; do
+                cmd+=("$pkg")
+            done
+        fi
+
+        echo "test command: ${cmd[@]}"
+        cd "$ws" && ${cmd[@]}
         colcon test-result --verbose
     fi
 }
 
 function install_depends {
-    local ws=$1; shift
-    apt_get_install < "$ws/DEPENDS"
+    local ws=$1
+    shift
+    apt_get_install <"$ws/DEPENDS"
 }
 
 function install_workspace {
     source "/opt/ros/$ROS_DISTRO/setup.bash"
-    echo "ROS_VERSION: $ROS_VERSION"
-    echo "ROS_DISTRO: $ROS_DISTRO"
+
     if [[ "$ROS_VERSION" -eq 1 ]]; then
         echo "It is: $ROS_DISTRO"
-        local ws=$1; shift
+        local ws=$1
+        shift
         "/opt/ros/$ROS_DISTRO"/env.sh catkin_make_isolated -C "$ws" --install --install-space "/opt/ros/$ROS_DISTRO"
     fi
     if [[ "$ROS_VERSION" -eq 2 ]]; then
         echo "It is: $ROS_DISTRO"
-        local ws=$1; shift
+        local ws=$1
+        shift
         rm -r "$ws"/build
-        make_ros_entrypoint "$ws" > /ros_entrypoint.sh
+        make_ros_entrypoint "$ws" >/ros_entrypoint.sh
         source "/ros_entrypoint.sh"
     fi
     if [[ "$ROS_VERSION" -ne 2 ]] && [[ "$ROS_VERSION" -ne 1 ]]; then
@@ -243,21 +593,80 @@ function install_workspace {
     fi
 }
 
-function finalize_workspace {
-    local ws=$1
-    apt_get_install build-essential
-    setup_rosdep
-    source "/opt/ros/$ROS_DISTRO/setup.bash"
-    for file in $(find "$ws/src" -type f -regex '.*\.\(rosinstall\|repo\|repos\)'); do
-        echo "Installing from $file..."
-        install_from_rosinstall "$file" "$ws/src"
-    done
-    resolve_depends "$ws/src"
+function find_pyproject_dirs() {
+    # Accept the workspace directory as an argument
+    local workspace="$1"
+    # Array to store directories containing pyproject.toml
+    local pyproject_dirs=()
+
+    # Use find to search for pyproject.toml and store the parent directories
+    while IFS= read -r dir; do
+        pyproject_dirs+=("$dir")
+    done < <(find "$workspace" -type f -name "pyproject.toml" -exec dirname {} \; | sort -u)
+
+    # Return the array
+    echo "${pyproject_dirs[@]}"
 }
 
+function install_poetry() {
+    # Check if poetry is installed in the virtual environment
+    if ! [ -x "/opt/poetry_venv/bin/poetry" ]; then
+        echo "Poetry is not installed in the virtual environment. Installing poetry..."
+        
+        # Create a virtual environment for poetry
+        python3 -m venv /opt/poetry_venv
+        source /opt/poetry_venv/bin/activate
+
+        # Install poetry in the virtual environment
+        /opt/poetry_venv/bin/pip install poetry
+
+        # Verify poetry installation
+        if ! [ -x "/opt/poetry_venv/bin/poetry" ]; then
+            echo "Failed to install poetry. Exiting."
+            exit 1
+        else
+            echo "Poetry successfully installed in the virtual environment."
+        fi
+    else
+        echo "Poetry is already installed in the virtual environment."
+    fi
+}
+
+function poetry_install_in_dirs() {
+    # Accept the workspace directory as an argument
+    local workspace="$1"
+
+    # Ensure Poetry is installed in the virtual environment
+    install_poetry
+
+    # Get the directories containing pyproject.toml
+    local pyproject_dirs=($(find_pyproject_dirs "$workspace"))
+
+    # Loop through the directories and run poetry install
+    for dir in "${pyproject_dirs[@]}"; do
+        echo "Running 'poetry install' in directory: $dir"
+        
+        # Activate the virtual environment and install dependencies with Poetry
+        source /opt/poetry_venv/bin/activate
+        /opt/poetry_venv/bin/poetry install -C "$dir" --no-interaction
+        
+        # Check if the command was successful
+        if [ $? -eq 0 ]; then
+            echo "Successfully installed dependencies in $dir"
+        else
+            echo "Failed to install dependencies in $dir"
+        fi
+        
+        # Deactivate the virtual environment after each run
+        deactivate
+    done
+}
+
+
 function make_ros_entrypoint {
-    local ws=$1; shift
-cat <<- _EOF_
+    local ws=$1
+    shift
+    cat <<-_EOF_
 #!/bin/bash
 set -e
 
