@@ -610,110 +610,79 @@ function find_pyproject_dirs() {
 }
 
 function install_poetry() {
-    # Define the path for the Poetry virtual environment
-    local poetry_venv="/opt/poetry_venv"
-    local poetry_bin="$poetry_venv/bin/poetry"
+    # Check if poetry is installed
+    if ! command -v poetry &>/dev/null; then
+        echo "Poetry is not installed. Installing poetry..."
 
-    # Check if Poetry is already installed in the virtual environment
-    if ! [ -x "$poetry_bin" ]; then
-        echo "Poetry is not installed. Installing Poetry in a virtual environment..."
+        # Check if pip3 is installed
+        if ! command -v pip3 &>/dev/null; then
+            echo "pip3 is not installed. Installing python3-pip..."
+            apt_get_install python3-pip
 
-        # Ensure pip3 and venv are available
-        if ! command -v pip3 &>/dev/null || ! command -v python3 -m venv &>/dev/null; then
-            echo "pip3 or python3-venv is not installed. Installing python3-pip and python3-venv..."
-            apt_get_install python3-pip python3-venv
-
-            # Verify installation
+            # Verify pip3 installation
             if ! command -v pip3 &>/dev/null; then
                 echo "Failed to install python3-pip. Exiting."
                 exit 1
             fi
         fi
 
-        # Create the virtual environment for Poetry
-        python3 -m venv "$poetry_venv"
-        source "$poetry_venv/bin/activate"
+        # Install poetry using pip3
+        python3 -m pip install poetry
 
-        # Upgrade pip, setuptools, and wheel to the latest versions compatible with Python 3.12
-        pip install --upgrade pip setuptools wheel
-
-        # Install Poetry in the virtual environment
-        pip install poetry
-
-        # Verify Poetry installation
-        if ! [ -x "$poetry_bin" ]; then
-            echo "Failed to install Poetry in the virtual environment. Exiting."
+        # Verify poetry installation
+        if ! command -v poetry &>/dev/null; then
+            echo "Failed to install poetry. Exiting."
             exit 1
         else
-            echo "Poetry successfully installed in the virtual environment."
+            echo "Poetry successfully installed."
         fi
-
-        # Deactivate the virtual environment after installation
-        deactivate
     else
-        echo "Poetry is already installed in the virtual environment."
+        echo "Poetry is already installed."
     fi
-
-    # Configure Poetry to disable creating virtual environments for each project
-    "$poetry_bin" config virtualenvs.create false
+    poetry config virtualenvs.create false
 }
 
-
 function find_pyproject_dirs() {
+    # Accept the workspace directory and depth as arguments
     local workspace="$1"
     local depth="$2"
+    # Array to store directories containing pyproject.toml
     local pyproject_dirs=()
 
-    # Search for pyproject.toml files within the specified depth
+    # Use find to search for pyproject.toml files within the specified depth
     while IFS= read -r dir; do
         pyproject_dirs+=("$dir")
     done < <(find "$workspace" -maxdepth "$depth" -type f -name "pyproject.toml" -exec dirname {} \; | sort -u)
 
+    # Return the array
     echo "${pyproject_dirs[@]}"
 }
 
 function poetry_install_in_dirs() {
+    # Accept the workspace directory and depth as arguments
     local workspace="$1"
     local depth="$2"
-    local poetry_bin="/opt/poetry_venv/bin/poetry"
 
-    # Ensure Poetry is installed in the virtual environment
+    # Ensure poetry is installed
     install_poetry
-
-    # Upgrade pip, setuptools, and wheel for better compatibility with dependencies
-    source /opt/poetry_venv/bin/activate
-    pip install --upgrade pip setuptools wheel
-    pip install --no-cache-dir "numpy>=1.24"  # Ensure compatible numpy version is pre-installed
-    deactivate
+    poetry config virtualenvs.create false
 
     # Get the directories containing pyproject.toml within the specified depth
     local pyproject_dirs=($(find_pyproject_dirs "$workspace" "$depth"))
 
-    # Loop through the directories, regenerate the lock file, and install dependencies
+    # Loop through the directories and run poetry install
     for dir in "${pyproject_dirs[@]}"; do
-        echo "Regenerating lock file and running 'poetry install' in directory: $dir"
-        
-        # Activate the virtual environment to use Poetry
-        source /opt/poetry_venv/bin/activate
+        echo "Running 'poetry install' in directory: $dir"
+        poetry install -C "$dir" --no-ansi
 
-        # Regenerate the lock file to ensure compatibility with the updated pyproject.toml
-        "$poetry_bin" lock -C "$dir" --no-update
-
-        # Install the dependencies
-        "$poetry_bin" install -C "$dir" --no-ansi
-        
         # Check if the command was successful
         if [ $? -eq 0 ]; then
             echo "Successfully installed dependencies in $dir"
         else
             echo "Failed to install dependencies in $dir"
         fi
-        
-        # Deactivate the virtual environment after each installation
-        deactivate
     done
 }
-
 
 function update_git_submodules() {
     # Accept the workspace directory as an argument
