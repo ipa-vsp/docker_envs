@@ -680,21 +680,26 @@ function poetry_install_in_dirs() {
     # Ensure Poetry is installed in the virtual environment
     install_poetry
 
-    # Pre-install numpy with PEP 517 support and upgrade pip, setuptools, and wheel
+    # Upgrade pip, setuptools, and wheel for better compatibility with dependencies
     source /opt/poetry_venv/bin/activate
     pip install --upgrade pip setuptools wheel
-    pip install --no-cache-dir --upgrade "numpy>=1.24"  # Upgrade to a compatible version of numpy
+    pip install --no-cache-dir "numpy>=1.24"  # Ensure compatible numpy version is pre-installed
     deactivate
 
     # Get the directories containing pyproject.toml within the specified depth
     local pyproject_dirs=($(find_pyproject_dirs "$workspace" "$depth"))
 
-    # Loop through the directories and run poetry install
+    # Loop through the directories, regenerate the lock file, and install dependencies
     for dir in "${pyproject_dirs[@]}"; do
-        echo "Running 'poetry install' in directory: $dir"
+        echo "Regenerating lock file and running 'poetry install' in directory: $dir"
         
         # Activate the virtual environment to use Poetry
         source /opt/poetry_venv/bin/activate
+
+        # Regenerate the lock file to ensure compatibility with the updated pyproject.toml
+        "$poetry_bin" lock -C "$dir" --no-update
+
+        # Install the dependencies
         "$poetry_bin" install -C "$dir" --no-ansi
         
         # Check if the command was successful
