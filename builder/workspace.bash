@@ -659,28 +659,18 @@ function find_pyproject_dirs() {
 }
 
 function poetry_install_in_dirs() {
-    # Accept the workspace directory and depth as arguments
     local workspace="$1"
     local depth="$2"
-
-    # Ensure poetry is installed
     install_poetry
     poetry config virtualenvs.create false
 
-    # Get the directories containing pyproject.toml within the specified depth
     local pyproject_dirs=($(find_pyproject_dirs "$workspace" "$depth"))
 
-    # Loop through the directories and run poetry install
     for dir in "${pyproject_dirs[@]}"; do
+        echo "Running 'poetry lock --no-update' in directory: $dir"
+        cd "$dir" && poetry lock --no-update
         echo "Running 'poetry install' in directory: $dir"
-        poetry install -C "$dir" --no-ansi
-
-        # Check if the command was successful
-        if [ $? -eq 0 ]; then
-            echo "Successfully installed dependencies in $dir"
-        else
-            echo "Failed to install dependencies in $dir"
-        fi
+        poetry install --no-ansi
     done
 }
 
