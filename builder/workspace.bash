@@ -620,7 +620,7 @@ function install_poetry() {
 
         # Ensure pip3 and venv are available
         if ! command -v pip3 &>/dev/null; then
-            echo "pip3 is not installed. Installing python3-pip..."
+            echo "pip3 is not installed. Installing python3-pip and python3-venv..."
             apt_get_install python3-pip python3-venv
 
             # Verify pip3 installation
@@ -634,11 +634,11 @@ function install_poetry() {
         python3 -m venv "$poetry_venv"
         source "$poetry_venv/bin/activate"
 
-        # Install setuptools, wheel, and Poetry in the virtual environment
-        pip install setuptools wheel poetry
+        # Upgrade pip and setuptools to the latest versions compatible with Python 3.12
+        pip install --upgrade pip setuptools wheel
 
-        # Pre-install numpy to avoid issues with Poetry
-        pip install numpy==1.23.5
+        # Install Poetry in the virtual environment
+        pip install poetry
 
         # Verify Poetry installation
         if ! [ -x "$poetry_bin" ]; then
