@@ -675,10 +675,16 @@ function find_pyproject_dirs() {
 function poetry_install_in_dirs() {
     local workspace="$1"
     local depth="$2"
+    local poetry_bin="/opt/poetry_venv/bin/poetry"
 
     # Ensure Poetry is installed in the virtual environment
     install_poetry
-    local poetry_bin="/opt/poetry_venv/bin/poetry"
+
+    # Pre-install numpy with PEP 517 support and upgrade pip, setuptools, wheel
+    source /opt/poetry_venv/bin/activate
+    pip install --upgrade pip setuptools wheel
+    pip install --no-cache-dir --use-pep517 "numpy==1.23.5"
+    deactivate
 
     # Get the directories containing pyproject.toml within the specified depth
     local pyproject_dirs=($(find_pyproject_dirs "$workspace" "$depth"))
