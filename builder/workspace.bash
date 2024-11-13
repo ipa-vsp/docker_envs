@@ -618,10 +618,10 @@ function install_poetry() {
     if ! [ -x "$poetry_bin" ]; then
         echo "Poetry is not installed. Installing Poetry in a virtual environment..."
 
-        # Ensure pip3 is available
+        # Ensure pip3 and venv are available
         if ! command -v pip3 &>/dev/null; then
             echo "pip3 is not installed. Installing python3-pip..."
-            apt_get_install python3-pip
+            apt_get_install python3-pip python3-venv
 
             # Verify pip3 installation
             if ! command -v pip3 &>/dev/null; then
@@ -635,7 +635,7 @@ function install_poetry() {
         source "$poetry_venv/bin/activate"
 
         # Install Poetry in the virtual environment
-        pip install poetry
+        pip install poetry setuptools wheel
 
         # Verify Poetry installation
         if ! [ -x "$poetry_bin" ]; then
@@ -654,6 +654,7 @@ function install_poetry() {
     # Configure Poetry to disable creating virtual environments for each project
     "$poetry_bin" config virtualenvs.create false
 }
+
 
 function find_pyproject_dirs() {
     local workspace="$1"
