@@ -619,11 +619,11 @@ function install_poetry() {
         echo "Poetry is not installed. Installing Poetry in a virtual environment..."
 
         # Ensure pip3 and venv are available
-        if ! command -v pip3 &>/dev/null; then
-            echo "pip3 is not installed. Installing python3-pip and python3-venv..."
+        if ! command -v pip3 &>/dev/null || ! command -v python3 -m venv &>/dev/null; then
+            echo "pip3 or python3-venv is not installed. Installing python3-pip and python3-venv..."
             apt_get_install python3-pip python3-venv
 
-            # Verify pip3 installation
+            # Verify installation
             if ! command -v pip3 &>/dev/null; then
                 echo "Failed to install python3-pip. Exiting."
                 exit 1
@@ -634,7 +634,7 @@ function install_poetry() {
         python3 -m venv "$poetry_venv"
         source "$poetry_venv/bin/activate"
 
-        # Upgrade pip and setuptools to the latest versions compatible with Python 3.12
+        # Upgrade pip, setuptools, and wheel to the latest versions compatible with Python 3.12
         pip install --upgrade pip setuptools wheel
 
         # Install Poetry in the virtual environment
@@ -680,10 +680,10 @@ function poetry_install_in_dirs() {
     # Ensure Poetry is installed in the virtual environment
     install_poetry
 
-    # Pre-install numpy with PEP 517 support and upgrade pip, setuptools, wheel
+    # Pre-install numpy with PEP 517 support and upgrade pip, setuptools, and wheel
     source /opt/poetry_venv/bin/activate
     pip install --upgrade pip setuptools wheel
-    pip install --no-cache-dir --use-pep517 "numpy==1.23.5"
+    pip install --no-cache-dir --upgrade "numpy>=1.24"  # Upgrade to a compatible version of numpy
     deactivate
 
     # Get the directories containing pyproject.toml within the specified depth
@@ -708,6 +708,7 @@ function poetry_install_in_dirs() {
         deactivate
     done
 }
+
 
 function update_git_submodules() {
     # Accept the workspace directory as an argument
