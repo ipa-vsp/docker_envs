@@ -634,8 +634,11 @@ function install_poetry() {
         python3 -m venv "$poetry_venv"
         source "$poetry_venv/bin/activate"
 
-        # Install Poetry in the virtual environment
-        pip install poetry setuptools wheel
+        # Install setuptools, wheel, and Poetry in the virtual environment
+        pip install setuptools wheel poetry
+
+        # Pre-install numpy to avoid issues with Poetry
+        pip install numpy==1.23.5
 
         # Verify Poetry installation
         if ! [ -x "$poetry_bin" ]; then
