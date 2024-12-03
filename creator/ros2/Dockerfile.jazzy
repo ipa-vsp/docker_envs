@@ -81,6 +81,7 @@ ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-desktop \
+        ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
 && rm -rf /var/lib/apt/lists/* \
 && apt-get clean
 
