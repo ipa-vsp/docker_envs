@@ -38,17 +38,17 @@ function read_depends {
     done
 }
 
-# list_packages /ws/src --underlay (underlayed workspaces)
+# list_packages /ws/src --underlay (underlaid workspaces)
 function list_packages {
     local src=$1
     shift
 
     local rest="$*"
     while [[ $rest =~ (.*)"--"(.*) ]]; do
-        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
-        v="${eles[0]}"
-        if [[ -n "${eles[@]:1}" ]]; then
-            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        IFS=' ' read -ra else <<<"${BASH_REMATCH[2]}"
+        v="${else[0]}"
+        if [[ -n "${else[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${else[@]:1}") )"
         fi
         rest=${BASH_REMATCH[1]}
         unset IFS
@@ -124,17 +124,17 @@ function resolve_depends {
 
     local rest="$*"
     while [[ $rest =~ (.*)"--"(.*) ]]; do
-        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
-        v="${eles[0]}"
-        if [[ -n "${eles[@]:1}" ]]; then
-            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        IFS=' ' read -ra else <<<"${BASH_REMATCH[2]}"
+        v="${else[0]}"
+        if [[ -n "${else[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${else[@]:1}") )"
         fi
         rest=${BASH_REMATCH[1]}
         unset IFS
     done
 
     if [[ "$ROS_VERSION" -eq 1 ]]; then
-        # get required deps but remove deps already exist in /opt/ros/*/share, or current source folder or underlayed workspaces
+        # get required deps but remove deps already exist in /opt/ros/*/share, or current source folder or underlaid workspaces
         comm -23 <(read_depends "$src" "${deptypes[@]}" | sort -u) <(list_packages "$src" --underlay "${underlay[@]}" | sort -u) | xargs -r "/opt/ros/$ROS_DISTRO"/env.sh rosdep resolve | grep_opt -v '^#' | sort -u
     fi
 
@@ -285,10 +285,10 @@ function get_dependencies {
 function setup_ws {
     local rest="$*"
     while [[ $rest =~ (.*)"--"(.*) ]]; do
-        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
-        v="${eles[0]}"
-        if [[ -n "${eles[@]:1}" ]]; then
-            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        IFS=' ' read -ra else <<<"${BASH_REMATCH[2]}"
+        v="${else[0]}"
+        if [[ -n "${else[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${else[@]:1}") )"
         fi
         rest=${BASH_REMATCH[1]}
         unset IFS
@@ -329,7 +329,7 @@ function get_ros_version {
             export ROS_VERSION=2
         fi
     else
-        echo "alreasy ROS_VERSION=$ROS_VERSION"
+        echo "already ROS_VERSION=$ROS_VERSION"
     fi
 }
 
@@ -345,10 +345,10 @@ function only_build_workspace {
     local rest="$*"
 
     while [[ $rest =~ (.*)"--"(.*) ]]; do
-        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
-        v="${eles[0]}"
-        if [[ -n "${eles[@]:1}" ]]; then
-            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        IFS=' ' read -ra else <<<"${BASH_REMATCH[2]}"
+        v="${else[0]}"
+        if [[ -n "${else[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${else[@]:1}") )"
         fi
 
         unset IFS
@@ -516,10 +516,10 @@ function test_workspace {
     local rest="$*"
 
     while [[ $rest =~ (.*)"--"(.*) ]]; do
-        IFS=' ' read -ra eles <<<"${BASH_REMATCH[2]}"
-        v="${eles[0]}"
-        if [[ -n "${eles[@]:1}" ]]; then
-            declare -a "$v"="( $(printf '%q ' "${eles[@]:1}") )"
+        IFS=' ' read -ra else <<<"${BASH_REMATCH[2]}"
+        v="${else[0]}"
+        if [[ -n "${else[@]:1}" ]]; then
+            declare -a "$v"="( $(printf '%q ' "${else[@]:1}") )"
         fi
 
         unset IFS

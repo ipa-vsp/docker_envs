@@ -36,7 +36,7 @@ services:
         ipv4_address: 172.20.0.5
     volumes:
       - ./dds:/root/dds
-    environment: 
+    environment:
       - RMW_IMPLEMENTATION=rmw_zenoh_cpp
       - ROS_DOMAIN_ID=73
     command: tail -f /dev/null
