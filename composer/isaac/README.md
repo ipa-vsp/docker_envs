@@ -8,7 +8,7 @@ source /opt/ros/humble/setup.bash
 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/isaac-sim/exts/omni.isaac.ros2_bridge/humble/lib
 
-OR 
+OR
 
 RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/isaac-sim/exts/omni.isaac.ros2_bridge/humble/lib
