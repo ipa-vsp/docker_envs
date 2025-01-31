@@ -29,7 +29,7 @@ services:
     command: bash
     stdin_open: true
     tty: true
-  
+
   build-humble-isaac:
     image: isaac-sim:humble
     build:
