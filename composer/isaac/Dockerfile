@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/isaac-sim:4.2.0
+FROM nvcr.io/nvidia/isaac-sim:4.5.0
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -56,11 +56,24 @@ ENV ROS_ROOT /opt/ros/${ROS_DISTRO}
 # Install specific Python setuptools version
 RUN python3 -m pip install setuptools==58.2.0
 
-# Install ROS2 packages
+RUN apt-get update && apt-get install -y --allow-downgrades \
+    libbrotli1=1.0.9-2build6 \
+    libbrotli-dev
+
+# Install dependencies required for ROS2 and Isaac Sim
+RUN apt-get update && apt-get install -f && apt-get install -y \
+    curl \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    libfreetype6-dev \
+    libfontconfig1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install ROS2
 RUN apt-get update && apt-get install -y \
     ros-${ROS_DISTRO}-desktop \
     ros-${ROS_DISTRO}-moveit \
-    ros-${ROS_DISTRO}-rviz-visual-tools \
     ros-${ROS_DISTRO}-moveit-resources \
     ros-${ROS_DISTRO}-ros2-control \
     ros-${ROS_DISTRO}-ros2-controllers \
