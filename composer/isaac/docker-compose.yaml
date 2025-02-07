@@ -15,14 +15,8 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       PRIVACY_CONSENT: "Y"
-      # Uncomment and set your email if needed
-      # PRIVACY_USERID: "<your_email>"
-      ROS_DISTRO: "humble"
-      ROS_ROOT: "/opt/ros/humble"
-      AMENT_PREFIX_PATH: "/opt/ros/humble"
-      DISPLAY: "${DISPLAY}" # For GUI support if needed
-      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
       NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
     volumes:
       - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
       - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw
@@ -33,9 +27,11 @@ services:
       - ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw
       - ~/docker/isaac-sim/documents:/root/Documents:rw
     network_mode: host
-    command: tail -f /dev/null
     stdin_open: true
     tty: true
+    entrypoint: bash
+    command: ["-it"]
+    restart: "no"
   
   build-humble-isaac:
     image: isaac-sim-4.5.0:humble
