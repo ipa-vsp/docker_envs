@@ -12,20 +12,23 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Create/modify the 'admin' user and group if necessary
-# Create/modify the 'admin' user and group if necessary
-RUN if ! getent passwd ${USER_UID} >/dev/null 2>&1 && ! getent group ${USER_GID} >/dev/null 2>&1; then \
-        groupadd --gid ${USER_GID} admin && \
-        useradd --uid ${USER_UID} --gid ${USER_GID} -m admin; \
-    elif ! getent passwd ${USER_UID} >/dev/null 2>&1; then \
-        useradd --uid ${USER_UID} --gid ${USER_GID} -m admin; \
-    elif ! getent passwd admin >/dev/null 2>&1; then \
-        usermod -l admin $(getent passwd ${USER_UID} | cut -d: -f1); \
-    fi && \
-    echo 'admin ALL=(root) NOPASSWD:ALL' > /etc/sudoers.d/admin && \
-    chmod 0440 /etc/sudoers.d/admin && \
-    usermod -aG video admin && \
-    usermod -aG sudo admin
+# Ensure the home directory exists and has the correct permissions
+RUN mkdir -p /home/${USERNAME} && chown ${USER_UID}:${USER_GID} /home/${USERNAME}
+
+# Create the 'admin' group if it doesn't exist
+RUN if ! getent group ${USER_GID} >/dev/null 2>&1; then \
+        groupadd --gid ${USER_GID} ${USERNAME}; \
+    fi
+
+# Create the 'admin' user if it doesn't exist
+RUN if ! getent passwd ${USER_UID} >/dev/null 2>&1; then \
+        useradd --uid ${USER_UID} --gid ${USER_GID} -m --home /home/${USERNAME} ${USERNAME}; \
+    fi
+
+# Ensure usermod changes work even if user already exists
+RUN usermod -aG sudo,video ${USERNAME} && \
+    echo '${USERNAME} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${USERNAME} && \
+    chmod 0440 /etc/sudoers.d/${USERNAME}
 
 # Copy and set permissions for scripts
 RUN mkdir -p /usr/local/bin/scripts
@@ -35,19 +38,22 @@ RUN chmod +x /usr/local/bin/scripts/*.sh
 USER root
 
 # Create appropriate workspace depending on ROS_DISTRO and set permissions
-RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || "${ROS_DISTRO}" == "iron" || "${ROS_DISTRO}" == "humble" ]]; then \
-        mkdir -p /home/${USERNAME}/colcon_ws/src && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws ; \
-    else echo "Selected ROS1" ; fi && \
-    if [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then \
-        mkdir -p /home/${USERNAME}/catkin_ws/src && chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws; \
-    else echo "Selected ROS2" ; fi
+RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || \
+          "${ROS_DISTRO}" == "iron" || "${ROS_DISTRO}" == "humble" ]]; then \
+        mkdir -p /home/${USERNAME}/colcon_ws/src && \
+        chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws; \
+    elif [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then \
+        mkdir -p /home/${USERNAME}/catkin_ws/src && \
+        chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws; \
+    fi
 
-USER ${USERNAME}
-WORKDIR /home/${USERNAME}
+# Retain root as the active user for building further layers
+USER root
 
 # Set Environment Variables
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
-# ENV NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
-# ENV NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
+
+# Optionally switch to the user when running interactively
+CMD ["/bin/bash"]
