@@ -1,4 +1,4 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
 # Setup non-root admin user
@@ -7,35 +7,38 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 
 # Install prerequisites and cleanup in a single step
-RUN apt-get update && apt-get install -y \
-        sudo \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+RUN apt-get update && apt-get install -y sudo && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# Ensure the home directory exists and has the correct permissions
-RUN mkdir -p /home/${USERNAME} && chown ${USER_UID}:${USER_GID} /home/${USERNAME}
-
-# Create the 'admin' group if it doesn't exist
+# Ensure the group exists before creating the user
 RUN if ! getent group ${USER_GID} >/dev/null 2>&1; then \
         groupadd --gid ${USER_GID} ${USERNAME}; \
     fi
 
-# Create the 'admin' user if it doesn't exist
+# Explicitly create the home directory before adding the user
+RUN mkdir -p /home/${USERNAME} && chown root:root /home/${USERNAME}
+
+# Ensure the user exists and belongs to the correct group
 RUN if ! getent passwd ${USER_UID} >/dev/null 2>&1; then \
-        useradd --uid ${USER_UID} --gid ${USER_GID} -m --home /home/${USERNAME} ${USERNAME}; \
+        useradd --uid ${USER_UID} --gid ${USER_GID} -m -d /home/${USERNAME} -s /bin/bash ${USERNAME}; \
     fi
 
-# Ensure usermod changes work even if user already exists
-RUN usermod -aG sudo,video ${USERNAME} && \
-    echo '${USERNAME} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/${USERNAME} && \
+# Set proper ownership of the home directory after user creation
+RUN chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
+
+# Ensure usermod only runs if the user exists
+RUN if getent passwd ${USERNAME} >/dev/null 2>&1; then \
+        usermod -aG sudo,video ${USERNAME}; \
+    fi
+
+# Ensure sudoers file is set correctly
+RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
     chmod 0440 /etc/sudoers.d/${USERNAME}
 
 # Copy and set permissions for scripts
 RUN mkdir -p /usr/local/bin/scripts
 COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
 RUN chmod +x /usr/local/bin/scripts/*.sh
-
-USER root
 
 # Create appropriate workspace depending on ROS_DISTRO and set permissions
 RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || \
@@ -47,7 +50,7 @@ RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || \
         chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws; \
     fi
 
-# Retain root as the active user for building further layers
+# Keep root as the active user for further builds
 USER root
 
 # Set Environment Variables
