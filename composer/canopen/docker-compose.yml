@@ -35,3 +35,20 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"
+
+    jammy_humble_moveit_test:
+        image: ghcr.io/ipa-vsp/docker_envs:humble
+        user: admin:1000
+        stdin_open: true
+        privileged: true
+        tty: true
+        network_mode: "host"
+        volumes:
+            - /tmp/.X11-unix:/tmp/.X11-unix:ro
+            - /etc/localtime:/etc/localtime:ro
+            - ../../../colcon_moveit_ws/src:/home/admin/colcon_ws/src
+        environment:
+            - DISPLAY=$DISPLAY
+            - ROS_DOMAIN_ID=73
+        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+        command: tail -f /dev/null # bash -c "top"
