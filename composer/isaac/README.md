@@ -23,7 +23,7 @@ source /opt/ros/humble/setup.bash
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/isaac-sim/exts/omni.isaac.ros2_bridge/humble/lib
 
-OR 
+OR
 
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/isaac-sim/exts/omni.isaac.ros2_bridge/humble/lib
