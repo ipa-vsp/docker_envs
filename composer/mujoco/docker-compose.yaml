@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  jazzy-mujoco:
+    image: ghcr.io/ipa-vsp/docker_envs:jazzy-mujoco
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ROS_DISTRO: jazzy
+        BASE_IMAGE: "ghcr.io/ipa-vsp/docker_envs:jazzy"
+    # container_name: isaac-sim
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    network_mode: host
+    stdin_open: true
+    tty: true
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../../../mujoco_ros2_control:/home/admin/colcon_ws/src
+    environment:
+        - DISPLAY=$DISPLAY
+        - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null # bash -c "top"
