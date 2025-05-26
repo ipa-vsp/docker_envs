@@ -30,7 +30,7 @@ services:
         - ROS_DOMAIN_ID=73
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
     command: tail -f /dev/null # bash -c "top"
-  
+
   jazzy-mujoco-windows:
     image: ghcr.io/ipa-vsp/docker_envs:jazzy-mujoco
     build:
