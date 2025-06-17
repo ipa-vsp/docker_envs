@@ -22,7 +22,7 @@ trap cleanup EXIT
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
     echo "  -o: OS version (24.04, 22.04, 20.04, 18.04, 16.04) | Default: 24.04"
-    echo "  -v: ROS version (rolling, jazzy, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
+    echo "  -v: ROS version (rolling, kilted, jazzy, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -z: Enable zehno | Default: false"
     echo "  -s: Enable simulation | Default: false"
@@ -86,6 +86,7 @@ if [[ "$BUILD" == true ]]; then
     echo "Building docker base file $BASE_FILE"
     ${ROOT}/build_image.sh "$BASE_FILE" "$OS_VERSION" "$IMAGE_NAME"
     declare -A DOCKERFILES=( ["rolling"]="${ROOT}/../ros2/Dockerfile.rolling"
+                             ["kilted"]="${ROOT}/../ros2/Dockerfile.kilted"
                              ["jazzy"]="${ROOT}/../ros2/Dockerfile.jazzy"
                              ["iron"]="${ROOT}/../ros2/Dockerfile.iron"
                              ["humble"]="${ROOT}/../ros2/Dockerfile.humble"

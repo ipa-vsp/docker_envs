@@ -25,6 +25,7 @@ jobs:
       matrix:
         env:
           - {ROS_DISTRO: rolling, OS_VERSION: 24.04}
+          - {ROS_DISTRO: kilted, OS_VERSION: 24.04}
           - {ROS_DISTRO: jazzy, OS_VERSION: 24.04}
           - {ROS_DISTRO: humble, OS_VERSION: 22.04}
           - {ROS_DISTRO: noetic, OS_VERSION: 20.04}
