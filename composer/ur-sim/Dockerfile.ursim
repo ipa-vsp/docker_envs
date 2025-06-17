@@ -1,0 +1,9 @@
+FROM universalrobots/ursim_e-series
+
+ENV ROBOT_MODEL=UR5
+
+# Install the URCap
+ADD https://github.com/UniversalRobots/Universal_Robots_ExternalControl_URCap/releases/download/v1.0.5/externalcontrol-1.0.5.urcap /urcaps/externalcontrol-1.0.5.jar
+
+# Install external-control program and default installation
+COPY ursim/programs.UR5 ursim/programs.UR5

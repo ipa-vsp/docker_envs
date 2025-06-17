@@ -1,0 +1,50 @@
+version: "3"
+
+networks:
+  ur_network:
+    driver: macvlan
+    driver_opts:
+      parent: wlp2s0
+    ipam:
+      config:
+        - subnet: "192.168.50.0/24"
+          gateway: "192.168.50.1"
+
+services:
+  
+  ur5e_sim:
+    image: ur5e-ext-ctrl
+    build:
+      context: .
+      dockerfile: Dockerfile.ursim
+    networks:
+      ur_network:
+        ipv4_address: 192.168.50.102
+    # network_mode: "host"
+    stdin_open: true
+    tty: true
+    ports:
+      - 5900:5900
+      - 29999:29999
+      - 30001-30004:30001-30004
+      - 6080:6080
+  
+
+  # ur5e_driver:
+  #   image: ghcr.io/ipa-vsp/docker_envs:jazzy
+  #   stdin_open: true
+  #   privileged: true
+  #   tty: true
+  #   networks:
+  #     ur5e:
+  #       ipv4_address: 192.168.1.11
+  #     ros-network: {}
+  #   volumes:
+  #     - /tmp/.X11-unix:/tmp/.X11-unix:ro
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - ../../../../colcon_ur_ws/src:/home/admin/colcon_ws/src
+  #   environment:
+  #     - DISPLAY=$DISPLAY
+  #     - ROS_DOMAIN_ID=73
+  #   entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+  #   command: tail -f /dev/null # bash -c "top"
