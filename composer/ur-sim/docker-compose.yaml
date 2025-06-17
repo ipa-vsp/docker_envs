@@ -30,21 +30,18 @@ services:
       - 6080:6080
   
 
-  # ur5e_driver:
-  #   image: ghcr.io/ipa-vsp/docker_envs:jazzy
-  #   stdin_open: true
-  #   privileged: true
-  #   tty: true
-  #   networks:
-  #     ur5e:
-  #       ipv4_address: 192.168.1.11
-  #     ros-network: {}
-  #   volumes:
-  #     - /tmp/.X11-unix:/tmp/.X11-unix:ro
-  #     - /etc/localtime:/etc/localtime:ro
-  #     - ../../../../colcon_ur_ws/src:/home/admin/colcon_ws/src
-  #   environment:
-  #     - DISPLAY=$DISPLAY
-  #     - ROS_DOMAIN_ID=73
-  #   entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-  #   command: tail -f /dev/null # bash -c "top"
+  ur5e_driver:
+    image: ghcr.io/ipa-vsp/docker_envs:jazzy
+    stdin_open: true
+    privileged: true
+    tty: true
+    network_mode: "host"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../../../../colcon_ur_ws/src:/home/admin/colcon_ws/src
+    environment:
+      - DISPLAY=$DISPLAY
+      - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null # bash -c "top"
