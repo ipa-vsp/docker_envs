@@ -5,8 +5,8 @@ name: Build and Push PyTorch
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'creator/**'
+    # paths:
+    #   - 'creator/**'
   schedule:
     - cron: '0 0 * * 0'
 

@@ -43,11 +43,20 @@ RUN mkdir -p ${MUJOCO_DIR} /home/mujoco && \
     rm mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz
 
 # Install Python packages
-RUN pip3 install --upgrade pip && \
+RUN apt-get update && \
+    apt-get install -y python3-venv && \
+    python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip
+
+# Update PATH to use venv Python
+ENV PATH="/opt/venv/bin:$PATH"
+RUN source /opt/venv/bin/activate && \
+    pip3 install --upgrade pip && \
     pip3 install cmake tensorboard mujoco==${MUJOCO_VERSION} gymnasium[all]==${GYM_VERSION}
 
 # Conditionally install PyTorch packages
-RUN pip3 install torch==${TORCH_VERSION} torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
+RUN source /opt/venv/bin/activate && \
+    pip3 install torch==${TORCH_VERSION} torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
     --index-url ${TORCH_INDEX_URL}
 
 # Setup non-root admin user
