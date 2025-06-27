@@ -4,6 +4,12 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
+ENV DEBIAN_FRONTEND=noninteractive
+COPY creator/scripts/bashrc /etc/bash.bashrc
+RUN chmod a+rwx /etc/bash.bashrc
+ENV SHELL /bin/bash
+SHELL ["/bin/bash", "-c"]
+
 # Define build-time arguments
 ARG ROS_DISTRO
 ARG MUJOCO_VERSION=3.3.3
@@ -18,14 +24,6 @@ ARG GYM_VERSION=1.2.0
 ENV ROS_DISTRO=${ROS_DISTRO} \
     MUJOCO_VERSION=${MUJOCO_VERSION} \
     MUJOCO_DIR=/opt/mujoco/mujoco-${MUJOCO_VERSION}
-
-# Use bash shell with pipefail for safety
-# Copy custom bash config (if available)
-ENV DEBIAN_FRONTEND=noninteractive
-# COPY creator/scripts/bashrc /etc/bash.bashrc
-# RUN chmod a+rwx /etc/bash.bashrc
-# ENV SHELL /bin/bash
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
 RUN apt-get update && \
@@ -65,11 +63,19 @@ ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-RUN groupadd -g ${USER_GID} ${USERNAME} || true && \
-    useradd -m -u ${USER_UID} -g ${USER_GID} -s /bin/bash ${USERNAME} || true && \
+RUN if ! getent group ${USER_GID} > /dev/null; then \
+        groupadd -g ${USER_GID} ${USERNAME}; \
+    else \
+        echo "Group with GID ${USER_GID} already exists"; \
+    fi && \
+    if ! getent passwd ${USER_UID} > /dev/null; then \
+        useradd -m -u ${USER_UID} -g ${USER_GID} -s /bin/bash ${USERNAME}; \
+    else \
+        echo "User with UID ${USER_UID} already exists"; \
+    fi && \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
     chmod 0440 /etc/sudoers.d/${USERNAME} && \
-    usermod -aG sudo,video ${USERNAME} && \
+    id -u ${USERNAME} > /dev/null 2>&1 && usermod -aG sudo,video ${USERNAME} && \
     mkdir -p /home/${USERNAME}/workspace && \
     chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
 
