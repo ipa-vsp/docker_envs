@@ -51,11 +51,13 @@ RUN apt-get update && \
 ENV PATH="/opt/venv/bin:$PATH"
 RUN source /opt/venv/bin/activate && \
     pip3 install --upgrade pip && \
-    pip3 install gradio tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
+    pip3 install --no-cache-dir gradio tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
 
 # Conditionally install PyTorch packages
 RUN source /opt/venv/bin/activate && \
-    pip3 install torch==${TORCH_VERSION} torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
+    pip3 install --no-cache-dir torch==${TORCH_VERSION} \
+    torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} \
+    torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
     --index-url ${TORCH_INDEX_URL}
 
 # Setup non-root admin user
