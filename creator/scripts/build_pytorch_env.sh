@@ -5,6 +5,8 @@ set -euo pipefail
 
 # Get the directory of the script
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+# Repository root is two directories up from this script
+REPO_ROOT="$(cd "${ROOT_DIR}/../.." >/dev/null 2>&1 && pwd)"
 
 # Helper functions
 print_warning() {
@@ -81,6 +83,6 @@ docker build \
     --build-arg MUJOCO_VERSION=${MUJOCO_VERSION} \
     --build-arg GYM_VERSION=${GYM_VERSION} \
     --build-arg TORCH_INDEX_URL=${TORCH_INDEX_URL} \
-    --file ${ROOT_DIR}/../pytorch/Dockerfile \
+    --file ${REPO_ROOT}/creator/pytorch/Dockerfile \
     --tag ${IMAGE_NAME} \
-    ${ROOT_DIR}/..
+    ${REPO_ROOT}
