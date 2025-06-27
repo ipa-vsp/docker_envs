@@ -1,0 +1,181 @@
+name: Build and Push PyTorch in Stages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-base:
+    name: Build Base Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.7.1",
+              VISION: "0.22.1",
+              AUDIO: "2.7.1",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.8.0",
+              TAG: "cuda12.8-torch2.7"
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build base stage
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/pytorch/Dockerfile
+          push: true
+          target: base
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
+          build-args: |
+            BASE_IMAGE=nvidia/cuda:${{ matrix.env.CUDA }}-cudnn-devel-ubuntu${{ matrix.env.OS_VERSION }}
+
+  build-mujoco:
+    name: Install MuJoCo and Gymnasium
+    runs-on: ubuntu-latest
+    needs: build-base
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.7.1",
+              VISION: "0.22.1",
+              AUDIO: "2.7.1",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.8.0",
+              TAG: "cuda12.8-torch2.7"
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build mujoco stage
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/pytorch/Dockerfile
+          push: true
+          target: mujoco
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-mujoco
+          build-args: |
+            BASE_IMAGE_MUJOCO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
+            MUJOCO_VERSION=${{ matrix.env.MUJOCO }}
+            GYM_VERSION=${{ matrix.env.GYM }}
+
+  build-pytorch:
+    name: Install PyTorch
+    runs-on: ubuntu-latest
+    needs: build-mujoco
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.7.1",
+              VISION: "0.22.1",
+              AUDIO: "2.7.1",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.8.0",
+              TAG: "cuda12.8-torch2.7"
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build pytorch stage
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/pytorch/Dockerfile
+          push: true
+          target: pytorch
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-pytorch
+          build-args: |
+            BASE_IMAGE_MUJOCO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
+            BASE_IMAGE_PYTORCH=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-mujoco
+            TORCH_VERSION=${{ matrix.env.TORCH }}
+            TORCHVISION_VERSION=${{ matrix.env.VISION }}
+            TORCHAUDIO_VERSION=${{ matrix.env.AUDIO }}
+
+  finalize:
+    name: Final Image With User
+    runs-on: ubuntu-latest
+    needs: build-pytorch
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.7.1",
+              VISION: "0.22.1",
+              AUDIO: "2.7.1",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.8.0",
+              TAG: "cuda12.8-torch2.7"
+            }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build final image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/pytorch/Dockerfile
+          push: true
+          target: final
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}
+          build-args: |
+            BASE_IMAGE_MUJOCO=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
+            BASE_IMAGE_PYTORCH=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-mujoco
+            BASE_IMAGE_FINAL=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-pytorch
+            MUJOCO_VERSION=${{ matrix.env.MUJOCO }}
+            GYM_VERSION=${{ matrix.env.GYM }}
+            TORCH_VERSION=${{ matrix.env.TORCH }}
+            TORCHVISION_VERSION=${{ matrix.env.VISION }}
+            TORCHAUDIO_VERSION=${{ matrix.env.AUDIO }}
