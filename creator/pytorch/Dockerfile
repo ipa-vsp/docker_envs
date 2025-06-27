@@ -53,7 +53,7 @@ RUN apt-get update && \
 ENV PATH="/opt/venv/bin:$PATH"
 RUN source /opt/venv/bin/activate && \
     pip3 install --upgrade pip && \
-    pip3 install cmake tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
+    pip3 install gradio tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
 
 # Conditionally install PyTorch packages
 RUN source /opt/venv/bin/activate && \
