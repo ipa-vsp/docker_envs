@@ -27,7 +27,7 @@ jobs:
           - {
               OS_VERSION: "24.04",
               TORCH: "2.6.0",
-              VISION: "0.6.0",
+              VISION: "0.21.0",
               AUDIO: "2.6.0",
               MUJOCO: "3.3.3",
               GYM: "1.2.0",
