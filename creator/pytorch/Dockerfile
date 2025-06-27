@@ -66,8 +66,12 @@ ARG TORCHAUDIO_VERSION
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
 
 RUN source /opt/venv/bin/activate && \
-    pip3 install --no-cache-dir torch==${TORCH_VERSION} \
-    torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} \
+    pip3 install --no-cache-dir torch==${TORCH_VERSION} --index-url ${TORCH_INDEX_URL}
+RUN source /opt/venv/bin/activate && \
+    pip3 install --no-cache-dir \
+    torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}}  --index-url ${TORCH_INDEX_URL} 
+RUN source /opt/venv/bin/activate && \
+    pip3 install --no-cache-dir \
     torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
     --index-url ${TORCH_INDEX_URL}
 
