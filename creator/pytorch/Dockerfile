@@ -3,8 +3,12 @@
 # -----------------------------------------------------------------------------
 # Stage 1: base image
 # -----------------------------------------------------------------------------
-ARG BASE_IMAGE
-FROM ${BASE_IMAGE} as base
+ARG BASE_IMAGE=nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04
+ARG BASE_IMAGE_MUJOCO=base
+ARG BASE_IMAGE_PYTORCH=mujoco
+ARG BASE_IMAGE_FINAL=pytorch
+
+FROM ${BASE_IMAGE} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 COPY creator/pytorch/bashrc /etc/bash.bashrc
@@ -40,7 +44,6 @@ RUN apt-get update && \
 # -----------------------------------------------------------------------------
 # Stage 2: install MuJoCo and Gymnasium
 # -----------------------------------------------------------------------------
-ARG BASE_IMAGE_MUJOCO=base
 FROM ${BASE_IMAGE_MUJOCO} AS mujoco
 
 RUN mkdir -p ${MUJOCO_DIR} /home/mujoco && \
@@ -61,7 +64,6 @@ RUN source /opt/venv/bin/activate && \
 # -----------------------------------------------------------------------------
 # Stage 3: install PyTorch
 # -----------------------------------------------------------------------------
-ARG BASE_IMAGE_PYTORCH=mujoco
 FROM ${BASE_IMAGE_PYTORCH} AS pytorch
 
 RUN source /opt/venv/bin/activate && \
@@ -73,7 +75,6 @@ RUN source /opt/venv/bin/activate && \
 # -----------------------------------------------------------------------------
 # Stage 4: create user and final image
 # -----------------------------------------------------------------------------
-ARG BASE_IMAGE_FINAL=pytorch
 FROM ${BASE_IMAGE_FINAL} AS final
 
 # Setup non-root admin user
