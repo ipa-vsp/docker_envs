@@ -5,7 +5,7 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive
-COPY creator/scripts/bashrc /etc/bash.bashrc
+COPY creator/pytorch/bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-c"]
