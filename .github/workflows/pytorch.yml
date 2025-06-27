@@ -60,8 +60,7 @@ jobs:
             -m ${{ matrix.env.MUJOCO }} \
             -g ${{ matrix.env.GYM }} \
             -c ${{ matrix.env.CUDA }} \
-            -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }} \
-            -w /tmp/dummy_workspace
+            -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }} 
 
       - name: List Docker images
         run: docker images
