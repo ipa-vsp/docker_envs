@@ -11,7 +11,7 @@ networks:
           gateway: "192.168.50.1"
 
 services:
-  
+
   ur5e_sim:
     image: ur5e-ext-ctrl
     build:
@@ -28,7 +28,7 @@ services:
       - 29999:29999
       - 30001-30004:30001-30004
       - 6080:6080
-  
+
 
   ur5e_driver:
     image: ghcr.io/ipa-vsp/docker_envs:jazzy
