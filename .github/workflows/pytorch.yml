@@ -32,6 +32,7 @@ jobs:
               MUJOCO: "3.3.3",
               GYM: "1.2.0",
               CUDA: "12.6.0",
+              TAG: "cuda12.6-torch2.6"
             }
 
     steps:
@@ -53,15 +54,17 @@ jobs:
           chmod +x creator/scripts/build_pytorch_env.sh
           ./creator/scripts/build_pytorch_env.sh \
             -o ${{ matrix.env.OS_VERSION }} \
-            -v ${{ matrix.env.ROS_DISTRO }} \
+            -t ${{ matrix.env.TORCH }} \
+            -tv ${{ matrix.env.VISION }} \
+            -ta ${{ matrix.env.AUDIO }} \
             -m ${{ matrix.env.MUJOCO }} \
             -g ${{ matrix.env.GYM }} \
-            -t ${{ matrix.env.TORCH }} \
             -c ${{ matrix.env.CUDA }} \
-            -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-pytorch \
+            -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }} \
+            -w /tmp/dummy_workspace
 
       - name: List Docker images
         run: docker images
 
       - name: Push Docker image
-        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-pytorch
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}
