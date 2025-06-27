@@ -34,6 +34,16 @@ jobs:
               CUDA: "12.6.0",
               TAG: "cuda12.6-torch2.6"
             }
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.7.1",
+              VISION: "0.22.1",
+              AUDIO: "2.7.1",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.8.0",
+              TAG: "cuda12.8-torch2.7"
+            }
 
     steps:
       - name: Checkout repository
