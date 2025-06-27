@@ -20,11 +20,12 @@ ENV ROS_DISTRO=${ROS_DISTRO} \
     MUJOCO_DIR=/opt/mujoco/mujoco-${MUJOCO_VERSION}
 
 # Use bash shell with pipefail for safety
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
 # Copy custom bash config (if available)
+ENV DEBIAN_FRONTEND=noninteractive
 COPY creator/pytorch/bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
+ENV SHELL /bin/bash
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
 RUN apt-get update && \
