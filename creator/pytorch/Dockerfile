@@ -22,9 +22,9 @@ ENV ROS_DISTRO=${ROS_DISTRO} \
 # Use bash shell with pipefail for safety
 # Copy custom bash config (if available)
 ENV DEBIAN_FRONTEND=noninteractive
-# COPY creator/pytorch/bashrc /etc/bash.bashrc
-# RUN chmod a+rwx /etc/bash.bashrc
-# ENV SHELL /bin/bash
+COPY creator/pytorch/bashrc /etc/bash.bashrc
+RUN chmod a+rwx /etc/bash.bashrc
+ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
@@ -53,7 +53,7 @@ RUN apt-get update && \
 ENV PATH="/opt/venv/bin:$PATH"
 RUN source /opt/venv/bin/activate && \
     pip3 install --upgrade pip && \
-    pip3 install cmake tensorboard mujoco==${MUJOCO_VERSION} gymnasium[all]==${GYM_VERSION}
+    pip3 install cmake tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
 
 # Conditionally install PyTorch packages
 RUN source /opt/venv/bin/activate && \
