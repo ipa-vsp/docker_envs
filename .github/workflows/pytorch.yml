@@ -1,0 +1,67 @@
+# This is a GitHub Actions workflow to build and push PyTorch-based ROS2 Docker images
+
+name: Build and Push PyTorch
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'creator/**'
+  schedule:
+    - cron: '0 0 * * 0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build_and_push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - {
+              OS_VERSION: "24.04",
+              TORCH: "2.6.0",
+              VISION: "0.6.0",
+              AUDIO: "2.6.0",
+              MUJOCO: "3.3.3",
+              GYM: "1.2.0",
+              CUDA: "12.6.0",
+            }
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build PyTorch ROS2 Image
+        run: |
+          chmod +x creator/scripts/build_pytorch_env.sh
+          ./creator/scripts/build_pytorch_env.sh \
+            -o ${{ matrix.env.OS_VERSION }} \
+            -v ${{ matrix.env.ROS_DISTRO }} \
+            -m ${{ matrix.env.MUJOCO }} \
+            -g ${{ matrix.env.GYM }} \
+            -t ${{ matrix.env.TORCH }} \
+            -c ${{ matrix.env.CUDA }} \
+            -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-pytorch \
+
+      - name: List Docker images
+        run: docker images
+
+      - name: Push Docker image
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }}-pytorch
