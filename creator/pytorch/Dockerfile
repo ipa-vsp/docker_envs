@@ -16,21 +16,6 @@ RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-c"]
 
-# Define common build-time arguments
-ARG ROS_DISTRO
-ARG MUJOCO_VERSION=3.3.3
-ARG CPU_ARCH=x86_64
-ARG TORCH_VERSION=2.6.0
-ARG TORCHVISION_VERSION
-ARG TORCHAUDIO_VERSION
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
-ARG GYM_VERSION=1.2.0
-
-# Environment variables
-ENV ROS_DISTRO=${ROS_DISTRO} \
-    MUJOCO_VERSION=${MUJOCO_VERSION} \
-    MUJOCO_DIR=/opt/mujoco/mujoco-${MUJOCO_VERSION}
-
 # Install system dependencies
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -45,6 +30,14 @@ RUN apt-get update && \
 # Stage 2: install MuJoCo and Gymnasium
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE_MUJOCO} AS mujoco
+
+ARG MUJOCO_VERSION=3.3.3
+ARG CPU_ARCH=x86_64
+ARG GYM_VERSION=1.2.0
+
+# Environment variables
+ENV MUJOCO_VERSION=${MUJOCO_VERSION} \
+    MUJOCO_DIR=/opt/mujoco/mujoco-${MUJOCO_VERSION}
 
 RUN mkdir -p ${MUJOCO_DIR} /home/mujoco && \
     wget https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz && \
@@ -65,6 +58,12 @@ RUN source /opt/venv/bin/activate && \
 # Stage 3: install PyTorch
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE_PYTORCH} AS pytorch
+
+# Define common build-time arguments
+ARG TORCH_VERSION=2.6.0
+ARG TORCHVISION_VERSION
+ARG TORCHAUDIO_VERSION
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
 
 RUN source /opt/venv/bin/activate && \
     pip3 install --no-cache-dir torch==${TORCH_VERSION} \
