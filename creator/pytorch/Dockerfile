@@ -22,7 +22,7 @@ ENV ROS_DISTRO=${ROS_DISTRO} \
 # Use bash shell with pipefail for safety
 # Copy custom bash config (if available)
 ENV DEBIAN_FRONTEND=noninteractive
-COPY creator/pytorch/bashrc /etc/bash.bashrc
+COPY creator/scripts/bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
