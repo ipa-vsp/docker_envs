@@ -1,8 +1,10 @@
 # Dockerfile for PyTorch + MuJoCo + ROS2 Environment
 
-# Base image setup
+# -----------------------------------------------------------------------------
+# Stage 1: base image
+# -----------------------------------------------------------------------------
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} as base
 
 ENV DEBIAN_FRONTEND=noninteractive
 COPY creator/pytorch/bashrc /etc/bash.bashrc
@@ -10,7 +12,7 @@ RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-c"]
 
-# Define build-time arguments
+# Define common build-time arguments
 ARG ROS_DISTRO
 ARG MUJOCO_VERSION=3.3.3
 ARG CPU_ARCH=x86_64
@@ -35,30 +37,44 @@ RUN apt-get update && \
         sudo && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install MuJoCo
+# -----------------------------------------------------------------------------
+# Stage 2: install MuJoCo and Gymnasium
+# -----------------------------------------------------------------------------
+ARG BASE_IMAGE_MUJOCO=base
+FROM ${BASE_IMAGE_MUJOCO} AS mujoco
+
 RUN mkdir -p ${MUJOCO_DIR} /home/mujoco && \
     wget https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz && \
     tar -xzf mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz -C $(dirname ${MUJOCO_DIR}) && \
     rm mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz
 
-# Install Python packages
 RUN apt-get update && \
     apt-get install -y python3-venv && \
     python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip
 
-# Update PATH to use venv Python
 ENV PATH="/opt/venv/bin:$PATH"
 RUN source /opt/venv/bin/activate && \
     pip3 install --upgrade pip && \
     pip3 install --no-cache-dir gradio tensorboard mujoco==${MUJOCO_VERSION} gymnasium==${GYM_VERSION}
 
-# Conditionally install PyTorch packages
+# -----------------------------------------------------------------------------
+# Stage 3: install PyTorch
+# -----------------------------------------------------------------------------
+ARG BASE_IMAGE_PYTORCH=mujoco
+FROM ${BASE_IMAGE_PYTORCH} AS pytorch
+
 RUN source /opt/venv/bin/activate && \
     pip3 install --no-cache-dir torch==${TORCH_VERSION} \
     torchvision${TORCHVISION_VERSION:+==${TORCHVISION_VERSION}} \
     torchaudio${TORCHAUDIO_VERSION:+==${TORCHAUDIO_VERSION}} \
     --index-url ${TORCH_INDEX_URL}
+
+# -----------------------------------------------------------------------------
+# Stage 4: create user and final image
+# -----------------------------------------------------------------------------
+ARG BASE_IMAGE_FINAL=pytorch
+FROM ${BASE_IMAGE_FINAL} AS final
 
 # Setup non-root admin user
 ARG USERNAME=admin
