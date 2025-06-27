@@ -63,33 +63,51 @@ ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-RUN if ! getent group ${USER_GID} > /dev/null; then \
-        groupadd -g ${USER_GID} ${USERNAME}; \
-    else \
-        echo "Group with GID ${USER_GID} already exists"; \
-    fi && \
-    if ! getent passwd ${USER_UID} > /dev/null; then \
-        useradd -m -u ${USER_UID} -g ${USER_GID} -s /bin/bash ${USERNAME}; \
-    else \
-        echo "User with UID ${USER_UID} already exists"; \
-    fi && \
-    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
-    chmod 0440 /etc/sudoers.d/${USERNAME} && \
-    id -u ${USERNAME} > /dev/null 2>&1 && usermod -aG sudo,video ${USERNAME} && \
-    mkdir -p /home/${USERNAME}/workspace && \
-    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
+# Install prerequisites and cleanup in a single step
+RUN apt-get update && apt-get install -y sudo && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# Copy entry scripts if needed
+# Ensure the group exists before creating the user
+RUN if ! getent group ${USER_GID} >/dev/null 2>&1; then \
+        groupadd --gid ${USER_GID} ${USERNAME}; \
+    fi
+
+# Explicitly create the home directory before adding the user
+RUN mkdir -p /home/${USERNAME} && chown root:root /home/${USERNAME}
+
+# Ensure the user exists and belongs to the correct group
+RUN if ! getent passwd ${USER_UID} >/dev/null 2>&1; then \
+        useradd --uid ${USER_UID} --gid ${USER_GID} -m -d /home/${USERNAME} -s /bin/bash ${USERNAME}; \
+    fi
+
+# Set proper ownership of the home directory after user creation
+RUN chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
+
+# Ensure usermod only runs if the user exists
+RUN if getent passwd ${USERNAME} >/dev/null 2>&1; then \
+        usermod -aG sudo,video ${USERNAME}; \
+    fi
+
+# Ensure sudoers file is set correctly
+RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
+    chmod 0440 /etc/sudoers.d/${USERNAME}
+
+# Copy and set permissions for scripts
 # RUN mkdir -p /usr/local/bin/scripts
 # COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
 # RUN chmod +x /usr/local/bin/scripts/*.sh
 
-# Final user setup
+# Create appropriate workspace depending on ROS_DISTRO and set permissions
+RUN mkdir -p /home/${USERNAME}/workspace && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/workspace
+
+# Keep root as the active user for further builds
 USER root
 
-# Set environment for container usage
-ENV USERNAME=${USERNAME} \
-    USER_UID=${USER_UID} \
-    USER_GID=${USER_GID}
+# Set Environment Variables
+ENV USERNAME=${USERNAME}
+ENV USER_GID=${USER_GID}
+ENV USER_UID=${USER_UID}
 
+# Optionally switch to the user when running interactively
 CMD ["/bin/bash"]
