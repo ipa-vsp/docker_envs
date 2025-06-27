@@ -73,9 +73,9 @@ RUN groupadd -g ${USER_GID} ${USERNAME} || true && \
     chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
 
 # Copy entry scripts if needed
-RUN mkdir -p /usr/local/bin/scripts
-COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
-RUN chmod +x /usr/local/bin/scripts/*.sh
+# RUN mkdir -p /usr/local/bin/scripts
+# COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
+# RUN chmod +x /usr/local/bin/scripts/*.sh
 
 # Final user setup
 USER root
