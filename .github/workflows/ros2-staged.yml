@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'creator/**'
+    # paths:
+      # - 'creator/**'
   pull_request:
     branches: [ main ]
   schedule:
