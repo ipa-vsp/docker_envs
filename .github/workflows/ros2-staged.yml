@@ -401,4 +401,3 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-mujoco-nav2
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nav2:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-
