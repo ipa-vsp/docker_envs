@@ -53,7 +53,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -93,7 +92,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -155,7 +153,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
     steps:
@@ -189,7 +186,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
     steps:
@@ -221,7 +217,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
     steps:
@@ -253,7 +248,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -286,7 +280,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -317,11 +310,10 @@ jobs:
       contents: read
       packages: write
     strategy:
-      matrix:
-        include:
-          - { os: "24.04", ros: rolling }
-          - { os: "24.04", ros: kilted }
-          - { os: "24.04", ros: jazzy }
+        matrix:
+          include:
+            - { os: "24.04", ros: kilted }
+            - { os: "24.04", ros: jazzy }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -350,7 +342,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
     steps:
