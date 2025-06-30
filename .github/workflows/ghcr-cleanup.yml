@@ -16,4 +16,3 @@ jobs:
       - uses: dataaxiom/ghcr-cleanup-action@v1
         with:
           delete-untagged: true
-
