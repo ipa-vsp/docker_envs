@@ -54,7 +54,8 @@ jobs:
           target: base
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
           build-args: |
-            BASE_IMAGE=ubuntu:24.04  # nvidia/cuda:${{ matrix.env.CUDA }}-cudnn-devel-ubuntu${{ matrix.env.OS_VERSION }}
+            BASE_IMAGE=ubuntu:24.04  
+            # nvidia/cuda:${{ matrix.env.CUDA }}-cudnn-devel-ubuntu${{ matrix.env.OS_VERSION }}
 
   build-mujoco:
     name: Install MuJoCo and Gymnasium
