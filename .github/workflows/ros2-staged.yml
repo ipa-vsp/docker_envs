@@ -34,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build base layer
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.base
@@ -74,7 +74,7 @@ jobs:
             echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
           fi
       - name: Build ROS layer
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ env.ROS_FILE }}
@@ -106,7 +106,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build MoveIt layer
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/usage/Dockerfile.moveit
@@ -135,7 +135,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build MuJoCo layer
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: composer/mujoco
           file: composer/mujoco/Dockerfile
@@ -168,7 +168,7 @@ jobs:
         run: |
           echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
       - name: Build ROS layer on MuJoCo
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ env.ROS_FILE }}
@@ -198,7 +198,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build MoveIt layer on MuJoCo
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/usage/Dockerfile.moveit
@@ -229,7 +229,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Nav2 layer on MuJoCo
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/usage/Dockerfile.nav2
@@ -263,7 +263,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final user image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
@@ -295,7 +295,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final MoveIt image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
@@ -325,7 +325,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final MuJoCo image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
@@ -355,7 +355,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final MuJoCo MoveIt image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
@@ -385,7 +385,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final MuJoCo Nav2 image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
