@@ -1,4 +1,4 @@
-name: Build and Push ROS Images
+name: Build ROS Images in Stages
 
 on:
   workflow_dispatch:
@@ -16,9 +16,37 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  base_ros_user:
-    name: Ubuntu -> ROS -> user
+  build-base:
+    name: Build Base Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        os: ["24.04", "22.04", "20.04"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build base layer
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/common/Dockerfile.base
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.os }}
+
+  build-ros:
+    name: Add ROS
+    runs-on: ubuntu-latest
+    needs: build-base
     permissions:
       contents: read
       packages: write
@@ -38,15 +66,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build base stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/common/Dockerfile.base
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-          build-args: |
-            BASE_IMAGE=${{ matrix.os }}
       - name: Select ROS Dockerfile
         run: |
           if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
@@ -54,7 +73,7 @@ jobs:
           else
             echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
           fi
-      - name: Build ROS stage
+      - name: Build ROS layer
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -63,6 +82,190 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+
+  build-moveit:
+    name: Add MoveIt
+    runs-on: ubuntu-latest
+    needs: build-ros
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling }
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+          - { os: "22.04", ros: humble }
+          - { os: "20.04", ros: noetic }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build MoveIt layer
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/usage/Dockerfile.moveit
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
+            ROS_DISTRO=${{ matrix.ros }}
+
+  build-mujoco:
+    name: Add MuJoCo
+    runs-on: ubuntu-latest
+    needs: build-base
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        os: ["24.04"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build MuJoCo layer
+        uses: docker/build-push-action@v5
+        with:
+          context: composer/mujoco
+          file: composer/mujoco/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+
+  build-ros-mujoco:
+    name: MuJoCo + ROS
+    runs-on: ubuntu-latest
+    needs: build-mujoco
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling }
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Select ROS Dockerfile
+        run: |
+          echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
+      - name: Build ROS layer on MuJoCo
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ env.ROS_FILE }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}
+
+  build-moveit-mujoco:
+    name: MuJoCo + ROS + MoveIt
+    runs-on: ubuntu-latest
+    needs: build-ros-mujoco
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling }
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build MoveIt layer on MuJoCo
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/usage/Dockerfile.moveit
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+            ROS_DISTRO=${{ matrix.ros }}
+
+  build-nav2-mujoco:
+    name: MuJoCo + ROS + Nav2
+    runs-on: ubuntu-latest
+    needs: build-ros-mujoco
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling }
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Nav2 layer on MuJoCo
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: creator/usage/Dockerfile.nav2
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nav2:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+            ROS_DISTRO=${{ matrix.ros }}
+
+  finalize-base-ros-user:
+    name: Final User Image (ROS only)
+    runs-on: ubuntu-latest
+    needs: build-ros
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling }
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+          - { os: "22.04", ros: humble }
+          - { os: "20.04", ros: noetic }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final user image
         uses: docker/build-push-action@v5
         with:
@@ -73,10 +276,10 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
 
-  base_ros_moveit_user:
-    name: Ubuntu -> ROS -> MoveIt -> user
+  finalize-base-ros-moveit-user:
+    name: Final User Image (MoveIt)
     runs-on: ubuntu-latest
-    needs: base_ros_user
+    needs: build-moveit
     permissions:
       contents: read
       packages: write
@@ -96,42 +299,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build base stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/common/Dockerfile.base
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-          build-args: |
-            BASE_IMAGE=${{ matrix.os }}
-      - name: Select ROS Dockerfile
-        run: |
-          if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
-            echo "ROS_FILE=creator/ros1/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          else
-            echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          fi
-      - name: Build ROS stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.ROS_FILE }}
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-      - name: Add MoveIt
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/usage/Dockerfile.moveit
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Build final user image
+      - name: Build final MoveIt image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -141,10 +309,10 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
 
-  mujoco_ros_user:
-    name: Ubuntu -> MuJoCo -> ROS -> user
+  finalize-mujoco-ros-user:
+    name: Final User Image (MuJoCo)
     runs-on: ubuntu-latest
-    needs: base_ros_user
+    needs: build-ros-mujoco
     permissions:
       contents: read
       packages: write
@@ -154,8 +322,6 @@ jobs:
           - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
-          - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -164,42 +330,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build base stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/common/Dockerfile.base
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-          build-args: |
-            BASE_IMAGE=${{ matrix.os }}
-      - name: Install MuJoCo
-        uses: docker/build-push-action@v5
-        with:
-          context: composer/mujoco
-          file: composer/mujoco/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-          build-args: |
-            BASE_IMAGE=base:${{ matrix.os }}
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Select ROS Dockerfile
-        run: |
-          if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
-            echo "ROS_FILE=creator/ros1/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          else
-            echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          fi
-      - name: Build ROS stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.ROS_FILE }}
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-      - name: Build final user image
+      - name: Build final MuJoCo image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -209,10 +340,10 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
 
-  mujoco_ros_moveit_user:
-    name: Ubuntu -> MuJoCo -> ROS -> MoveIt -> user
+  finalize-mujoco-ros-moveit-user:
+    name: Final User Image (MuJoCo + MoveIt)
     runs-on: ubuntu-latest
-    needs: mujoco_ros_user
+    needs: build-moveit-mujoco
     permissions:
       contents: read
       packages: write
@@ -222,8 +353,6 @@ jobs:
           - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
-          - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -232,52 +361,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build base stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/common/Dockerfile.base
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-          build-args: |
-            BASE_IMAGE=${{ matrix.os }}
-      - name: Install MuJoCo
-        uses: docker/build-push-action@v5
-        with:
-          context: composer/mujoco
-          file: composer/mujoco/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-          build-args: |
-            BASE_IMAGE=base:${{ matrix.os }}
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Select ROS Dockerfile
-        run: |
-          if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
-            echo "ROS_FILE=creator/ros1/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          else
-            echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          fi
-      - name: Build ROS stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.ROS_FILE }}
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-      - name: Add MoveIt
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/usage/Dockerfile.moveit
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Build final user image
+      - name: Build final MuJoCo MoveIt image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -287,10 +371,10 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}-mujoco
 
-  mujoco_ros_nav2_user:
-    name: Ubuntu -> MuJoCo -> ROS -> Nav2 -> user
+  finalize-mujoco-ros-nav2-user:
+    name: Final User Image (MuJoCo + Nav2)
     runs-on: ubuntu-latest
-    needs: mujoco_ros_user
+    needs: build-nav2-mujoco
     permissions:
       contents: read
       packages: write
@@ -300,8 +384,6 @@ jobs:
           - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
-          - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -310,52 +392,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build base stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/common/Dockerfile.base
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-          build-args: |
-            BASE_IMAGE=${{ matrix.os }}
-      - name: Install MuJoCo
-        uses: docker/build-push-action@v5
-        with:
-          context: composer/mujoco
-          file: composer/mujoco/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-          build-args: |
-            BASE_IMAGE=base:${{ matrix.os }}
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Select ROS Dockerfile
-        run: |
-          if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
-            echo "ROS_FILE=creator/ros1/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          else
-            echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          fi
-      - name: Build ROS stage
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.ROS_FILE }}
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}-${{ matrix.ros }}
-      - name: Add Nav2
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: creator/usage/Dockerfile.nav2
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nav2:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
-            ROS_DISTRO=${{ matrix.ros }}
-      - name: Build final user image
+      - name: Build final MuJoCo Nav2 image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -364,3 +401,4 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-mujoco-nav2
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nav2:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+

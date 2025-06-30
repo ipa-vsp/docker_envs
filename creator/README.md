@@ -22,10 +22,11 @@
     - `./run_env.sh -o 22.04 -v humble -u navigation -s true -i my_image -w path_to_your_worspace -r`
 
 ### Automated builds on GitHub
-ROS images are also built and published using the
+ROS images are built and published using the
 [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml) workflow. The workflow
-uses multiple jobs to layer images with ROS itself and optional MuJoCo, MoveIt
-or Nav2 support across all supported Ubuntu and ROS version combinations.
+creates each layer in a separate job and pushes intermediate images. MuJoCo
+layers are only built for Ubuntu&nbsp;24.04, while other layers cover all valid
+Ubuntu and ROS combinations.
 
 # Docker Workspaces using VSCode devcontainer
 =============================================
