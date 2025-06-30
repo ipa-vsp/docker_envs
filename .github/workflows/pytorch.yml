@@ -5,8 +5,8 @@ name: Build and Push PyTorch
 on:
   push:
     branches: [ main ]
-    # paths:
-    #   - 'creator/**'
+    paths:
+      - 'creator/**'
   schedule:
     - cron: '0 0 * * 0'
 
@@ -24,25 +24,15 @@ jobs:
     strategy:
       matrix:
         env: # Only one can run at a time
-          # - {
-          #     OS_VERSION: "24.04",
-          #     TORCH: "2.6.0",
-          #     VISION: "0.21.0",
-          #     AUDIO: "2.6.0",
-          #     MUJOCO: "3.3.3",
-          #     GYM: "1.2.0",
-          #     CUDA: "12.6.0",
-          #     TAG: "cuda12.6-torch2.6"
-          #   }
           - {
               OS_VERSION: "24.04",
-              TORCH: "2.7.1",
-              VISION: "0.22.1",
-              AUDIO: "2.7.1",
+              TORCH: "2.6.0",
+              VISION: "0.21.0",
+              AUDIO: "2.6.0",
               MUJOCO: "3.3.3",
               GYM: "1.2.0",
-              CUDA: "12.8.0",
-              TAG: "cuda12.8-torch2.7"
+              CUDA: "12.6.0",
+              TAG: "cuda12.6-torch2.6"
             }
 
     steps:

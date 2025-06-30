@@ -26,6 +26,7 @@ ROS images are built and published using the
 [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml) workflow. The workflow
 creates each layer in a separate job and pushes intermediate images. MuJoCo
 layers are only built for Ubuntu&nbsp;24.04, while other layers cover all valid
+
 Ubuntu and ROS combinations. MoveIt images are produced only for released ROS
 distributions (Jazzy, Kilted, Humble and Noetic) because the Rolling packages
 are sometimes missing.
