@@ -6,6 +6,8 @@ on:
     branches: [ main ]
     paths:
       - 'creator/**'
+  pull_request:
+    branches: [ main ]
   schedule:
     - cron: '0 0 * * 0'
 
