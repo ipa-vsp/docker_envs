@@ -21,6 +21,12 @@
 - Example to run a Docker workspace with Ubuntu 22.04, ROS Humble, Navigation and Simulation enabled. However, you can attach your workspace to the container. This requires you to have a workspace in the same directory as the script. Or you can use the `-w` flag to specify the path to your workspace.
     - `./run_env.sh -o 22.04 -v humble -u navigation -s true -i my_image -w path_to_your_worspace -r`
 
+### Automated builds on GitHub
+ROS images are also built and published using the
+[`ros2-staged.yml`](../.github/workflows/ros2-staged.yml) workflow. The pipeline
+creates base images and optional MuJoCo, MoveIt or Nav2 variants for the
+available ROS distributions.
+
 # Docker Workspaces using VSCode devcontainer
 =============================================
 - Create a new folder named `.devcontainer` in your workspace and creat a file named `devcontainer.json` in it.
