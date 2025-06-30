@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - 'creator/**'
+    # paths:
+      # - 'creator/**'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'creator/**'
+    # paths:
+      # - 'creator/**'
   schedule:
     - cron: '0 0 * * 0'
 
