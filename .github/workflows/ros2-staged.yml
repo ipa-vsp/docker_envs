@@ -137,12 +137,13 @@ jobs:
       - name: Build MuJoCo layer
         uses: docker/build-push-action@v6
         with:
-          context: composer/mujoco
-          file: composer/mujoco/Dockerfile
+          context: .
+          file: creator/common/Dockerfile.mujoco
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+            MUJOCO_VERSION=3.3.3
 
   build-ros-mujoco:
     name: MuJoCo + ROS
