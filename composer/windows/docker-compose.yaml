@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  coverless-machine:
+    image: ghcr.io/ipa-vsp/docker_envs:jazzy
+    # container_name: isaac-sim
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    network_mode: host
+    stdin_open: true
+    tty: true
+    volumes:
+      - \\wsl.localhost\Ubuntu\mnt\wslg:/tmp
+      # - /etc/localtime:/etc/localtime:ro
+      - ../../../machine_description:/home/admin/colcon_ws/src
+    environment:
+        # - DISPLAY=$DISPLAY
+        - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null # bash -c "top"
