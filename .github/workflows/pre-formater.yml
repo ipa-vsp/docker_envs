@@ -12,7 +12,7 @@ jobs:
     name: Format
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0 # fetch all history for all branches and tags, which might be needed when pushing commits.
         token: ${{ secrets.BOT_PAT }}
