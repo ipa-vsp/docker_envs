@@ -17,7 +17,7 @@
 repos:
   # Standard hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
       - id: check-ast
@@ -35,7 +35,7 @@ repos:
 
   # Python hooks
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.1
+    rev: v3.20.0
     hooks:
     -   id: pyupgrade
         args: [--py36-plus]
@@ -59,7 +59,7 @@ repos:
 
   # Docs - RestructuredText hooks
   - repo: https://github.com/PyCQA/doc8
-    rev: v1.1.2
+    rev: v2.0.0
     hooks:
       - id: doc8
         args: ['--max-line-length=100', '--ignore=D001']
