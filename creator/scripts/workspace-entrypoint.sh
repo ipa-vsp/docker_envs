@@ -16,7 +16,7 @@ echo 'parse_git_branch() {
 }' >> ~/.bashrc
 
 # Add PROMPT_COMMAND with parse_git_branch to .bashrc
-echo 'PROMPT_COMMAND='\''PS1="\[\e[0;32m\]\u@\h:\[\e[0;34m\]\w$(parse_git_branch)\[\e[0m\]$ "'\''' >> ~/.bashrc
+echo 'PROMPT_COMMAND='\''PS1="${VIRTUAL_ENV:+(${VIRTUAL_ENV##*/}) }\\[\e[0;32m\\]\\u@\\h:\\[\\e[0;34m\\]\\w$(parse_git_branch)\\[\\e[0m\\]\\$ "'\''' >> ~/.bashrc
 
 # if RMW_IMPLEMENTATION=rmw_zenoh_cpp is set, source the zenoh workspace
 if [ "$RMW_IMPLEMENTATION" = "rmw_zenoh_cpp" ]; then
