@@ -100,6 +100,7 @@ services:
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh # already installed in the image
         command: tail -f /dev/null # change to your desired command
+```
 
 ### Build Locally
 
