@@ -48,30 +48,6 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and Nav2 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and Nav2 |
 
-### ROS 2 Staged Layers (intermediate tags)
-
-| Tag | Notes |
-|-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs/base:24.04` | Base development layer built on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs/base:22.04` | Base development layer built on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs/base:20.04` | Base development layer built on Ubuntu 20.04 |
-| `ghcr.io/ipa-vsp/docker_envs/ros:24.04-rolling` | ROS 2 Rolling layer on top of `base:24.04` |
-| `ghcr.io/ipa-vsp/docker_envs/ros:24.04-kilted` | ROS 2 Kilted layer on top of `base:24.04` |
-| `ghcr.io/ipa-vsp/docker_envs/ros:24.04-jazzy` | ROS 2 Jazzy layer on top of `base:24.04` |
-| `ghcr.io/ipa-vsp/docker_envs/ros:22.04-humble` | ROS 2 Humble layer on top of `base:22.04` |
-| `ghcr.io/ipa-vsp/docker_envs/ros:20.04-noetic` | ROS 1 Noetic layer on top of `base:20.04` |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:24.04-kilted` | MoveIt layer for ROS 2 Kilted on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:24.04-jazzy` | MoveIt layer for ROS 2 Jazzy on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:22.04-humble` | MoveIt layer for ROS 2 Humble on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:20.04-noetic` | MoveIt layer for ROS 1 Noetic on Ubuntu 20.04 |
-| `ghcr.io/ipa-vsp/docker_envs/mujoco:24.04` | MuJoCo 3.3.3 / Gymnasium 1.2.0 layer on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs/ros:24.04-kilted-mujoco` | ROS 2 Kilted layer based on the MuJoCo stage |
-| `ghcr.io/ipa-vsp/docker_envs/ros:24.04-jazzy-mujoco` | ROS 2 Jazzy layer based on the MuJoCo stage |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:24.04-kilted-mujoco` | MoveIt layer for ROS 2 Kilted with MuJoCo base |
-| `ghcr.io/ipa-vsp/docker_envs/moveit:24.04-jazzy-mujoco` | MoveIt layer for ROS 2 Jazzy with MuJoCo base |
-| `ghcr.io/ipa-vsp/docker_envs/nav2:24.04-kilted-mujoco` | Nav2 layer for ROS 2 Kilted with MuJoCo base |
-| `ghcr.io/ipa-vsp/docker_envs/nav2:24.04-jazzy-mujoco` | Nav2 layer for ROS 2 Jazzy with MuJoCo base |
-
 ### PyTorch Images
 
 | Tag | Notes |

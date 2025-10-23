@@ -1,0 +1,24 @@
+services:
+  jammy_humble_recovery_test:
+    image: ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    network_mode: "host"
+    user: "admin:1000"
+    stdin_open: true
+    tty: true
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../../../recovery/colcon_recovery_ws/src:/home/admin/colcon_ws/src
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null  # bash -c "top"
