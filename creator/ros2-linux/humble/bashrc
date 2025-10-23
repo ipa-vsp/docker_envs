@@ -29,3 +29,19 @@ fi
 
 # Turn off colors
 echo -e "\e[m"
+
+# Enable interactive shell completions when available
+if [ -f /etc/profile.d/bash_completion.sh ]; then
+  source /etc/profile.d/bash_completion.sh
+elif [ -f /usr/share/bash-completion/bash_completion ]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+
+# Hook ROS 2 and colcon argcomplete integrations
+if command -v register-python-argcomplete >/dev/null 2>&1; then
+  eval "$(register-python-argcomplete ros2)"
+  eval "$(register-python-argcomplete colcon)"
+elif command -v register-python-argcomplete3 >/dev/null 2>&1; then
+  eval "$(register-python-argcomplete3 ros2)"
+  eval "$(register-python-argcomplete3 colcon)"
+fi
