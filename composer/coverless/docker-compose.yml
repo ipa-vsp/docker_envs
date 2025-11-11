@@ -9,7 +9,9 @@ services:
             - driver: nvidia
               count: all
               capabilities: ["gpu"]
-    network_mode: "host"
+    networks:
+      coverless_net:
+        ipv4_address: 172.28.0.2
     user: "admin:1000"
     stdin_open: true
     tty: true
@@ -22,3 +24,36 @@ services:
       - ROS_DOMAIN_ID=73
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
     command: tail -f /dev/null  # bash -c "top"
+
+  jammy_humble_runtime_test:
+    image: ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    networks:
+      coverless_net:
+        ipv4_address: 172.28.0.3
+    user: "admin:1000"
+    stdin_open: true
+    tty: true
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../../../recovery/runtime_reasoning:/home/admin/colcon_ws/src/runtime_reasoning
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null  # bash -c "top"
+
+networks:
+  coverless_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
