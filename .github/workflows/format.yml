@@ -1,0 +1,53 @@
+name: Formatting
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BOT_TOKEN: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
+
+jobs:
+  pre-commit:
+    name: Run pre-commit formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ env.BOT_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install system hooks
+        run: sudo apt-get update && sudo apt-get install -qq clang-format-14 cppcheck
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files --hook-stage manual
+
+      - name: Commit and push if changed
+        if: github.event_name != 'push'
+        env:
+          BOT_TOKEN: ${{ env.BOT_TOKEN }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -u
+          git commit -m "Automated code fixes by pre-commit."
+          git push https://x-access-token:${BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:${BRANCH}

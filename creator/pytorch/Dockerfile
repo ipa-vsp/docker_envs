@@ -60,7 +60,7 @@ RUN source /opt/venv/bin/activate && \
 FROM ${BASE_IMAGE_PYTORCH} AS pytorch
 
 # Define common build-time arguments
-ARG TORCH_VERSION=2.6.0
+ARG TORCH_VERSION=2.8.0
 ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128

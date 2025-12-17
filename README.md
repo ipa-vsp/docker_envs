@@ -53,10 +53,10 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | Tag | Notes |
 |-----|-------|
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.6-torch2.6` | Single-step image with PyTorch 2.6.0, TorchVision 0.21.0, TorchAudio 2.6.0, CUDA 12.6.0 |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7` | Staged final image with PyTorch 2.7.1, TorchVision 0.22.1, TorchAudio 2.7.1, CUDA 12.8.0, MuJoCo 3.4.0 |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-base` | Staged base layer for the CUDA 12.8 / PyTorch 2.7.1 build |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-mujoco` | MuJoCo 3.4.0 and Gymnasium 1.2.0 layer for the staged PyTorch build |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-pytorch` | PyTorch layer (2.7.1 / 0.22.1 / 2.7.1) prior to adding the final user setup |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8.0, MuJoCo 3.4.0 |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-base` | Staged base layer for the CUDA 12.8 / PyTorch 2.8.0 build |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-mujoco` | MuJoCo 3.4.0 and Gymnasium 1.2.0 layer for the staged PyTorch build |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-pytorch` | PyTorch layer (2.8.0 / 0.23.0 / 2.8.0) prior to adding the final user setup |
 
 Use `docker pull <tag>` to download an image.  The `creator/scripts/run_env.sh` helper script can build or run images locally.
 

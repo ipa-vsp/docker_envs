@@ -29,13 +29,13 @@ jobs:
         env:
           - {
               OS_VERSION: "24.04",
-              TORCH: "2.7.1",
-              VISION: "0.22.1",
-              AUDIO: "2.7.1",
+              TORCH: "2.8.0",
+              VISION: "0.23.0",
+              AUDIO: "2.8.0",
               MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
-              TAG: "cuda12.8-torch2.7"
+              TAG: "cuda12.8-torch2.8"
             }
     steps:
       - uses: actions/checkout@v6
@@ -69,13 +69,13 @@ jobs:
         env:
           - {
               OS_VERSION: "24.04",
-              TORCH: "2.7.1",
-              VISION: "0.22.1",
-              AUDIO: "2.7.1",
+              TORCH: "2.8.0",
+              VISION: "0.23.0",
+              AUDIO: "2.8.0",
               MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
-              TAG: "cuda12.8-torch2.7"
+              TAG: "cuda12.8-torch2.8"
             }
     steps:
       - uses: actions/checkout@v6
@@ -110,13 +110,13 @@ jobs:
         env:
           - {
               OS_VERSION: "24.04",
-              TORCH: "2.7.1",
-              VISION: "0.22.1",
-              AUDIO: "2.7.1",
+              TORCH: "2.8.0",
+              VISION: "0.23.0",
+              AUDIO: "2.8.0",
               MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
-              TAG: "cuda12.8-torch2.7"
+              TAG: "cuda12.8-torch2.8"
             }
     steps:
       - uses: actions/checkout@v6
@@ -153,13 +153,13 @@ jobs:
         env:
           - {
               OS_VERSION: "24.04",
-              TORCH: "2.7.1",
-              VISION: "0.22.1",
-              AUDIO: "2.7.1",
+              TORCH: "2.8.0",
+              VISION: "0.23.0",
+              AUDIO: "2.8.0",
               MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
-              TAG: "cuda12.8-torch2.7"
+              TAG: "cuda12.8-torch2.8"
             }
     steps:
       - uses: actions/checkout@v6

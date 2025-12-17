@@ -4,7 +4,7 @@ This template lets you either run a ROS2 container with `docker compose` or open
 
 ## Quick start with docker compose
 - Copy `.env.example` to `.env` and adjust `IMAGE`, `LOCAL_UID`, `LOCAL_GID`, `USERNAME`, `HOST_WS`, `ROS_DISTRO`.
-- From this folder, bring the container up:  
+- From this folder, bring the container up:
   `docker compose up ros`
 - The workspace on your host (`HOST_WS`) mounts to `/home/${USERNAME}/colcon_ws` in the container.
 
