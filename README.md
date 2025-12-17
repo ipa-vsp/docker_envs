@@ -8,11 +8,9 @@ This repository contains Dockerfiles, compose templates and helper scripts used 
 |----------|--------|
 | ROS2 Images | [![ROS2 Images](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml) |
 | ROS2 Staged | [![ROS2 Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml) |
-| PyTorch | [![PyTorch](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch.yml) |
 | PyTorch Staged | [![PyTorch Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml) |
 | Docker Builder | [![Docker](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml) |
-| Clang Format | [![Clang Format](https://github.com/ipa-vsp/docker_envs/actions/workflows/ci-formater.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ci-formater.yml) |
-| Pre-commit | [![Pre-commit](https://github.com/ipa-vsp/docker_envs/actions/workflows/pre-formater.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pre-formater.yml) |
+| Formatting | [![Formatting](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml) |
 
 ## Available Docker Images
 
@@ -52,7 +50,6 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 
 | Tag | Notes |
 |-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.6-torch2.6` | Single-step image with PyTorch 2.6.0, TorchVision 0.21.0, TorchAudio 2.6.0, CUDA 12.6.0 |
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8.0, MuJoCo 3.4.0 |
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-base` | Staged base layer for the CUDA 12.8 / PyTorch 2.8.0 build |
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-mujoco` | MuJoCo 3.4.0 and Gymnasium 1.2.0 layer for the staged PyTorch build |

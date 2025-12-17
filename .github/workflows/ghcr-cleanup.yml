@@ -55,14 +55,12 @@ jobs:
 
           # Select versions to delete: untagged OR older than cutoff and not in KEEP_TAGS
           IDS=$(echo "${VERSIONS}" | jq -r --arg cutoff "${CUTOFF}" --argjson keep "${KEEP_JSON}" '
-            def keep_tag(tags; keep):
-              any(tags[]; keep | index(.));
-            ;
             .[]
+            | .metadata.container.tags // [] as $tags
             | select(
-                ((.metadata.container.tags // []) | length == 0)
+                ($tags | length == 0)
                 or
-                ((.updated_at < $cutoff) and (keep_tag((.metadata.container.tags // []); $keep) | not))
+                ((.updated_at < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
               )
             | .id
           ')
