@@ -38,7 +38,9 @@ jobs:
           echo "${EXTRA_PACKAGES_TO_DELETE}" | jq -r '.[]' | while read -r pkg; do
             [[ -z "${pkg}" ]] && continue
             echo "Deleting entire package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
-            gh api -X DELETE "${BASE_PATH}/packages/container/${pkg}" || echo "Package ${pkg} not found or could not be deleted."
+            if ! gh api -X DELETE "${BASE_PATH}/packages/container/${pkg}"; then
+              echo "Package ${pkg} not found or could not be deleted."
+            fi
           done
 
       - name: Delete untagged and stale versions

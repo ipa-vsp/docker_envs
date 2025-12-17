@@ -3,9 +3,9 @@ name: Build ROS Images in Stages
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    # paths:
-    #   - 'creator/**'
+    # branches: [ main ]
+    paths:
+      - 'creator/**'
   pull_request:
     branches: [ main ]
   schedule:
