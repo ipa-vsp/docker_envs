@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Delete deprecated packages (non-main)
+      - name: Delete untagged versions from secondary packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXTRA_PACKAGES_TO_DELETE: ${{ env.EXTRA_PACKAGES_TO_DELETE }}
@@ -38,10 +38,40 @@ jobs:
           echo "${EXTRA_PACKAGES_TO_DELETE}" | jq -r '.[]' | while read -r pkg; do
             [[ -z "${pkg}" ]] && continue
             PKG_PATH="${pkg//\//%2F}" # URL-encode slashes in package names
-            echo "Deleting entire package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
-            if ! gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}"; then
-              echo "Package ${pkg} not found or could not be deleted."
+            echo "Cleaning untagged versions in package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
+
+            if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PKG_PATH}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
+              echo "Package '${pkg}' not found. Skipping."
+              continue
             fi
+            if [[ -z "${VERSIONS}" || "${VERSIONS}" == "[]" ]]; then
+              echo "No versions found in ${pkg}; skipping."
+              continue
+            fi
+
+            SELECTION=$(echo "${VERSIONS}" | jq '
+              map(select(type == "object"))
+              | map(
+                  (.metadata? // {}) as $m
+                  | ($m.container.tags // []) as $tags
+                  | select(($tags | length == 0))
+                )
+            ')
+
+            if [[ -z "${SELECTION}" || "${SELECTION}" == "[]" ]]; then
+              echo "No untagged versions to delete in ${pkg}."
+              continue
+            fi
+
+            echo "Deleting untagged versions in ${pkg}:"
+            echo "${SELECTION}" | jq -r '.[] | "- id: \(.id) tags: \((.metadata.container.tags // []) | join(", "))"'
+
+            echo "${SELECTION}" \
+              | jq -r '.[].id' \
+              | while read -r id; do
+                  [[ -z "${id}" ]] && continue
+                  gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}/versions/${id}"
+                done
           done
 
       - name: Delete untagged and stale versions
