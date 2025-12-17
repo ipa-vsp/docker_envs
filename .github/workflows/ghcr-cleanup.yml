@@ -43,12 +43,12 @@ jobs:
           CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" --iso-8601=seconds)
           KEEP_JSON="${KEEP_TAGS}"
 
-          # Fetch all versions
-          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100"); then
+          # Fetch all versions and combine paginated arrays into one JSON array
+          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" | jq -s 'flatten'); then
             echo "Package '${PACKAGE}' not found in GHCR for ${OWNER}. Skipping cleanup."
             exit 0
           fi
-          if [[ -z "${VERSIONS}" ]]; then
+          if [[ -z "${VERSIONS}" || "${VERSIONS}" == "[]" ]]; then
             echo "No versions found; nothing to clean."
             exit 0
           fi
