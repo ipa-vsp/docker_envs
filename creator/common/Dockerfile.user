@@ -1,10 +1,13 @@
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
+SHELL ["/bin/bash", "-c"]
+
 # Setup non-root admin user
 ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
+ARG ROS_DISTRO=""
 
 # Install prerequisites and cleanup in a single step
 RUN apt-get update && apt-get install -y sudo && \
@@ -41,14 +44,16 @@ COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
 RUN chmod +x /usr/local/bin/scripts/*.sh
 
 # Create appropriate workspace depending on ROS_DISTRO and set permissions
-RUN if [[ "${ROS_DISTRO}" == "rolling" || "${ROS_DISTRO}" == "jazzy" || \
-          "${ROS_DISTRO}" == "iron" || "${ROS_DISTRO}" == "humble" ]]; then \
-        mkdir -p /home/${USERNAME}/colcon_ws/src && \
-        chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws; \
-    elif [[ "${ROS_DISTRO}" == "noetic" || "${ROS_DISTRO}" == "melodic" ]]; then \
-        mkdir -p /home/${USERNAME}/catkin_ws/src && \
-        chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws; \
-    fi
+RUN case "${ROS_DISTRO}" in \
+        rolling|jazzy|iron|humble) \
+            mkdir -p /home/${USERNAME}/colcon_ws/src && \
+            chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws ;; \
+        noetic|melodic) \
+            mkdir -p /home/${USERNAME}/catkin_ws/src && \
+            chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws ;; \
+        *) \
+            ;; \
+    esac
 
 # Keep root as the active user for further builds
 USER root
@@ -57,6 +62,9 @@ USER root
 ENV USERNAME=${USERNAME}
 ENV USER_GID=${USER_GID}
 ENV USER_UID=${USER_UID}
+ENV ROS_DISTRO=${ROS_DISTRO}
+ENV HOME=/home/${USERNAME}
+WORKDIR /home/${USERNAME}
 
 # Optionally switch to the user when running interactively
 CMD ["/bin/bash"]

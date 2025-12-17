@@ -20,13 +20,16 @@ function cleanup() {
 trap cleanup EXIT
 
 function help() {
-    echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] -w <workspace_path>"
+    echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] [-n <username>] [-U <uid>] [-G <gid>] -w <workspace_path>"
     echo "  -o: OS version (24.04, 22.04, 20.04, 18.04, 16.04) | Default: 24.04"
     echo "  -v: ROS version (rolling, kilted, jazzy, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -z: Enable zehno | Default: false"
     echo "  -s: Enable simulation | Default: false"
     echo "  -i: Final image name"
+    echo "  -n: Username to create inside the image | Default: admin"
+    echo "  -U: UID for the created user | Default: current host UID"
+    echo "  -G: GID for the created user | Default: current host GID"
     echo "  -w: Workspace path (mandatory for run mode)"
     echo "  -b: Build image"
     echo "  -r: Run container"
@@ -42,8 +45,11 @@ SIMULATION=false
 BUILD=false
 RUN=false
 FINAL_IMAGE=""
+USERNAME="admin"
+USER_UID="$(id -u)"
+USER_GID="$(id -g)"
 
-while getopts "o:v:u:z:i:w:bsr" opt; do
+while getopts "o:v:u:z:i:w:n:U:G:bsrh" opt; do
     case $opt in
         o) OS_VERSION=$OPTARG ;;
         v) ROS_VERSION=$OPTARG ;;
@@ -51,6 +57,9 @@ while getopts "o:v:u:z:i:w:bsr" opt; do
         z) ZEHNO=true ;;
         i) FINAL_IMAGE=$OPTARG ;;
         w) WORKSPACE=$OPTARG ;;
+        n) USERNAME=$OPTARG ;;
+        U) USER_UID=$OPTARG ;;
+        G) USER_GID=$OPTARG ;;
         b) BUILD=true ;;
         r) RUN=true ;;
         s) SIMULATION=true ;;
@@ -137,7 +146,11 @@ if [[ "$BUILD" == true ]]; then
 
     DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.user"
     if [[ -f "$DOCKERFILE" ]]; then
-        ${ROOT}/build_image.sh "$DOCKERFILE" "$IMAGE_NAME" "$FINAL_IMAGE"
+        USER_ARGS=(--build-arg USERNAME="${USERNAME}"
+                   --build-arg USER_UID="${USER_UID}"
+                   --build-arg USER_GID="${USER_GID}"
+                   --build-arg ROS_DISTRO="${ROS_VERSION}")
+        ${ROOT}/build_image.sh "$DOCKERFILE" "$IMAGE_NAME" "$FINAL_IMAGE" "${USER_ARGS[@]}"
     fi
 fi
 
@@ -149,15 +162,19 @@ if [[ "$RUN" == true ]]; then
     fi
 
     CONTAINER="${FINAL_IMAGE}_container"
+    TARGET_WS="/home/${USERNAME}/colcon_ws"
+    if [[ "$ROS_VERSION" == "noetic" || "$ROS_VERSION" == "kinetic" || "$ROS_VERSION" == "melodic" ]]; then
+        TARGET_WS="/home/${USERNAME}/catkin_ws"
+    fi
 
     DOCKER_ARGS=(
         "-e DISPLAY=$DISPLAY"
         "-v /tmp/.X11-unix:/tmp/.X11-unix:ro"
-        "-v $HOME/.Xauthority:/home/admin/.Xauthority:rw"
+        "-v $HOME/.Xauthority:/home/${USERNAME}/.Xauthority:rw"
         "-v /etc/timezone:/etc/timezone:ro"
         "-v /etc/localtime:/etc/localtime:ro"
-        "-v $WORKSPACE:/home/admin/colcon_ws:"
-        "-v $WORKSPACE:/home/admin/colcon_ws:rw"
+        "-v $WORKSPACE:${TARGET_WS}:rw"
+        "--user ${USER_UID}:${USER_GID}"
         "--privileged"
         "--name $CONTAINER"
         "--rm"

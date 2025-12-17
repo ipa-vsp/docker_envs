@@ -31,7 +31,7 @@ RUN apt-get update && \
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE_MUJOCO} AS mujoco
 
-ARG MUJOCO_VERSION=3.3.3
+ARG MUJOCO_VERSION=3.4.0
 ARG CPU_ARCH=x86_64
 ARG GYM_VERSION=1.2.0
 

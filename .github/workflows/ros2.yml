@@ -48,7 +48,7 @@ jobs:
         run: |
           chmod +x creator/scripts/run_env.sh
           chmod +x creator/scripts/build_image.sh
-          ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }} -b
+          ./creator/scripts/run_env.sh -o ${{ matrix.env.OS_VERSION }} -v ${{ matrix.env.ROS_DISTRO }} -u skip -U 1000 -G 1000 -i ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.ROS_DISTRO }} -b
 
       - name: List Docker images
         run: docker images

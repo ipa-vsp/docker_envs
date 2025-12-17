@@ -20,11 +20,14 @@ trap cleanup EXIT
 help()
 {
     echo ""
-    echo "Usage: $0 -v humble|rolling -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws"
+    echo "Usage: $0 -v humble|rolling -u manipulation|navigation|both -s true|false -i image_name [-n username] [-U uid] [-G gid] -b|-r -w dev_ws"
     echo -e "\t-v Select ROS version"
     echo -e "\t-u Select usage of the image"
     echo -e "\t-s Enable simulation"
     echo -e "\t-i Image Name"
+    echo -e "\t-n Username to create inside the image | Default: admin"
+    echo -e "\t-U UID for the created user | Default: current host UID"
+    echo -e "\t-G GID for the created user | Default: current host GID"
     echo -e "\t-b Build mode"
     echo -e "\t-r Run mode"
     echo -e "\t-w Attach your workspace only required while run (-r)"
@@ -32,13 +35,20 @@ help()
     exit 1
 }
 
-while getopts "v:u:s:i:w:brh" opt
+USERNAME="admin"
+USER_UID="$(id -u)"
+USER_GID="$(id -g)"
+
+while getopts "v:u:s:i:w:n:U:G:brh" opt
 do
     case "$opt" in
         v) ROS_VERSION="$OPTARG" ;;
         u) ROS_USAGE="$OPTARG" ;;
         s) SIMULATION="$OPTARG" ;;
         i) FINAL_IMAGE="$OPTARG" ;;
+        n) USERNAME="$OPTARG" ;;
+        U) USER_UID="$OPTARG" ;;
+        G) USER_GID="$OPTARG" ;;
         b) BUILD=true ;;
         r) RUN=true ;;
         w) WORKSPACE="$OPTARG" ;;
@@ -139,14 +149,19 @@ elif [[ "$BUILD" == true ]]; then
     if [[ "$SIMULATION" == true ]]; then
         DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.gazebo"
         if [[ -f "${DOCKERFILE}" ]]; then
-            BASE="${BASE}.gazeo"
-            ${ROOT}/build_image.sh $DOCKERFILE $BASE
+            BASE="${IMAGE_NAME}"
+            IMAGE_NAME="${IMAGE_NAME}.gazebo"
+            ${ROOT}/build_image.sh $DOCKERFILE $BASE $IMAGE_NAME
         fi
     fi
 
     DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.user"
     if [[ -f "${DOCKERFILE}" ]]; then
-        ${ROOT}/build_image.sh $DOCKERFILE $IMAGE_NAME $FINAL_IMAGE
+        USER_ARGS=(--build-arg USERNAME="${USERNAME}"
+                   --build-arg USER_UID="${USER_UID}"
+                   --build-arg USER_GID="${USER_GID}"
+                   --build-arg ROS_DISTRO="${ROS_VERSION}")
+        ${ROOT}/build_image.sh $DOCKERFILE $IMAGE_NAME $FINAL_IMAGE "${USER_ARGS[@]}"
     fi
 
 elif [[ "$RUN" == true ]]; then
@@ -160,10 +175,10 @@ elif [[ "$RUN" == true ]]; then
     DOCKER_ARGS=()
     DOCKER_ARGS+=("-e DISPLAY=$DISPLAY")
     DOCKER_ARGS+=("-v /tmp/.X11-unix:/tmp/.X11-unix:ro")
-    DOCKER_ARGS+=("-v $HOME/.Xauthority:/home/admin/.Xauthority:rw")
+    DOCKER_ARGS+=("-v $HOME/.Xauthority:/home/${USERNAME}/.Xauthority:rw")
     DOCKER_ARGS+=("-v /etc/timezone:/etc/timezone:ro")
     DOCKER_ARGS+=("-v /etc/localtime:/etc/localtime:ro")
-    DOCKER_ARGS+=("-v $WORKSPACE:/home/admin/colcon_ws:rw")
+    DOCKER_ARGS+=("-v $WORKSPACE:/home/${USERNAME}/colcon_ws:rw")
 
     if type nvidia-smi &>/dev/null; then
         GPU_ATTACHED=(`nvidia-smi -a | grep "Attached GPUs"`)
@@ -179,7 +194,7 @@ elif [[ "$RUN" == true ]]; then
                --rm \
                --net=host \
                --privileged \
-               --user="admin:1000" \
+               --user="${USER_UID}:${USER_GID}" \
                --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
                --name "$CONTAINER" \
                ${DOCKER_ARGS[@]} \

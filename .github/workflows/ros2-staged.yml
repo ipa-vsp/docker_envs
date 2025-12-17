@@ -143,7 +143,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/mujoco:${{ matrix.os }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
-            MUJOCO_VERSION=3.3.3
+            MUJOCO_VERSION=3.4.0
 
   build-ros-mujoco:
     name: MuJoCo + ROS
@@ -272,6 +272,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=admin
+            ROS_DISTRO=${{ matrix.ros }}
 
   finalize-base-ros-moveit-user:
     name: Final User Image (MoveIt)
@@ -304,6 +308,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-moveit
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=admin
+            ROS_DISTRO=${{ matrix.ros }}
 
   finalize-mujoco-ros-user:
     name: Final User Image (MuJoCo)
@@ -334,6 +342,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-mujoco
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=admin
+            ROS_DISTRO=${{ matrix.ros }}
 
   finalize-mujoco-ros-moveit-user:
     name: Final User Image (MuJoCo + MoveIt)
@@ -364,6 +376,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-mujoco-moveit
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=admin
+            ROS_DISTRO=${{ matrix.ros }}
 
   finalize-mujoco-ros-nav2-user:
     name: Final User Image (MuJoCo + Nav2)
@@ -394,3 +410,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-mujoco-nav2
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nav2:${{ matrix.os }}-${{ matrix.ros }}-mujoco
+            USER_UID=1000
+            USER_GID=1000
+            USERNAME=admin
+            ROS_DISTRO=${{ matrix.ros }}

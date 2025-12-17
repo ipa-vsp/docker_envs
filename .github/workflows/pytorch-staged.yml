@@ -32,7 +32,7 @@ jobs:
               TORCH: "2.7.1",
               VISION: "0.22.1",
               AUDIO: "2.7.1",
-              MUJOCO: "3.3.3",
+              MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
               TAG: "cuda12.8-torch2.7"
@@ -72,7 +72,7 @@ jobs:
               TORCH: "2.7.1",
               VISION: "0.22.1",
               AUDIO: "2.7.1",
-              MUJOCO: "3.3.3",
+              MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
               TAG: "cuda12.8-torch2.7"
@@ -113,7 +113,7 @@ jobs:
               TORCH: "2.7.1",
               VISION: "0.22.1",
               AUDIO: "2.7.1",
-              MUJOCO: "3.3.3",
+              MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
               TAG: "cuda12.8-torch2.7"
@@ -156,7 +156,7 @@ jobs:
               TORCH: "2.7.1",
               VISION: "0.22.1",
               AUDIO: "2.7.1",
-              MUJOCO: "3.3.3",
+              MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.8.0",
               TAG: "cuda12.8-torch2.7"

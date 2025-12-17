@@ -29,7 +29,7 @@ jobs:
               TORCH: "2.6.0",
               VISION: "0.21.0",
               AUDIO: "2.6.0",
-              MUJOCO: "3.3.3",
+              MUJOCO: "3.4.0",
               GYM: "1.2.0",
               CUDA: "12.6.0",
               TAG: "cuda12.6-torch2.6"

@@ -4,6 +4,7 @@ export PS1="\[\e[31m\]tf-docker\[\e[m\] \[\e[33m\]\w\[\e[m\] > "
 export TERM=xterm-256color
 alias grep="grep --color=auto"
 alias ls="ls --color=auto"
+alias sudo='sudo '  # allow completion to pass through sudo
 
 echo -e "\e[1;31m"
 cat<<PT
@@ -29,3 +30,11 @@ fi
 
 # Turn off colors
 echo -e "\e[m"
+
+# Enable interactive shell completions when available
+if [ -f /etc/profile.d/bash_completion.sh ]; then
+  source /etc/profile.d/bash_completion.sh
+elif [ -f /usr/share/bash-completion/bash_completion ]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+complete -cf sudo

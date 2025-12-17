@@ -41,21 +41,21 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:20.04-noetic-moveit` | ROS 1 Noetic staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.3.3 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.3.3 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-moveit` | ROS 2 Jazzy staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and Nav2 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.3.3, Gymnasium 1.2.0, and Nav2 |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-moveit` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
+| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 
 ### PyTorch Images
 
 | Tag | Notes |
 |-----|-------|
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.6-torch2.6` | Single-step image with PyTorch 2.6.0, TorchVision 0.21.0, TorchAudio 2.6.0, CUDA 12.6.0 |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7` | Staged final image with PyTorch 2.7.1, TorchVision 0.22.1, TorchAudio 2.7.1, CUDA 12.8.0, MuJoCo 3.3.3 |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7` | Staged final image with PyTorch 2.7.1, TorchVision 0.22.1, TorchAudio 2.7.1, CUDA 12.8.0, MuJoCo 3.4.0 |
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-base` | Staged base layer for the CUDA 12.8 / PyTorch 2.7.1 build |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-mujoco` | MuJoCo 3.3.3 and Gymnasium 1.2.0 layer for the staged PyTorch build |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-mujoco` | MuJoCo 3.4.0 and Gymnasium 1.2.0 layer for the staged PyTorch build |
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.7-pytorch` | PyTorch layer (2.7.1 / 0.22.1 / 2.7.1) prior to adding the final user setup |
 
 Use `docker pull <tag>` to download an image.  The `creator/scripts/run_env.sh` helper script can build or run images locally.

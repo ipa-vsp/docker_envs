@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  ros:
+    image: ${IMAGE:-ghcr.io/OWNER/REPO:rolling}
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    network_mode: host
+    privileged: true
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - NVIDIA_DRIVER_CAPABILITIES=${NVIDIA_DRIVER_CAPABILITIES:-all}
+      - ROS_DISTRO=${ROS_DISTRO:-rolling}
+      - USERNAME=${USERNAME:-admin}
+      - USER_UID=${LOCAL_UID:-1000}
+      - USER_GID=${LOCAL_GID:-1000}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - ${HOME}/.Xauthority:/home/${USERNAME:-admin}/.Xauthority:rw
+      - ${HOST_WS:-../workspace}:/home/${USERNAME:-admin}/colcon_ws:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: bash

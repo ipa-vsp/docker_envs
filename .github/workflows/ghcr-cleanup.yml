@@ -2,17 +2,80 @@ name: GHCR Cleanup
 
 on:
   schedule:
-    - cron: '30 1 * * *'
+    - cron: "30 1 * * *"
   workflow_dispatch:
 
 permissions:
   packages: write
+  contents: read
+
+env:
+  RETENTION_DAYS: 30
+  KEEP_TAGS: '["latest","main","rolling","jazzy","kilted","humble","noetic"]'
+  PACKAGE_NAME: ${{ github.event.repository.name }}
 
 jobs:
-  delete-untagged-images:
-    name: Delete Untagged Images
+  cleanup:
+    name: Remove untagged and stale images
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: dataaxiom/ghcr-cleanup-action@v1
-        with:
-          delete-untagged: true
+      - name: Delete untagged and stale versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RETENTION_DAYS: ${{ env.RETENTION_DAYS }}
+          KEEP_TAGS: ${{ env.KEEP_TAGS }}
+          PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Determine owner type (User vs Org) for the API path
+          OWNER="${REPO%%/*}"
+          PACKAGE="${PACKAGE_NAME:-${REPO#*/}}"
+          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
+          BASE_PATH="/users/${OWNER}"
+          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
+            BASE_PATH="/orgs/${OWNER}"
+          fi
+
+          echo "Cleaning container package '${PACKAGE}' for ${OWNER_TYPE} '${OWNER}'"
+          CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" --iso-8601=seconds)
+          KEEP_JSON="${KEEP_TAGS}"
+
+          # Fetch all versions
+          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100"); then
+            echo "Package '${PACKAGE}' not found in GHCR for ${OWNER}. Skipping cleanup."
+            exit 0
+          fi
+          if [[ -z "${VERSIONS}" ]]; then
+            echo "No versions found; nothing to clean."
+            exit 0
+          fi
+
+          # Select versions to delete: untagged OR older than cutoff and not in KEEP_TAGS
+          IDS=$(echo "${VERSIONS}" | jq -r --arg cutoff "${CUTOFF}" --argjson keep "${KEEP_JSON}" '
+            def keep_tag(tags; keep):
+              any(tags[]; keep | index(.));
+            ;
+            .[]
+            | select(
+                ((.metadata.container.tags // []) | length == 0)
+                or
+                ((.updated_at < $cutoff) and (keep_tag((.metadata.container.tags // []); $keep) | not))
+              )
+            | .id
+          ')
+
+          if [[ -z "${IDS}" ]]; then
+            echo "No untagged or stale versions to delete."
+            exit 0
+          fi
+
+          echo "Deleting the following version IDs:"
+          echo "${IDS}"
+
+          while read -r id; do
+            [[ -z "${id}" ]] && continue
+            gh api -X DELETE "${BASE_PATH}/packages/container/${PACKAGE}/versions/${id}"
+          done <<< "${IDS}"
