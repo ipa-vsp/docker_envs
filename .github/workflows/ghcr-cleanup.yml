@@ -43,8 +43,8 @@ jobs:
           CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" --iso-8601=seconds)
           KEEP_JSON="${KEEP_TAGS}"
 
-          # Fetch all versions and combine paginated arrays into one JSON array
-          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" | jq -s 'flatten'); then
+          # Fetch all versions (flatten paginated arrays into a single array)
+          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
             echo "Package '${PACKAGE}' not found in GHCR for ${OWNER}. Skipping cleanup."
             exit 0
           fi
@@ -55,14 +55,15 @@ jobs:
 
           # Select versions to delete: untagged OR older than cutoff and not in KEEP_TAGS
           SELECTION=$(echo "${VERSIONS}" | jq --arg cutoff "${CUTOFF}" --argjson keep "${KEEP_JSON}" '
-            map(
-              .metadata.container.tags // [] as $tags
-              | select(
-                  ($tags | length == 0)
-                  or
-                  ((.updated_at < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
-                )
-            )
+            map(select(type == "object"))
+            | map(
+                .metadata.container.tags // [] as $tags
+                | select(
+                    ($tags | length == 0)
+                    or
+                    ((.updated_at < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
+                  )
+              )
           ')
 
           if [[ -z "${SELECTION}" || "${SELECTION}" == "[]" ]]; then
