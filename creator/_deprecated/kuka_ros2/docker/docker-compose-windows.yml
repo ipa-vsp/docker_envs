@@ -49,7 +49,7 @@ services:
         tty: true
         network_mode: "host"
         volumes:
-            - \\wsl.localhost\Ubuntu-20.04\mnt\wslg:/tmp
+            - \\wsl.localhost\Ubuntu-24.04\mnt\wslg:/tmp
             - ../../kuka_iiwa7_ros2:/home/admin/colcon_ws/src
         environment:
             - DISPLAY=:0

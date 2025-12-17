@@ -21,8 +21,8 @@ trap cleanup EXIT
 
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] [-n <username>] [-U <uid>] [-G <gid>] -w <workspace_path>"
-    echo "  -o: OS version (24.04, 22.04, 20.04, 18.04, 16.04) | Default: 24.04"
-    echo "  -v: ROS version (rolling, kilted, jazzy, iron, humble, isaachumble, noetic, kinetic) | Default: rolling"
+    echo "  -o: OS version (24.04, 22.04) | Default: 24.04"
+    echo "  -v: ROS version (rolling, kilted, jazzy, iron, humble, isaachumble) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -z: Enable zehno | Default: false"
     echo "  -s: Enable simulation | Default: false"
@@ -78,6 +78,11 @@ if [[ "$BUILD" == true && -z "$FINAL_IMAGE" ]]; then
     help
 fi
 
+if [[ "$OS_VERSION" != "24.04" && "$OS_VERSION" != "22.04" ]]; then
+    echo "Unsupported OS version: $OS_VERSION (allowed: 24.04, 22.04)"
+    exit 1
+fi
+
 # Define and manage Docker images
 DOCKER_COMMON_DIR="${ROOT}/../common"
 DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
@@ -99,9 +104,7 @@ if [[ "$BUILD" == true ]]; then
                              ["jazzy"]="${ROOT}/../ros2/Dockerfile.jazzy"
                              ["iron"]="${ROOT}/../ros2/Dockerfile.iron"
                              ["humble"]="${ROOT}/../ros2/Dockerfile.humble"
-                             ["isaachumble"]="${ROOT}/../ros2/Dockerfile.isaachumble"
-                             ["noetic"]="${ROOT}/../ros1/Dockerfile.noetic"
-                             ["kinetic"]="${ROOT}/../ros1/Dockerfile.kinetic" )
+                             ["isaachumble"]="${ROOT}/../ros2/Dockerfile.isaachumble" )
 
     DOCKERFILE=${DOCKERFILES[$ROS_VERSION]}
     if [[ -f "$DOCKERFILE" ]]; then
@@ -163,10 +166,6 @@ if [[ "$RUN" == true ]]; then
 
     CONTAINER="${FINAL_IMAGE}_container"
     TARGET_WS="/home/${USERNAME}/colcon_ws"
-    if [[ "$ROS_VERSION" == "noetic" || "$ROS_VERSION" == "kinetic" || "$ROS_VERSION" == "melodic" ]]; then
-        TARGET_WS="/home/${USERNAME}/catkin_ws"
-    fi
-
     DOCKER_ARGS=(
         "-e DISPLAY=$DISPLAY"
         "-v /tmp/.X11-unix:/tmp/.X11-unix:ro"

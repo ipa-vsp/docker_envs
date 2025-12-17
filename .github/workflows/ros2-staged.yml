@@ -24,7 +24,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        os: ["24.04", "22.04", "20.04"]
+        os: ["24.04", "22.04"]
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -57,7 +57,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -67,12 +66,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Select ROS Dockerfile
-        run: |
-          if [[ "${{ matrix.ros }}" == "noetic" || "${{ matrix.ros }}" == "kinetic" ]]; then
-            echo "ROS_FILE=creator/ros1/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          else
-            echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
-          fi
+        run: echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
       - name: Build ROS layer
         uses: docker/build-push-action@v6
         with:
@@ -96,7 +90,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -254,7 +247,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -290,7 +282,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "20.04", ros: noetic }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3

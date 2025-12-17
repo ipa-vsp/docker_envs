@@ -5,8 +5,8 @@
     - `./run_env.sh -h` for help.
 
     ```bash
-        Usage: ./run_env.sh -o 22.04|20.04 -v humble|rolling|noetic -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws
-            -o Select OS version 22.04 or 20.04
+        Usage: ./run_env.sh -o 24.04|22.04 -v humble|rolling|jazzy|kilted|iron|isaachumble -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws
+            -o Select OS version 24.04 or 22.04
             -v Select ROS version
             -u Select usage of the image
             -s Enable simulation
@@ -28,8 +28,8 @@ creates each layer in a separate job and pushes intermediate images. MuJoCo
 layers are only built for Ubuntu&nbsp;24.04, while other layers cover all valid
 
 Ubuntu and ROS combinations. MoveIt images are produced only for released ROS
-distributions (Jazzy, Kilted, Humble and Noetic) because the Rolling packages
-are sometimes missing.
+distributions (Jazzy, Kilted, Humble) because the Rolling packages are sometimes
+missing.
 
 # Docker Workspaces using VSCode devcontainer
 =============================================

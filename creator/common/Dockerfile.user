@@ -45,14 +45,10 @@ RUN chmod +x /usr/local/bin/scripts/*.sh
 
 # Create appropriate workspace depending on ROS_DISTRO and set permissions
 RUN case "${ROS_DISTRO}" in \
-        rolling|jazzy|iron|humble) \
+        rolling|jazzy|kilted|iron|humble|isaachumble) \
             mkdir -p /home/${USERNAME}/colcon_ws/src && \
             chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/colcon_ws ;; \
-        noetic|melodic) \
-            mkdir -p /home/${USERNAME}/catkin_ws/src && \
-            chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/catkin_ws ;; \
-        *) \
-            ;; \
+        *) ;; \
     esac
 
 # Keep root as the active user for further builds

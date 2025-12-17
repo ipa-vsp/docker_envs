@@ -23,11 +23,9 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted` | Staged ROS 2 Kilted developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy` | Staged ROS 2 Jazzy developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble` | Staged ROS 2 Humble developer image on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs:20.04-noetic` | Staged ROS 1 Noetic developer image on Ubuntu 20.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-moveit` | ROS 2 Kilted staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:20.04-noetic-moveit` | ROS 1 Noetic staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
