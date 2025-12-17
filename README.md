@@ -6,7 +6,6 @@ This repository contains Dockerfiles, compose templates and helper scripts used 
 
 | Workflow | Status |
 |----------|--------|
-| ROS2 Images | [![ROS2 Images](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2.yml) |
 | ROS2 Staged | [![ROS2 Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml) |
 | PyTorch Staged | [![PyTorch Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml) |
 | Docker Builder | [![Docker](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml) |
@@ -15,16 +14,6 @@ This repository contains Dockerfiles, compose templates and helper scripts used 
 ## Available Docker Images
 
 Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list every published tag together with the main components included in the image.
-
-### ROS 2 Images (single-step workflow)
-
-| Tag | Notes |
-|-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs:rolling` | ROS 2 Rolling on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:kilted` | ROS 2 Kilted on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:jazzy` | ROS 2 Jazzy on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:humble` | ROS 2 Humble on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs:noetic` | ROS 1 Noetic on Ubuntu 20.04 |
 
 ### ROS 2 Images (staged workflow - final user images)
 
