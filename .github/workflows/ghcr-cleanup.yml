@@ -57,11 +57,13 @@ jobs:
           SELECTION=$(echo "${VERSIONS}" | jq --arg cutoff "${CUTOFF}" --argjson keep "${KEEP_JSON}" '
             map(select(type == "object"))
             | map(
-                .metadata.container.tags // [] as $tags
+                (.metadata? // {}) as $m
+                | ($m.container.tags // []) as $tags
+                | (.updated_at // "") as $updated
                 | select(
                     ($tags | length == 0)
                     or
-                    ((.updated_at < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
+                    (($updated != "") and ($updated < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
                   )
               )
           ')

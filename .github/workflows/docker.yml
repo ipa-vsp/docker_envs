@@ -1,9 +1,9 @@
 name: Create and publish a Docker image (For CI/CD)
 on:
   push:
-     branches: [ main ]
-    #  paths:
-    #   - 'creator/**'
+     # branches: [ main ]
+     paths:
+      - 'creator/**'
   schedule:
     - cron: '0 0 * * 0'
 
