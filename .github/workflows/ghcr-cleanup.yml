@@ -13,7 +13,7 @@ env:
   RETENTION_DAYS: 30
   KEEP_TAGS: '["latest","main","rolling","jazzy","kilted","humble","noetic"]'
   PACKAGE_NAME: ${{ github.event.repository.name }}
-  EXTRA_PACKAGES_TO_DELETE: '["ros","base","moveit","mujoco","nav2"]'
+  EXTRA_PACKAGES_TO_DELETE: '["docker_envs/ros","docker_envs/base","docker_envs/moveit","docker_envs/mujoco","docker_envs/nav2"]'
 
 jobs:
   cleanup:
@@ -37,8 +37,9 @@ jobs:
 
           echo "${EXTRA_PACKAGES_TO_DELETE}" | jq -r '.[]' | while read -r pkg; do
             [[ -z "${pkg}" ]] && continue
+            PKG_PATH="${pkg//\//%2F}" # URL-encode slashes in package names
             echo "Deleting entire package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
-            if ! gh api -X DELETE "${BASE_PATH}/packages/container/${pkg}"; then
+            if ! gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}"; then
               echo "Package ${pkg} not found or could not be deleted."
             fi
           done
