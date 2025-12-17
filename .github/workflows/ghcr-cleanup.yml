@@ -13,6 +13,7 @@ env:
   RETENTION_DAYS: 30
   KEEP_TAGS: '["latest","main","rolling","jazzy","kilted","humble","noetic"]'
   PACKAGE_NAME: ${{ github.event.repository.name }}
+  EXTRA_PACKAGES_TO_DELETE: '["ros","base","moveit","mujoco","nav2"]'
 
 jobs:
   cleanup:
@@ -20,6 +21,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Delete deprecated packages (non-main)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXTRA_PACKAGES_TO_DELETE: ${{ env.EXTRA_PACKAGES_TO_DELETE }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          OWNER="${REPO%%/*}"
+          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
+          BASE_PATH="/users/${OWNER}"
+          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
+            BASE_PATH="/orgs/${OWNER}"
+          fi
+
+          echo "${EXTRA_PACKAGES_TO_DELETE}" | jq -r '.[]' | while read -r pkg; do
+            [[ -z "${pkg}" ]] && continue
+            echo "Deleting entire package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
+            gh api -X DELETE "${BASE_PATH}/packages/container/${pkg}" || echo "Package ${pkg} not found or could not be deleted."
+          done
+
       - name: Delete untagged and stale versions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
