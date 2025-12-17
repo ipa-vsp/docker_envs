@@ -40,9 +40,6 @@ jobs:
           fi
 
           echo "Cleaning container package '${PACKAGE}' for ${OWNER_TYPE} '${OWNER}'"
-          CUTOFF=$(date -u -d "-${RETENTION_DAYS} days" --iso-8601=seconds)
-          KEEP_JSON="${KEEP_TAGS}"
-
           # Fetch all versions (flatten paginated arrays into a single array)
           if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
             echo "Package '${PACKAGE}' not found in GHCR for ${OWNER}. Skipping cleanup."
@@ -53,17 +50,14 @@ jobs:
             exit 0
           fi
 
-          # Select versions to delete: untagged OR older than cutoff and not in KEEP_TAGS
-          SELECTION=$(echo "${VERSIONS}" | jq --arg cutoff "${CUTOFF}" --argjson keep "${KEEP_JSON}" '
+          # Select versions to delete: ONLY untagged (do not delete tagged images)
+          SELECTION=$(echo "${VERSIONS}" | jq '
             map(select(type == "object"))
             | map(
                 (.metadata? // {}) as $m
                 | ($m.container.tags // []) as $tags
-                | (.updated_at // "") as $updated
                 | select(
                     ($tags | length == 0)
-                    or
-                    (($updated != "") and ($updated < $cutoff) and (any($tags[]?; $keep | index(.)) | not))
                   )
               )
           ')
