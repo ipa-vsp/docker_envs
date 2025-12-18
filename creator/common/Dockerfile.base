@@ -3,68 +3,52 @@ FROM ubuntu:${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
+# provide a consistent shell experience for interactive containers
 COPY creator/scripts/bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL /bin/bash
 SHELL ["/bin/bash", "-c"]
 
-# Fundamentals
-RUN apt-get update && apt-get install -y \
+# Core build tooling and CLI utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
         apt-transport-https bash-completion build-essential \
         ca-certificates clang-format cmake curl \
-&& rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-RUN case $(uname -r -s) in \
-        24.04) \
-            apt-get update && apt-get upgrade -y && apt-get install -y \
+# OS-specific baseline; keep the package set aligned between 22.04 and 24.04
+RUN . /etc/os-release \
+    && if [ "$VERSION_ID" = "24.04" ] || [ "$VERSION_ID" = "22.04" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
             clang gdb gdbserver \
             git gnupg2 locales lsb-release rsync \
             software-properties-common wget vim \
-            unzip libgoogle-glog-dev \
-            && rm -rf /var/lib/apt/lists/* \
-            && apt-get clean \
-            ;; \
-        *) \
-            apt-get update && apt-get install -y \
-            dirmngr \
-            gnupg2 \
-            lsb-release \
-            software-properties-common \
-            tzdata \
-            && rm -rf /var/lib/apt/lists/* \
-            && apt-get clean \
-            ;; \
-    esac
+            unzip libgoogle-glog-dev dirmngr tzdata; \
+    else \
+        echo "Unsupported base image: ${VERSION_ID}"; \
+        exit 1; \
+    fi \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Python basics
-RUN case $(uname -r -s) in \
-        24.04) \
-            apt-get update && apt-get install -y \
+# Python toolchain; shared between Ubuntu 22.04 and 24.04
+RUN . /etc/os-release \
+    && if [ "$VERSION_ID" = "24.04" ] || [ "$VERSION_ID" = "22.04" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
             python3 python3-dev python3-pip python3-setuptools \
             python3-argcomplete python3-autopep8 python3-flake8 \
-            python3-pybind11 python3-pytest-cov \
-            && rm -rf /var/lib/apt/lists/* \
-            && apt-get clean \
-            ;; \
-        22.04) \
-            apt-get update && apt-get install -y \
-            python3 python3-dev python3-pip python3-setuptools \
-            python3-argcomplete python3-autopep8 python3-flake8 \
-            python3-pybind11 python3-pytest-cov \
-            && rm -rf /var/lib/apt/lists/* \
-            && apt-get clean \
-            ;; \
-        *) \
-            echo "Unsupported base image: ${BASE_IMAGE}" \
-            exit 1 \
-            ;; \
-    esac
+            python3-pybind11 python3-pytest-cov; \
+    else \
+        echo "Unsupported base image: ${VERSION_ID}"; \
+        exit 1; \
+    fi \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Python3 (PIP)
-RUN case $(uname -r -s) in \
-        24.04) \
-            python3 -m pip install -U \
+# Python lint/test utilities installed via PIP
+RUN . /etc/os-release \
+    && if [ "$VERSION_ID" = "24.04" ] || [ "$VERSION_ID" = "22.04" ]; then \
+        python3 -m pip install --no-cache-dir -U \
             argcomplete \
             autopep8 \
             flake8 \
@@ -82,32 +66,11 @@ RUN case $(uname -r -s) in \
             pytest \
             pydocstyle \
             scikit-learn \
-            ;; \
-        22.04) \
-            python3 -m pip install -U \
-            argcomplete \
-            autopep8 \
-            flake8 \
-            flake8-blind-except \
-            flake8-builtins \
-            flake8-class-newline \
-            flake8-comprehensions \
-            flake8-deprecated \
-            flake8-docstrings \
-            flake8-import-order \
-            flake8-quotes \
-            onnx \
-            pytest-repeat \
-            pytest-rerunfailures \
-            pytest \
-            pydocstyle \
-            scikit-learn \
-            ;; \
-        *) \
-            echo "Unsupported base image: ${BASE_IMAGE}" \
-            exit 1 \
-            ;; \
-    esac
+        && rm -rf /root/.cache/pip; \
+    else \
+        echo "Unsupported base image: ${VERSION_ID}"; \
+        exit 1; \
+    fi
 
 # Install Git-LFS
 RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
