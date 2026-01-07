@@ -49,7 +49,53 @@ services:
       - DISPLAY=${DISPLAY}
       - ROS_DOMAIN_ID=73
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-    command: tail -f /dev/null  # bash -c "top"
+    command:
+      - bash
+      - -c
+      - |
+        cd /home/admin/colcon_ws
+        sudo apt install python3.10-venv -y
+        python3 -m venv venv --system-site-packages
+        source venv/bin/activate
+        pip3 install --upgrade pip
+        pip3 install poetry
+        rosdep update
+        rosdep install --from-paths src --ignore-src -r -y
+        cd src/runtime_reasoning/bt_processing/bt_processing
+        poetry install
+        cd /home/admin/colcon_ws
+        export PYTHONPATH=\$PYTHONPATH:\/home/admin/colcon_ws/venv/lib/python3.10/site-packages
+        source /opt/ros/humble/setup.bash
+        colcon build --packages-up-to denso_monitor
+        source install/setup.bash
+        ros2 launch denso_monitor machine_monitor_launch.py mach_file_path:=src/runtime_reasoning/coverless_machine_with_tooling/mock_coverless_machine.mach zmq_server:=tcp://172.28.0.2:1667 if_provide_fulltree:=true
+
+
+  humble_wbot_test:
+    image: ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
+    user: admin:1000
+    stdin_open: true
+    tty: true
+    networks:
+      coverless_net:
+        ipv4_address: 172.28.0.4
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ../../../recovery/colcon_wbot_ws/src:/home/admin/colcon_ws/src
+    environment:
+      - DISPLAY=$DISPLAY
+      - ROS_DOMAIN_ID=73
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: tail -f /dev/null # bash -c "top"
 
 networks:
   coverless_net:
