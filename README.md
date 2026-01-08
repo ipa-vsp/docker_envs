@@ -86,5 +86,9 @@ If the workspace on the host is not owned by UID `1000`, adjust permissions:
 sudo chown -R 1000:1000 <workspace> || sudo chmod -R u+w <workspace>
 ```
 
+Check the example `composer/coverless` folder for the updated permissions in the compose file.
+- First run `id -u` to get UID and `id -g` to get GID.
+- in the `.env` file set `LOCAL_UID` and `LOCAL_GID` accordingly.
+
 ### GUI with Docker on Windows
 For using GUI applications on Windows see [docker_gui_windows11](https://github.com/prachandabhanu/docker_gui_windows11.git).
