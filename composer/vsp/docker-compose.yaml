@@ -16,11 +16,13 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - PRIVACY_CONSENT=Y
-      - NVIDIA_VISIBLE_DEVICES=0
-      - OMP_NUM_THREADS=32
-      - MKL_NUM_THREADS=32
-      - OPENBLAS_NUM_THREADS=32
-      - NUMEXPR_NUM_THREADS=32
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - DISPLAY=${DISPLAY}
+      # - OMP_NUM_THREADS=32
+      # - MKL_NUM_THREADS=32
+      # - OPENBLAS_NUM_THREADS=32
+      # - NUMEXPR_NUM_THREADS=32
     volumes:
       - ${HOME}/.Xauthority:/root/.Xauthority
       - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
@@ -32,3 +34,39 @@ services:
       - ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw
       - ~/docker/isaac-sim/documents:/root/Documents:rw
       - ~/ai_ws:/workspace/ai_ws:rw
+
+  isaac-sim:
+      image: nvcr.io/nvidia/isaac-sim:5.1.0
+      container_name: vsp_isaac-sim_gpu0_10gb
+      entrypoint: bash
+      stdin_open: true
+      tty: true
+      runtime: nvidia
+      network_mode: host
+      # cpus: 32.0
+      # mem_limit: 128g
+      # ipc: host
+      # ulimits:
+      #   memlock: -1
+      #   stack: 67108864
+      environment:
+        - ACCEPT_EULA=Y
+        - PRIVACY_CONSENT=Y
+        - NVIDIA_VISIBLE_DEVICES=all
+        - NVIDIA_DRIVER_CAPABILITIES=all
+        - DISPLAY=${DISPLAY}
+        # - OMP_NUM_THREADS=32
+        # - MKL_NUM_THREADS=32
+        # - OPENBLAS_NUM_THREADS=32
+        # - NUMEXPR_NUM_THREADS=32
+      volumes:
+        - ${HOME}/.Xauthority:/root/.Xauthority
+        - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
+        - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw
+        - ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw
+        - ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw
+        - ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw
+        - ~/docker/isaac-sim/logs:/root/.nvidia-omniverse/logs:rw
+        - ~/docker/isaac-sim/data:/root/.local/share/ov/data:rw
+        - ~/docker/isaac-sim/documents:/root/Documents:rw
+        - ~/ai_ws:/workspace/ai_ws:rw
