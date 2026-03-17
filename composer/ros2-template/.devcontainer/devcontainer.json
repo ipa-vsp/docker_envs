@@ -1,30 +1,31 @@
 {
-  "name": "ROS2 Template",
-  "dockerComposeFile": ["../docker-compose.yml"],
-  "service": "ros",
-  "workspaceFolder": "/home/${localEnv:USERNAME:-admin}/colcon_ws",
-  "remoteUser": "${localEnv:USERNAME:-admin}",
-  "runServices": ["ros"],
-  "shutdownAction": "stopCompose",
-  "containerEnv": {
-    "ROS_DISTRO": "${localEnv:ROS_DISTRO:-rolling}",
-    "USER_UID": "${localEnv:LOCAL_UID:-1000}",
-    "USER_GID": "${localEnv:LOCAL_GID:-1000}",
-    "USERNAME": "${localEnv:USERNAME:-admin}"
-  },
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/home/${localEnv:USERNAME:-admin}/colcon_ws,type=bind"
+  "name": "ROS2 Workspace",
+  "image": "ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit",
+  "workspaceFolder": "/home/admin/colcon_ws",
+  "workspaceMount": "source=${localWorkspaceFolder}/src,target=/home/admin/colcon_ws/src,type=bind,consistency=cached",
+  "remoteUser": "admin",
+  "runArgs": [
+    "--network=bridge",
+    "--gpus=all",
+    "--runtime=nvidia",
+    "-e", "DISPLAY=${localEnv:DISPLAY}",
+    "-e", "ROS_DOMAIN_ID=${localEnv:ROS_DOMAIN_ID:-0}",
+    "-e", "NVIDIA_VISIBLE_DEVICES=all",
+    "-e", "NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix:ro",
+    "-v", "/etc/localtime:/etc/localtime:ro",
+    "--entrypoint", "/usr/local/bin/scripts/workspace-entrypoint.sh"
   ],
+  "postCreateCommand": "/usr/local/bin/scripts/workspace-entrypoint.sh",
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-iot.vscode-ros",
-        "ms-azuretools.vscode-docker",
+        "ms-vscode.cpptools-extension-pack",
         "ms-python.python",
-        "ms-vscode.cpptools",
-        "ms-vscode.makefile-tools"
+        "ms-python.vscode-pylance",
+        "twxs.cmake",
+        "ms-iot.vscode-ros"
       ]
     }
-  },
-  "postCreateCommand": "sudo apt-get update && sudo rosdep update || true"
+  }
 }
