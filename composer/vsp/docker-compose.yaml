@@ -1,7 +1,7 @@
 services:
-  vsp_isaac-lab:
-    image: nvcr.io/nvidia/isaac-lab:2.3.0
-    container_name: vsp_isaac-lab_gpu0_10gb
+  isaac-lab:
+    image: nvcr.io/nvidia/isaac-lab:2.3.2
+    container_name: vsp_isaac-lab_gpu7_10gb
     entrypoint: bash
     stdin_open: true
     tty: true
@@ -16,17 +16,17 @@ services:
     environment:
       - ACCEPT_EULA=Y
       - PRIVACY_CONSENT=Y
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
-      - DISPLAY=${DISPLAY}
-      # - OMP_NUM_THREADS=32
-      # - MKL_NUM_THREADS=32
-      # - OPENBLAS_NUM_THREADS=32
-      # - NUMEXPR_NUM_THREADS=32
+      - NVIDIA_VISIBLE_DEVICES=7
+      # - NVIDIA_DRIVER_CAPABILITIES=all
+      # - DISPLAY=${DISPLAY}
+      - OMP_NUM_THREADS=32
+      - MKL_NUM_THREADS=32
+      - OPENBLAS_NUM_THREADS=32
+      - NUMEXPR_NUM_THREADS=32
     volumes:
-      - ${HOME}/.Xauthority:/root/.Xauthority
+      # - ${HOME}/.Xauthority:/root/.Xauthority
       - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
-      - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw
+      - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw 
       - ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw
       - ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw
       - ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw
