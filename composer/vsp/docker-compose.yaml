@@ -26,7 +26,7 @@ services:
     volumes:
       # - ${HOME}/.Xauthority:/root/.Xauthority
       - ~/docker/isaac-sim/cache/kit:/isaac-sim/kit/cache:rw
-      - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw 
+      - ~/docker/isaac-sim/cache/ov:/root/.cache/ov:rw
       - ~/docker/isaac-sim/cache/pip:/root/.cache/pip:rw
       - ~/docker/isaac-sim/cache/glcache:/root/.cache/nvidia/GLCache:rw
       - ~/docker/isaac-sim/cache/computecache:/root/.nv/ComputeCache:rw
