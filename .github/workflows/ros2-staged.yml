@@ -24,7 +24,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        os: ["24.04", "22.04"]
+        os: ["24.04", "22.04", "26.04"]
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -57,6 +57,8 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -90,6 +92,8 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -118,7 +122,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        os: ["24.04"]
+        os: ["24.04", "26.04"]
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -150,6 +154,8 @@ jobs:
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -183,6 +189,8 @@ jobs:
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -214,6 +222,8 @@ jobs:
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -247,6 +257,8 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -282,6 +294,8 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -312,10 +326,12 @@ jobs:
       contents: read
       packages: write
     strategy:
-        matrix:
-          include:
-            - { os: "24.04", ros: kilted }
-            - { os: "24.04", ros: jazzy }
+      matrix:
+        include:
+          - { os: "24.04", ros: kilted }
+          - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -350,6 +366,8 @@ jobs:
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -384,6 +402,8 @@ jobs:
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
@@ -405,3 +425,58 @@ jobs:
             USER_GID=1000
             USERNAME=admin
             ROS_DISTRO=${{ matrix.ros }}
+
+  cleanup-intermediates:
+    name: Delete intermediate stage packages
+    runs-on: ubuntu-latest
+    needs:
+      - finalize-base-ros-user
+      - finalize-base-ros-moveit-user
+      - finalize-mujoco-ros-user
+      - finalize-mujoco-ros-moveit-user
+      - finalize-mujoco-ros-nav2-user
+    # Only the final user images are meant to persist. Delete the intermediate
+    # secondary packages once every final image has been pushed. Skipped on PRs
+    # (which don't push), and runs even if some optional finalize job was skipped.
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      INTERMEDIATE_PACKAGES: '["docker_envs/base","docker_envs/ros","docker_envs/moveit","docker_envs/mujoco","docker_envs/nav2"]'
+    steps:
+      - name: Delete all versions of intermediate packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          OWNER="${REPO%%/*}"
+          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
+          BASE_PATH="/users/${OWNER}"
+          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
+            BASE_PATH="/orgs/${OWNER}"
+          fi
+
+          echo "${INTERMEDIATE_PACKAGES}" | jq -r '.[]' | while read -r pkg; do
+            [[ -z "${pkg}" ]] && continue
+            PKG_PATH="${pkg//\//%2F}" # URL-encode slashes in package names
+            echo "Deleting all versions of intermediate package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
+
+            if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PKG_PATH}/versions?per_page=100" --jq '.[].id'); then
+              echo "Package '${pkg}' not found. Skipping."
+              continue
+            fi
+            if [[ -z "${VERSIONS}" ]]; then
+              echo "No versions found in ${pkg}; skipping."
+              continue
+            fi
+
+            echo "${VERSIONS}" | while read -r id; do
+              [[ -z "${id}" ]] && continue
+              gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}/versions/${id}"
+            done
+
+            # Once the last version is removed the package itself is deleted; ignore 404s.
+            gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}" 2>/dev/null || true
+          done
