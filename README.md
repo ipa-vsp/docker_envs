@@ -23,24 +23,34 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted` | Staged ROS 2 Kilted developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy` | Staged ROS 2 Jazzy developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble` | Staged ROS 2 Humble developer image on Ubuntu 22.04 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling` | Staged ROS 2 Rolling developer image on Ubuntu 26.04 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical` | Staged ROS 2 Lyrical developer image on Ubuntu 26.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-moveit` | ROS 2 Kilted staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-moveit` | ROS 2 Rolling (26.04) staged image with MoveIt pre-installed |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-moveit` | ROS 2 Lyrical (26.04) staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-moveit` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-moveit` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco-moveit` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-nav2` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
+| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco-nav2` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 
 ### PyTorch Images
 
 | Tag | Notes |
 |-----|-------|
 | `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8.0, MuJoCo 3.4.0 |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-base` | Staged base layer for the CUDA 12.8 / PyTorch 2.8.0 build |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-mujoco` | MuJoCo 3.4.0 and Gymnasium 1.2.0 layer for the staged PyTorch build |
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8-pytorch` | PyTorch layer (2.8.0 / 0.23.0 / 2.8.0) prior to adding the final user setup |
+
+> The intermediate stage tags (`-base`, `-mujoco`, `-pytorch`) are built during the workflow but
+> deleted once the final image is published, so only the final tag persists in the registry.
 
 Use `docker pull <tag>` to download an image.  The `creator/scripts/run_env.sh` helper script can build or run images locally.
 

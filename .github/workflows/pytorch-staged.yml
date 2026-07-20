@@ -186,3 +186,65 @@ jobs:
             TORCH_VERSION=${{ matrix.env.TORCH }}
             TORCHVISION_VERSION=${{ matrix.env.VISION }}
             TORCHAUDIO_VERSION=${{ matrix.env.AUDIO }}
+
+  cleanup-intermediates:
+    name: Delete intermediate stage tags
+    runs-on: ubuntu-latest
+    needs: finalize
+    # Only the final image (:<TAG>) is meant to persist. Delete the intermediate
+    # stage tags (-base/-mujoco/-pytorch) once the final image has been pushed.
+    # Skipped on PRs (which don't push).
+    if: ${{ always() && github.event_name != 'pull_request' }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        env:
+          - { TAG: "cuda12.8-torch2.8" }
+    steps:
+      - name: Delete -base/-mujoco/-pytorch tagged versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ matrix.env.TAG }}
+        run: |
+          set -euo pipefail
+          OWNER="${REPO%%/*}"
+          PACKAGE="${REPO#*/}"
+          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
+          BASE_PATH="/users/${OWNER}"
+          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
+            BASE_PATH="/orgs/${OWNER}"
+          fi
+
+          echo "Cleaning intermediate stage tags for ${PACKAGE} (prefix ${TAG})"
+          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
+            echo "Package '${PACKAGE}' not found. Skipping."
+            exit 0
+          fi
+
+          # Select versions whose tags include one of the intermediate stage tags.
+          SELECTION=$(echo "${VERSIONS}" | jq --arg tag "${TAG}" '
+            map(select(type == "object"))
+            | map(
+                (.metadata? // {}) as $m
+                | ($m.container.tags // []) as $tags
+                | select(
+                    ($tags | any(. == "\($tag)-base" or . == "\($tag)-mujoco" or . == "\($tag)-pytorch"))
+                  )
+              )
+          ')
+
+          if [[ -z "${SELECTION}" || "${SELECTION}" == "[]" ]]; then
+            echo "No intermediate stage tags to delete."
+            exit 0
+          fi
+
+          echo "Deleting intermediate versions:"
+          echo "${SELECTION}" | jq -r '.[] | "- id: \(.id) tags: \((.metadata.container.tags // []) | join(", "))"'
+
+          echo "${SELECTION}" | jq -r '.[].id' | while read -r id; do
+            [[ -z "${id}" ]] && continue
+            gh api -X DELETE "${BASE_PATH}/packages/container/${PACKAGE}/versions/${id}"
+          done

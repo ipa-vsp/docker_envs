@@ -21,8 +21,8 @@ trap cleanup EXIT
 
 function help() {
     echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] [-n <username>] [-U <uid>] [-G <gid>] -w <workspace_path>"
-    echo "  -o: OS version (24.04, 22.04) | Default: 24.04"
-    echo "  -v: ROS version (rolling, kilted, jazzy, iron, humble, isaachumble) | Default: rolling"
+    echo "  -o: OS version (26.04, 24.04, 22.04) | Default: 24.04"
+    echo "  -v: ROS version (rolling, lyrical, kilted, jazzy, iron, humble, isaachumble) | Default: rolling"
     echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
     echo "  -z: Enable zehno | Default: false"
     echo "  -s: Enable simulation | Default: false"
@@ -78,8 +78,8 @@ if [[ "$BUILD" == true && -z "$FINAL_IMAGE" ]]; then
     help
 fi
 
-if [[ "$OS_VERSION" != "24.04" && "$OS_VERSION" != "22.04" ]]; then
-    echo "Unsupported OS version: $OS_VERSION (allowed: 24.04, 22.04)"
+if [[ "$OS_VERSION" != "26.04" && "$OS_VERSION" != "24.04" && "$OS_VERSION" != "22.04" ]]; then
+    echo "Unsupported OS version: $OS_VERSION (allowed: 26.04, 24.04, 22.04)"
     exit 1
 fi
 
@@ -100,6 +100,7 @@ if [[ "$BUILD" == true ]]; then
     echo "Building docker base file $BASE_FILE"
     ${ROOT}/build_image.sh "$BASE_FILE" "$OS_VERSION" "$IMAGE_NAME"
     declare -A DOCKERFILES=( ["rolling"]="${ROOT}/../ros2/Dockerfile.rolling"
+                             ["lyrical"]="${ROOT}/../ros2/Dockerfile.lyrical"
                              ["kilted"]="${ROOT}/../ros2/Dockerfile.kilted"
                              ["jazzy"]="${ROOT}/../ros2/Dockerfile.jazzy"
                              ["iron"]="${ROOT}/../ros2/Dockerfile.iron"

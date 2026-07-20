@@ -5,8 +5,8 @@
     - `./run_env.sh -h` for help.
 
     ```bash
-        Usage: ./run_env.sh -o 24.04|22.04 -v humble|rolling|jazzy|kilted|iron|isaachumble -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws
-            -o Select OS version 24.04 or 22.04
+        Usage: ./run_env.sh -o 26.04|24.04|22.04 -v humble|rolling|lyrical|jazzy|kilted|iron|isaachumble -u manipulation|navigation|both -s true|false -i image_name -b|-r -w dev_ws
+            -o Select OS version 26.04, 24.04 or 22.04
             -v Select ROS version
             -u Select usage of the image
             -s Enable simulation
@@ -24,12 +24,12 @@
 ### Automated builds on GitHub
 ROS images are built and published using the
 [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml) workflow. The workflow
-creates each layer in a separate job and pushes intermediate images. MuJoCo
-layers are only built for Ubuntu&nbsp;24.04, while other layers cover all valid
-
-Ubuntu and ROS combinations. MoveIt images are produced only for released ROS
-distributions (Jazzy, Kilted, Humble) because the Rolling packages are sometimes
-missing.
+creates each layer in a separate job, pushing intermediate images to GHCR so the
+next job can consume them. A final `cleanup-intermediates` job then deletes those
+intermediate stage packages (`base`, `ros`, `moveit`, `mujoco`, `nav2`) once every
+final user image has been published, so only the final images persist in the
+registry. MuJoCo layers are built for Ubuntu&nbsp;24.04 and 26.04, while other
+layers cover all valid Ubuntu and ROS combinations.
 
 # Docker Workspaces using VSCode devcontainer
 =============================================
