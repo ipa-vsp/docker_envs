@@ -57,7 +57,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: rolling }
           - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
@@ -92,7 +91,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: rolling }
           - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
@@ -127,7 +125,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: rolling }
           - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
@@ -164,7 +161,6 @@ jobs:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: rolling }
           - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v6
