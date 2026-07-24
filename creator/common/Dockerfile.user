@@ -55,6 +55,12 @@ RUN case "${ROS_DISTRO}" in \
         *) ;; \
     esac
 
+# Install the Claude Code CLI for the non-root user (lands in ~/.local/bin)
+USER ${USERNAME}
+ENV HOME=/home/${USERNAME}
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
+
 # Keep root as the active user for further builds
 USER root
 
