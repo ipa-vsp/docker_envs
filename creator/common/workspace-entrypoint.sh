@@ -9,6 +9,15 @@ rosdep update
 # baked into the image bashrc (/etc/bash.bashrc via creator/scripts/bashrc), so
 # they no longer need to be appended here.
 
+# Make the Claude Code CLI (~/.local/bin) reachable from non-login shells such
+# as `docker exec -it ... bash`, which read ~/.bashrc but never ~/.profile.
+if ! grep -qF '$HOME/.local/bin' ~/.bashrc 2>/dev/null; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+fi
+# `source ~/.bashrc` is a no-op here (it returns early for non-interactive
+# shells), so export it directly for whatever this entrypoint exec's.
+export PATH="$HOME/.local/bin:$PATH"
+
 # if RMW_IMPLEMENTATION=rmw_zenoh_cpp is set, source the zenoh workspace
 if [ "$RMW_IMPLEMENTATION" = "rmw_zenoh_cpp" ]; then
     echo "source /home/ws_rmw_zenoh/install/local_setup.bash" >> ~/.bashrc
