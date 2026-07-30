@@ -52,6 +52,14 @@ RUN . /etc/os-release \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+# Raise the inotify watch limits. Large colcon workspaces plus editors/LSPs
+# (VS Code, clangd) exhaust the stock 8192 watches and fail with ENOSPC.
+# NOTE: fs.inotify.* is not namespaced by Docker, so this drop-in only takes
+# effect when something applies it (the workspace entrypoint runs `sysctl -p`
+# in privileged containers). Otherwise the host's value is what containers get.
+RUN printf 'fs.inotify.max_user_watches=524288\nfs.inotify.max_user_instances=512\n' \
+        > /etc/sysctl.d/99-inotify.conf
+
 # Install Git-LFS from Ubuntu's universe repository (avoids packagecloud,
 # which lacks Release files for newer/rolling releases like 26.04).
 RUN apt-get update && apt-get install -y --no-install-recommends \
