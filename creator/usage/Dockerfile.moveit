@@ -1,7 +1,8 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "jazzy" || "${ROS_DISTRO}" = "iron" || "${ROS_DISTRO}" = "humble" || "${ROS_DISTRO}" = "kilted" || "${ROS_DISTRO}" = "lyrical" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
+# NOTE: lyrical (Ubuntu 26.04) is excluded — MoveIt is not released for it yet.
+RUN if [[ "${ROS_DISTRO}" = "rolling" || "${ROS_DISTRO}" = "jazzy" || "${ROS_DISTRO}" = "iron" || "${ROS_DISTRO}" = "humble" || "${ROS_DISTRO}" = "kilted" ]] ; then apt-get update && apt-get upgrade -y && apt-get install -y \
         ros-${ROS_DISTRO}-moveit \
         ros-${ROS_DISTRO}-rviz-visual-tools \
         ros-${ROS_DISTRO}-moveit-resources \

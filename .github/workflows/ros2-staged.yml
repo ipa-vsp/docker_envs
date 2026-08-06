@@ -87,11 +87,11 @@ jobs:
       packages: write
     strategy:
       matrix:
+        # lyrical (26.04) omitted: no MoveIt debs published for it yet.
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
@@ -157,11 +157,11 @@ jobs:
       packages: write
     strategy:
       matrix:
+        # lyrical (26.04) omitted: no MoveIt debs published for it yet.
         include:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3

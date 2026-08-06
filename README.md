@@ -29,7 +29,6 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-moveit` | ROS 2 Rolling (26.04) staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-moveit` | ROS 2 Lyrical (26.04) staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
 | `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
@@ -37,7 +36,6 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-moveit` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
 | `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-moveit` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco-moveit` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 | `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-nav2` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
