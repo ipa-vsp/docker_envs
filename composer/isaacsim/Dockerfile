@@ -49,11 +49,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
 ENV VIRTUAL_ENV=/home/admin/colcon_ws/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
+USER $USERNAME
+WORKDIR /home/admin/colcon_ws
+
 RUN uv venv --python 3.12 --seed $VIRTUAL_ENV \
     && uv pip install --upgrade pip \
     && uv pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130 \
     && uv pip install mujoco-usd-converter==0.2.0 \
     && uv pip install "isaacsim[all,extscache]==6.0.1.0" --extra-index-url https://pypi.nvidia.com
-
-USER $USERNAME
-WORKDIR /home/admin/colcon_ws
