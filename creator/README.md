@@ -191,8 +191,135 @@ scripts refuse the combination otherwise. Its reinforcement-learning
 dependencies are opt-in (`none` by default, up to `all`) because they add a lot
 of weight.
 
-These layers are large — several GB of wheels — and Isaac Sim needs a GPU at run
-time (`./run_env.sh -r ... -g`, or `docker run --gpus all`).
+These layers are large — around 8 GB of wheels, `isaacsim-extscache-kit` alone
+being 5.5 GiB — and Isaac Sim needs a GPU at run time (`./run_env.sh -r ... -g`,
+or `docker run --gpus all`).
+
+#### If the Isaac Sim layer times out
+
+A single slow download failing the whole layer is the most likely way this build
+breaks:
+
+```
+× Failed to download `isaacsim-robot==6.0.1.0`
+╰─▶ operation timed out
+```
+
+That is a network problem, not a configuration one. The layer already raises
+uv's per-request timeout to 600s and caps parallel downloads at 8 (`ARG
+UV_HTTP_TIMEOUT` / `UV_CONCURRENT_DOWNLOADS`), and keeps uv's download cache in
+a BuildKit cache mount — so **just run the same command again**. Docker discards
+the failed layer but the cache mount survives, and the retry resumes from
+whatever had already been fetched rather than re-downloading everything. The
+earlier layers are cached too, so a re-run restarts at the one that failed.
+
+On a particularly unreliable link, drop the concurrency further:
+
+```bash
+DOCKER_BUILD_EXTRA="--build-arg UV_CONCURRENT_DOWNLOADS=4" ./run_env.sh -b ... -I
+```
+
+### Running an Isaac Sim image
+
+Isaac Sim needs a GPU and a set of persistent cache directories. Without the
+caches it recompiles every shader on each start — the multi-minute "first
+launch" that is easily mistaken for a hang.
+
+`run_env.sh -r` detects an Isaac Sim image (from the `ISAACSIM_VERSION`
+variable baked into the layer) and wires all of that up for you:
+
+```bash
+./run_env.sh -r -i docker_envs:24.04-jazzy-isaacsim6.0.1.0 -w ~/colcon_ws
+```
+
+That is the whole command. It adds `--gpus all`, the EULA variables, and mounts
+the Omniverse caches under `~/docker/isaac-sim`. Override the cache location
+with `STAGES_ISAAC_CACHE_ROOT`, or opt out entirely with `-X`.
+
+Inside the container, Isaac Sim lives in its own virtualenv that is deliberately
+kept off `PATH`:
+
+```bash
+isaac-activate                          # source /opt/isaac-venv/bin/activate
+isaacsim                                # launch the app
+python -c "from isaacsim import SimulationApp"
+isaaclab -p scripts/tutorials/00_sim/create_empty.py   # if the Isaac Lab layer is present
+```
+
+Deactivate (or open a second shell) to get `ros2` and `colcon` back — they run on
+the distro interpreter, not the Isaac one.
+
+#### Why the mounts differ from the NVIDIA example
+
+The [official container
+instructions](https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html)
+are written for `nvcr.io/nvidia/isaac-sim`, the **binary** distribution rooted at
+`/isaac-sim`:
+
+```bash
+# NGC binary image — paths rooted at /isaac-sim
+-v ~/docker/isaac-sim/cache/main:/isaac-sim/.cache:rw
+-v ~/docker/isaac-sim/data:/isaac-sim/.local/share/ov/data:rw
+-e "ACCEPT_EULA=Y"
+```
+
+These images install Isaac Sim **from wheels** instead, so Kit resolves those
+same directories from `$HOME`. Copying the NGC mounts verbatim would create an
+unused `/isaac-sim` directory and leave the real caches unmounted. The paths
+below are what this layer needs — the same layout [Isaac Lab's own
+`docker-compose.yaml`](https://github.com/isaac-sim/IsaacLab/blob/main/docker/docker-compose.yaml)
+uses for its pip container:
+
+| Host (`~/docker/isaac-sim/…`) | Container | Holds |
+|---|---|---|
+| `cache/ov` | `~/.cache/ov` | Main Omniverse/shader cache |
+| `cache/kit` | `$ISAACSIM_ROOT/kit/cache` | Kit SDK cache |
+| `cache/glcache` | `~/.cache/nvidia/GLCache` | OpenGL shader cache |
+| `cache/computecache` | `~/.nv/ComputeCache` | CUDA compute cache |
+| `cache/pip` | `~/.cache/pip` | pip downloads |
+| `logs` | `~/.nvidia-omniverse/logs` | Logs |
+| `config` | `~/.nvidia-omniverse/config` | User config |
+| `data` | `~/.local/share/ov/data` | Application data |
+| `documents` | `~/Documents` | Saved stages/projects |
+
+`$ISAACSIM_ROOT` is recorded on the image by `Dockerfile.isaacsim`, so the run
+script resolves the Kit path without you knowing the Python version.
+
+The EULA variable also differs: the pip distribution reads
+`OMNI_KIT_ACCEPT_EULA` (baked into the image), while the NGC image reads
+`ACCEPT_EULA`. Both are set, so the same invocation works if you later swap in
+the NGC image.
+
+#### Equivalent raw docker run
+
+If you would rather not use `run_env.sh`, this is what it builds:
+
+```bash
+IMAGE=docker_envs:24.04-jazzy-isaacsim6.0.1.0
+CACHE=~/docker/isaac-sim
+mkdir -p $CACHE/{cache/{ov,kit,glcache,computecache,pip},logs,config,data,documents}
+
+docker run --name isaac-sim -it --rm --network=host --privileged \
+    --gpus all \
+    -u $(id -u):$(id -g) \
+    -e "OMNI_KIT_ACCEPT_EULA=YES" -e "ACCEPT_EULA=Y" -e "PRIVACY_CONSENT=Y" \
+    -e "DISPLAY=$DISPLAY" -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    -v $CACHE/cache/ov:/home/admin/.cache/ov:rw \
+    -v $CACHE/cache/pip:/home/admin/.cache/pip:rw \
+    -v $CACHE/cache/glcache:/home/admin/.cache/nvidia/GLCache:rw \
+    -v $CACHE/cache/computecache:/home/admin/.nv/ComputeCache:rw \
+    -v $CACHE/cache/kit:/opt/isaac-venv/lib/python3.12/site-packages/isaacsim/kit/cache:rw \
+    -v $CACHE/logs:/home/admin/.nvidia-omniverse/logs:rw \
+    -v $CACHE/config:/home/admin/.nvidia-omniverse/config:rw \
+    -v $CACHE/data:/home/admin/.local/share/ov/data:rw \
+    -v $CACHE/documents:/home/admin/Documents:rw \
+    -v ~/colcon_ws:/home/admin/colcon_ws:rw \
+    $IMAGE bash
+```
+
+Run `xhost +local:` first if you want the GUI. Note `-u $(id -u):$(id -g)`:
+the host cache directories are created by your user, so the container has to run
+as that user to write to them.
 
 ### Version lookups
 

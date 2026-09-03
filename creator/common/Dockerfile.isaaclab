@@ -9,10 +9,10 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
 ARG ISAACLAB_VERSION=v2.3.2
-# Reinforcement-learning frameworks to pull in: none, rl_games, rsl_rl, sb3,
-# skrl or all. `none` keeps the layer small; the extensions themselves are
-# always installed.
-ARG ISAACLAB_RL_FRAMEWORK=none
+# Value passed to `isaaclab.sh --install`. The vocabulary differs by Isaac Lab
+# major version (2.x: none/all/rsl_rl/...; 3.x: core/all/rl[rsl-rl]/...), so
+# stages::isaaclab_install_arg translates the user's choice before it gets here.
+ARG ISAACLAB_INSTALL=core
 ARG ISAACLAB_DIR=/opt/IsaacLab
 ARG ISAAC_VENV=/opt/isaac-venv
 
@@ -36,7 +36,7 @@ RUN git clone --depth 1 --branch "${ISAACLAB_VERSION}" \
 # distro python, which has no isaacsim wheels.
 RUN source "${ISAAC_VENV}/bin/activate" \
     && cd "${ISAACLAB_DIR}" \
-    && ./isaaclab.sh --install "${ISAACLAB_RL_FRAMEWORK}"
+    && ./isaaclab.sh --install "${ISAACLAB_INSTALL}"
 
 # Same reasoning as the Isaac Sim layer: keep the Isaac interpreter off the
 # default PATH and expose an opt-in helper instead.

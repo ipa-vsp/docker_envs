@@ -222,9 +222,15 @@ if [[ "${STAGES_ISAACSIM}" == true ]]; then
         STAGES_ISAACLAB=true
         ask_version "Isaac Lab" isaaclab
         STAGES_ISAACLAB_VERSION="${VERSION}"
+        # Isaac Lab 2.x and 3.x spell these differently; show what each choice
+        # actually becomes for the version selected above.
+        RL_LABELS=()
+        for fw in none rsl_rl rl_games skrl sb3 all; do
+            RL_LABELS+=("${fw} -> --install $(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "${fw}")")
+        done
         ask_choice "Which reinforcement-learning framework should Isaac Lab install?" 1 \
-            "none" "rsl_rl" "rl_games" "skrl" "sb3" "all"
-        STAGES_ISAACLAB_RL="${CHOICE}"
+            "${RL_LABELS[@]}"
+        STAGES_ISAACLAB_RL="${CHOICE%% *}"
     fi
 else
     stages::info "Skipped: Isaac Lab builds on the Isaac Sim layer, which was not selected."
@@ -294,6 +300,11 @@ stages::run_plan || exit 1
 echo
 stages::info "Run it with:"
 echo "    ${ROOT}/run_env.sh -r -i ${STAGES_FINAL_IMAGE} -n ${STAGES_USERNAME} -w <your_workspace>"
+if [[ "${STAGES_ISAACSIM}" == true ]]; then
+    stages::info "That run detects the Isaac Sim layer and adds --gpus all plus the"
+    stages::info "persistent Omniverse caches under ${STAGES_ISAAC_CACHE_ROOT}."
+    stages::info "Inside the container: 'isaac-activate' then 'isaacsim'."
+fi
 echo
 stages::info "Rebuild the same stack without the prompts:"
 equivalent_command

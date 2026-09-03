@@ -33,8 +33,14 @@ if [ -n "${DOCKER_BUILD_CPUSET:-}" ]; then
     CPUSET_ARGS=(--cpuset-cpus="${DOCKER_BUILD_CPUSET}")
 fi
 
+# Escape hatch for one-off docker build flags without editing the scripts, e.g.
+#   DOCKER_BUILD_EXTRA="--build-arg UV_CONCURRENT_DOWNLOADS=4" ./run_env.sh -b ...
+# Word-split deliberately: this is a flag string, not a single argument.
+read -r -a DOCKER_BUILD_EXTRA_ARGS <<<"${DOCKER_BUILD_EXTRA:-}"
+
 echo "Building Docker image from: ${DOCKERFILE} with base: ${BASE_IMAGE} and Image name: ${IMAGE_NAME}"
 docker build "${CPUSET_ARGS[@]}" \
+             "${DOCKER_BUILD_EXTRA_ARGS[@]}" \
              -f "${DOCKERFILE}" \
              --network host \
              -t "${IMAGE_NAME}" \

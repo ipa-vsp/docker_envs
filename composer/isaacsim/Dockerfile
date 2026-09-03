@@ -57,3 +57,18 @@ RUN uv venv --python 3.12 --seed $VIRTUAL_ENV \
     && uv pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130 \
     && uv pip install mujoco-usd-converter==0.2.0 \
     && uv pip install "isaacsim[all,extscache]==6.0.1.0" --extra-index-url https://pypi.nvidia.com
+
+# Pre-create the Omniverse cache directories while running as ${USERNAME}.
+# A named volume inherits ownership from the image path it covers, but ONLY if
+# that path already exists; otherwise docker creates it root-owned and the
+# container (which runs as ${USERNAME}) cannot write to it, leaving every cache
+# silently empty and shaders recompiling on each start. See compose.yml.
+RUN mkdir -p /home/${USERNAME}/.cache/ov \
+             /home/${USERNAME}/.cache/pip \
+             /home/${USERNAME}/.cache/nvidia/GLCache \
+             /home/${USERNAME}/.nv/ComputeCache \
+             /home/${USERNAME}/.nvidia-omniverse/logs \
+             /home/${USERNAME}/.nvidia-omniverse/config \
+             /home/${USERNAME}/.local/share/ov/data \
+             /home/${USERNAME}/Documents \
+             ${VIRTUAL_ENV}/lib/python3.12/site-packages/isaacsim/kit/cache

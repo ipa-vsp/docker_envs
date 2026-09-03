@@ -16,10 +16,27 @@ ARG ISAACSIM_EXTRAS=all,extscache
 ARG PYTHON_VERSION=3.12
 ARG TORCH_VERSION=2.11.0
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
-ARG USD_CONVERTER_VERSION=0.5.0
+# Pinned BY isaacsim-core, not chosen independently: 6.0.1.0 requires exactly
+# 0.2.0. It has to be installed in its own step, before isaacsim, because uv
+# only considers the first index that carries a package -- once
+# https://pypi.nvidia.com is in play it would resolve mujoco-usd-converter there,
+# and that index does not publish 0.2.0. Installing it from PyPI first satisfies
+# the constraint. Bump only in lockstep with ISAACSIM_VERSION.
+ARG USD_CONVERTER_VERSION=0.2.0
 ARG ISAAC_VENV=/opt/isaac-venv
 
+# This layer pulls ~8 GB of wheels (isaacsim-extscache-kit alone is 5.5 GiB).
+# uv's stock 30s per-request timeout is easily exceeded when 50 downloads share
+# the link, and a single timeout fails the whole layer after minutes of work.
+# Fewer parallel downloads plus a much longer timeout make it survive a slow or
+# congested connection.
+ARG UV_HTTP_TIMEOUT=600
+ARG UV_CONCURRENT_DOWNLOADS=8
+
 ENV DEBIAN_FRONTEND=noninteractive
+ENV UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
+ENV UV_CONCURRENT_DOWNLOADS=${UV_CONCURRENT_DOWNLOADS}
+ENV UV_CACHE_DIR=/root/.cache/uv
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,10 +52,18 @@ RUN curl -LsSf https://astral.sh/uv/install.sh \
 
 ENV ISAAC_VENV=${ISAAC_VENV}
 ENV ISAACSIM_VERSION=${ISAACSIM_VERSION}
+# Where the wheels unpack the Kit SDK. run_env.sh reads this back off the image
+# to bind-mount ${ISAACSIM_ROOT}/kit/cache, the shader cache that otherwise gets
+# rebuilt on every container start.
+ENV ISAACSIM_ROOT=${ISAAC_VENV}/lib/python${PYTHON_VERSION}/site-packages/isaacsim
 # Isaac Sim refuses to start unless the NVIDIA licence terms are accepted.
 ENV OMNI_KIT_ACCEPT_EULA=YES
 
-RUN uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
+# The uv download cache is a BuildKit cache mount, so a layer that fails partway
+# (a timeout, a dropped connection) does not re-download everything on the next
+# attempt -- a failed RUN layer is discarded, but the cache mount persists.
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
     && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install --upgrade pip \
     && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
         "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}" \

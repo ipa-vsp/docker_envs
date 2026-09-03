@@ -73,7 +73,7 @@ stages::deprecation_note() {
 # Every lookup is best effort: on a failure the caller falls back to the
 # documented defaults so a build still works without network access.
 # --------------------------------------------------------------------------- #
-STAGES_CURL=(curl -fsSL --max-time 20)
+STAGES_CURL=(curl -fsSL --max-time 20 --retry 3 --retry-delay 2 --retry-connrefused)
 
 # Newest -> oldest MuJoCo releases. git ls-remote avoids the GitHub API rate
 # limit that an unauthenticated /releases call runs into.
@@ -122,7 +122,10 @@ STAGES_DEFAULT_GYM="1.3.0"
 STAGES_DEFAULT_ISAACSIM="6.0.1.0"
 STAGES_DEFAULT_ISAACLAB="v2.3.2"
 STAGES_DEFAULT_TORCH="2.11.0"
-STAGES_DEFAULT_USD_CONVERTER="0.5.0"
+# NOT a "latest" candidate: isaacsim-core pins mujoco-usd-converter to an exact
+# version (6.0.1.0 requires ==0.2.0), so installing a newer one makes the Isaac
+# Sim resolve fail outright. Bump this only in lockstep with ISAACSIM_VERSION.
+STAGES_DEFAULT_USD_CONVERTER="0.2.0"
 
 # stages::resolve_version <kind> <requested> [os]
 # Turns "latest" (or an empty value) into the newest version discovered online,
@@ -163,12 +166,112 @@ stages::isaacsim_python() {
     esac
 }
 
-# PyTorch wheel index matching the selected CUDA major.minor.
+# Published PyTorch CUDA wheel indexes, newest first.
+#
+# PyTorch does NOT publish one index per CUDA release: there is no cu133 for
+# CUDA 13.3.1, so deriving the name arithmetically from the CUDA version yields
+# a 403 and the whole layer fails. The list has to be read from the server.
+stages::torch_indexes() {
+    "${STAGES_CURL[@]}" https://download.pytorch.org/whl/ 2>/dev/null \
+        | grep -oE 'cu[0-9]{3}' | sort -uV | tac
+}
+
+# Does <index> publish <torch_version>?
+#   0 = yes
+#   1 = fetched successfully, not there
+#   2 = could not fetch (offline, rate limited, ...)
+# The third case must not be confused with the second: treating a failed fetch
+# as "not there" is how a transient blip silently picks the wrong index and
+# wastes a multi-GB build.
+stages::torch_index_has() {
+    local body
+    if ! body="$("${STAGES_CURL[@]}" "https://download.pytorch.org/whl/$1/torch/" 2>/dev/null)"; then
+        return 2
+    fi
+    [[ -z "${body}" ]] && return 2
+    grep -qF -- "torch-$2" <<<"${body}"
+}
+
+# stages::torch_index_url <cuda_version> [torch_version]
+#
+# Picks the newest published index that is not ahead of the selected CUDA and
+# actually carries the requested torch build. Both halves matter: cu132 exists
+# for CUDA 13.3 but only ships torch >= 2.12, while the torch 2.11.0 that the
+# Isaac Sim wheels pin lives in cu130.
 stages::torch_index_url() {
-    local cuda="$1"
+    local cuda="$1" torch="${2:-}"
     local major="${cuda%%.*}"
     local minor="${cuda#*.}"; minor="${minor%%.*}"
-    echo "https://download.pytorch.org/whl/cu${major}${minor}"
+    local want=$(( major * 10 + minor ))
+
+    local -a candidates=()
+    local idx n
+    while read -r idx; do
+        [[ -z "${idx}" ]] && continue
+        n="${idx#cu}"
+        # Same CUDA major, and not newer than the CUDA we are building against.
+        if (( n / 10 == major && n <= want )); then
+            candidates+=("${idx}")
+        fi
+    done < <(stages::torch_indexes)
+
+    local probe_failed=false rc
+    for idx in "${candidates[@]}"; do
+        if [[ -z "${torch}" ]]; then
+            echo "https://download.pytorch.org/whl/${idx}"
+            return 0
+        fi
+        stages::torch_index_has "${idx}" "${torch}"; rc=$?
+        case ${rc} in
+            0) echo "https://download.pytorch.org/whl/${idx}"; return 0 ;;
+            2) probe_failed=true ;;
+        esac
+    done
+
+    # Known-good index per CUDA series, used whenever the online check could not
+    # give a definite answer. Guessing the newest candidate instead would pick an
+    # index that does not carry the pinned torch and fail the layer minutes in.
+    local fallback
+    case "${major}" in
+        13) fallback="cu130" ;;
+        12) fallback="cu128" ;;
+        11) fallback="cu118" ;;
+        *)  fallback="cu130" ;;
+    esac
+
+    if [[ "${probe_failed}" == true || ${#candidates[@]} -eq 0 ]]; then
+        stages::warn "Could not confirm which PyTorch index carries torch ${torch}; using the known-good ${fallback} for CUDA ${major}.x." >&2
+    else
+        stages::warn "No PyTorch index for CUDA ${cuda} publishes torch ${torch}; falling back to ${fallback}." >&2
+        stages::warn "If that is wrong, pin the index by editing STAGES_DEFAULT_TORCH in lib/stages.sh." >&2
+    fi
+    echo "https://download.pytorch.org/whl/${fallback}"
+}
+
+# stages::isaaclab_install_arg <version> <framework>
+#
+# Isaac Lab 3.x replaced the isaaclab.sh installer with a Python CLI and changed
+# the --install vocabulary: "none" is gone (the equivalent is "core") and the RL
+# frameworks moved behind an rl[...] selector with hyphenated names. Passing a
+# 2.x token to a 3.x checkout fails the layer, so translate here.
+stages::isaaclab_install_arg() {
+    local version="${1#v}" framework="$2"
+    local major="${version%%.*}"
+
+    if (( major < 3 )); then
+        echo "${framework}"
+        return 0
+    fi
+
+    case "${framework}" in
+        none)     echo "core" ;;
+        all)      echo "all" ;;
+        rsl_rl)   echo "rl[rsl-rl]" ;;
+        rl_games) echo "rl[rl-games]" ;;
+        sb3)      echo "rl[sb3]" ;;
+        skrl)     echo "rl[skrl]" ;;
+        *)        echo "${framework}" ;;
+    esac
 }
 
 # --------------------------------------------------------------------------- #
@@ -364,7 +467,7 @@ stages::build_plan() {
         image="$(stages::layer_image isaacsim)"
         local py torch_index
         py="$(stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}")"
-        torch_index="$(stages::torch_index_url "${STAGES_CUDA_VERSION}")"
+        torch_index="$(stages::torch_index_url "${STAGES_CUDA_VERSION}" "${STAGES_DEFAULT_TORCH}")"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.isaacsim" "${base_image}" "${image}" \
             "--build-arg" "ISAACSIM_VERSION=${STAGES_ISAACSIM_VERSION}" \
             "--build-arg" "PYTHON_VERSION=${py}" \
@@ -378,9 +481,11 @@ stages::build_plan() {
     if [[ "${STAGES_ISAACLAB}" == true ]]; then
         stages::tag_add "isaaclab${STAGES_ISAACLAB_VERSION#v}"
         image="$(stages::layer_image isaaclab)"
+        local lab_install
+        lab_install="$(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "${STAGES_ISAACLAB_RL}")"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.isaaclab" "${base_image}" "${image}" \
             "--build-arg" "ISAACLAB_VERSION=${STAGES_ISAACLAB_VERSION}" \
-            "--build-arg" "ISAACLAB_RL_FRAMEWORK=${STAGES_ISAACLAB_RL}"
+            "--build-arg" "ISAACLAB_INSTALL=${lab_install}"
         base_image="${image}"
     fi
 
@@ -437,6 +542,7 @@ stages::print_plan() {
 stages::run_plan() {
     local record dockerfile base image
     local -a extra
+    local step=1 total="${#STAGES_PLAN[@]}"
     for record in "${STAGES_PLAN[@]}"; do
         IFS='|' read -r -a fields <<<"${record}"
         dockerfile="${fields[0]}"
@@ -447,8 +553,101 @@ stages::run_plan() {
             stages::error "Missing Dockerfile: ${dockerfile}"
             return 1
         fi
-        stages::heading "Building ${image}"
-        "${SCRIPTS_DIR}/build_image.sh" "${dockerfile}" "${base}" "${image}" "${extra[@]}"
+        stages::heading "Building ${image} (layer ${step}/${total})"
+        # Abort on the first failing layer. Without this the loop carries on and
+        # every later layer fails too -- trying to *pull* the base its
+        # predecessor never produced -- and the run still ends by announcing a
+        # final image that does not exist.
+        if ! "${SCRIPTS_DIR}/build_image.sh" "${dockerfile}" "${base}" "${image}" "${extra[@]}"; then
+            echo
+            stages::error "Layer ${step}/${total} failed: ${dockerfile#"${CREATOR_DIR}/"} -> ${image}"
+            stages::error "Stopping here; ${STAGES_FINAL_IMAGE} was NOT built."
+            if (( step > 1 )); then
+                stages::info "Layers 1-$((step - 1)) were built and are cached, so a re-run resumes from this one."
+            fi
+            return 1
+        fi
+        step=$((step + 1))
     done
     stages::info "Done. Final image: ${STAGES_FINAL_IMAGE}"
+}
+
+# --------------------------------------------------------------------------- #
+# Isaac Sim run support
+#
+# The pip distribution is NOT laid out like the NGC `nvcr.io/nvidia/isaac-sim`
+# image. That image is the binary distribution rooted at /isaac-sim, which is why
+# the official docker run example mounts /isaac-sim/.cache, /isaac-sim/.local/...
+# and sets ACCEPT_EULA. Installed from wheels, Kit resolves all of those from
+# $HOME instead, so the mounts move to /home/<user>/... — the same layout Isaac
+# Lab's own docker-compose.yaml uses for its pip container.
+#
+# Without these mounts every container start recompiles shaders, which is the
+# multi-minute "first launch" people mistake for a hang.
+# --------------------------------------------------------------------------- #
+
+# Host side of the persistent Omniverse caches. Matches the ~/docker/isaac-sim
+# convention from the NVIDIA docs so an existing cache is reused.
+STAGES_ISAAC_CACHE_ROOT="${STAGES_ISAAC_CACHE_ROOT:-${HOME}/docker/isaac-sim}"
+
+# True when the image carries the Isaac Sim layer (Dockerfile.isaacsim sets
+# ISAACSIM_VERSION), so run mode can configure itself instead of relying on the
+# caller to remember a flag.
+stages::image_has_isaacsim() {
+    docker image inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" 2>/dev/null \
+        | grep -q '^ISAACSIM_VERSION='
+}
+
+# Read one environment variable back off a built image.
+stages::image_env() {
+    docker image inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$1" 2>/dev/null \
+        | sed -n "s/^$2=//p" | head -1
+}
+
+# stages::isaac_run_args <image> <container_home>
+# Appends the Isaac Sim docker run arguments to STAGES_ISAAC_ARGS and creates the
+# host cache directories.
+stages::isaac_run_args() {
+    local image="$1" home="$2"
+    local root="${STAGES_ISAAC_CACHE_ROOT}"
+    STAGES_ISAAC_ARGS=()
+
+    # host subdir : container path (relative to the container user's home)
+    local -a mounts=(
+        "cache/ov:${home}/.cache/ov"
+        "cache/pip:${home}/.cache/pip"
+        "cache/glcache:${home}/.cache/nvidia/GLCache"
+        "cache/computecache:${home}/.nv/ComputeCache"
+        "logs:${home}/.nvidia-omniverse/logs"
+        "config:${home}/.nvidia-omniverse/config"
+        "data:${home}/.local/share/ov/data"
+        "documents:${home}/Documents"
+    )
+
+    # The Kit SDK cache lives inside the venv; Dockerfile.isaacsim records where.
+    local isaac_root; isaac_root="$(stages::image_env "${image}" ISAACSIM_ROOT)"
+    if [[ -n "${isaac_root}" ]]; then
+        mounts+=("cache/kit:${isaac_root}/kit/cache")
+    fi
+
+    local entry host_dir target
+    for entry in "${mounts[@]}"; do
+        host_dir="${root}/${entry%%:*}"
+        target="${entry#*:}"
+        # Created here rather than left to docker: docker would create them
+        # root-owned, and the container runs as the host user.
+        mkdir -p "${host_dir}"
+        STAGES_ISAAC_ARGS+=(-v "${host_dir}:${target}:rw")
+    done
+
+    STAGES_ISAAC_ARGS+=(
+        --gpus all
+        # Baked into the image too, but set explicitly so `docker run` on this
+        # image is self-documenting.
+        -e OMNI_KIT_ACCEPT_EULA=YES
+        # Honoured by the Omniverse telemetry/licence layer shared with the NGC
+        # image; harmless here, and required if you later swap in that image.
+        -e ACCEPT_EULA=Y
+        -e PRIVACY_CONSENT=Y
+    )
 }
