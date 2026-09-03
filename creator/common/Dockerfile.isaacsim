@@ -1,0 +1,58 @@
+# NVIDIA Isaac Sim layer (pip distribution).
+#
+# Isaac Sim ships wheels on https://pypi.nvidia.com. They pin an exact CPython
+# version, so this layer builds a dedicated uv-managed virtualenv under
+# /opt/isaac-venv instead of reusing the distro interpreter (which differs
+# between Ubuntu 22.04/24.04/26.04) or the MuJoCo venv.
+#
+# ISAACSIM_VERSION is resolved from the NVIDIA package index by
+# creator/scripts/lib/stages.sh, so the newest release can be selected at build
+# time without editing this file.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG ISAACSIM_VERSION=6.0.1.0
+ARG ISAACSIM_EXTRAS=all,extscache
+ARG PYTHON_VERSION=3.12
+ARG TORCH_VERSION=2.11.0
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
+ARG USD_CONVERTER_VERSION=0.5.0
+ARG ISAAC_VENV=/opt/isaac-venv
+
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl libatomic1 libegl1 libgl1 libglu1-mesa \
+        libsm6 libxext6 libxrandr2 libxt6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# uv provides the pinned CPython that the Isaac Sim wheels require.
+RUN curl -LsSf https://astral.sh/uv/install.sh \
+        | env UV_INSTALL_DIR=/usr/local/bin UV_UNMANAGED_INSTALL=1 sh \
+    && uv --version
+
+ENV ISAAC_VENV=${ISAAC_VENV}
+ENV ISAACSIM_VERSION=${ISAACSIM_VERSION}
+# Isaac Sim refuses to start unless the NVIDIA licence terms are accepted.
+ENV OMNI_KIT_ACCEPT_EULA=YES
+
+RUN uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
+    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install --upgrade pip \
+    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
+        "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}" \
+    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
+        "mujoco-usd-converter==${USD_CONVERTER_VERSION}" \
+    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
+        "isaacsim[${ISAACSIM_EXTRAS}]==${ISAACSIM_VERSION}" \
+        --extra-index-url https://pypi.nvidia.com
+
+# Deliberately NOT prepended to PATH: the Isaac interpreter is a different
+# CPython than the one ROS 2 was built against, so prepending it would break
+# `ros2`/`colcon`. Activate it explicitly instead:
+#     source /opt/isaac-venv/bin/activate
+# /etc/bash.bashrc (not /etc/profile.d) is what `docker exec -it ... bash`
+# reads, so the helper has to live there to be available interactively.
+RUN printf '\nalias isaac-activate="source %s/bin/activate"\n' "${ISAAC_VENV}" \
+        >> /etc/bash.bashrc

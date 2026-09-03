@@ -1,22 +1,43 @@
+# MuJoCo layer.
+#
+# Installs both the native MuJoCo distribution (headers/libs under /opt/mujoco)
+# and the Python bindings. MUJOCO_VERSION is resolved from the GitHub releases
+# API by creator/scripts/lib/stages.sh, so the local build can always pick up
+# the newest release without editing this file.
 ARG BASE_IMAGE
-ARG ROS_DISTRO=
 FROM ${BASE_IMAGE}
 
-ENV ROS_DISTRO $ROS_DISTRO
-ARG MUJOCO_VERSION=3.4.0
+ARG MUJOCO_VERSION=3.12.0
+ARG GYM_VERSION=1.3.0
 ARG CPU_ARCH=x86_64
+ARG VENV_PATH=/opt/venv
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Configure base dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get install -y python3-pip wget libglfw3-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates libglfw3-dev python3-pip python3-venv wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-
-# Configure and install MuJoCo
+# Native MuJoCo distribution
 ENV MUJOCO_VERSION=${MUJOCO_VERSION}
 ENV MUJOCO_DIR="/opt/mujoco/mujoco-${MUJOCO_VERSION}"
-RUN mkdir -p ${MUJOCO_DIR}
+RUN mkdir -p "$(dirname "${MUJOCO_DIR}")" \
+    && wget -q -O /tmp/mujoco.tar.gz \
+        "https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz" \
+    && tar -xzf /tmp/mujoco.tar.gz -C "$(dirname "${MUJOCO_DIR}")" \
+    && rm -f /tmp/mujoco.tar.gz
 
-RUN wget https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz
-RUN mkdir -p /home/mujoco
-RUN tar -xzf "mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz" -C $(dirname "${MUJOCO_DIR}")
+ENV LD_LIBRARY_PATH="${MUJOCO_DIR}/lib:${LD_LIBRARY_PATH:-}"
+
+# Python bindings. Ubuntu 24.04+ marks the system interpreter as externally
+# managed (PEP 668), so install into a venv. --system-site-packages keeps the
+# ROS 2 Python packages importable from inside it.
+ENV VIRTUAL_ENV=${VENV_PATH}
+RUN python3 -m venv --system-site-packages "${VIRTUAL_ENV}" \
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir --upgrade pip \
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir \
+        "mujoco==${MUJOCO_VERSION}" \
+        "gymnasium==${GYM_VERSION}"
+
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"

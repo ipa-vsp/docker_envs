@@ -53,7 +53,7 @@ RUN chmod +x /usr/local/bin/scripts/*.sh
 # The shared Claude config is cloned into the workspace; the entrypoint keeps it
 # current with a `git pull` on container start.
 RUN case "${ROS_DISTRO}" in \
-        rolling|jazzy|kilted|iron|humble|isaachumble|lyrical) \
+        rolling|jazzy|kilted|iron|humble|lyrical) \
             mkdir -p /home/${USERNAME}/colcon_ws/src && \
             git clone https://github.com/ipa-vsp/.claude.git \
                 /home/${USERNAME}/colcon_ws/.claude && \

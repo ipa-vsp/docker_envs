@@ -20,12 +20,24 @@ IMAGE_NAME="$3"
 shift 3
 EXTRA_BUILD_ARGS=("$@")
 
+# The layer Dockerfiles COPY from paths like `creator/scripts/bashrc`, so the
+# build context has to be the repository root regardless of the caller's cwd.
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+REPO_ROOT="$( cd "${SCRIPT_DIR}/../.." >/dev/null 2>&1 && pwd )"
+BUILD_CONTEXT="${BUILD_CONTEXT:-${REPO_ROOT}}"
+
+# Cap the build at the available CPUs; the previous hard-coded 0-11 cpuset fails
+# on machines with fewer cores.
+CPUSET_ARGS=()
+if [ -n "${DOCKER_BUILD_CPUSET:-}" ]; then
+    CPUSET_ARGS=(--cpuset-cpus="${DOCKER_BUILD_CPUSET}")
+fi
+
 echo "Building Docker image from: ${DOCKERFILE} with base: ${BASE_IMAGE} and Image name: ${IMAGE_NAME}"
-# export DOCKER_BUILD_OPTS="--cpu-period=100000 --cpu-quota=400000"
-docker build --cpuset-cpus=0-11 \
+docker build "${CPUSET_ARGS[@]}" \
              -f "${DOCKERFILE}" \
              --network host \
              -t "${IMAGE_NAME}" \
              --build-arg BASE_IMAGE="${BASE_IMAGE}" \
              "${EXTRA_BUILD_ARGS[@]}" \
-             .
+             "${BUILD_CONTEXT}"

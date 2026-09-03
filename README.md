@@ -72,10 +72,24 @@ services:
 
 ### Build Locally
 
+The local builder is layered the same way the staged workflow is, and names the
+images for you. It can additionally add layers CI does not build: a CUDA +
+cuDNN devel base, Isaac Sim and Isaac Lab. See
+[`creator/README.md`](creator/README.md) for the full description.
+
 ```bash
-# Build and publish an image
 cd creator/scripts
-./run_env.sh -o 24.04 -v rolling -i ghcr.io/ipa-vsp/docker_envs:rolling -b
+
+# Interactive: pick a value for every stage, with the current MuJoCo /
+# Isaac Sim / Isaac Lab / CUDA versions fetched online and offered as a menu
+./create_env.sh
+
+# Non-interactive: the final image is named from the stages you picked,
+# here docker_envs:24.04-rolling
+./run_env.sh -b -o 24.04 -v rolling
+
+# ... or name it yourself
+./run_env.sh -b -o 24.04 -v rolling -i ghcr.io/ipa-vsp/docker_envs:rolling
 
 # Run the container with a workspace attached
 ./run_env.sh -r -i ghcr.io/ipa-vsp/docker_envs:rolling -w ~/colcon_ws

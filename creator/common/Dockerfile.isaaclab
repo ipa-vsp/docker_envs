@@ -1,0 +1,44 @@
+# NVIDIA Isaac Lab layer.
+#
+# Builds on the Isaac Sim layer: Isaac Lab's extensions are installed into the
+# same /opt/isaac-venv interpreter that carries the isaacsim wheels.
+#
+# ISAACLAB_VERSION is a git tag (e.g. v2.3.2) resolved from the GitHub tag list
+# by creator/scripts/lib/stages.sh; "main" tracks the development branch.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG ISAACLAB_VERSION=v2.3.2
+# Reinforcement-learning frameworks to pull in: none, rl_games, rsl_rl, sb3,
+# skrl or all. `none` keeps the layer small; the extensions themselves are
+# always installed.
+ARG ISAACLAB_RL_FRAMEWORK=none
+ARG ISAACLAB_DIR=/opt/IsaacLab
+ARG ISAAC_VENV=/opt/isaac-venv
+
+ENV DEBIAN_FRONTEND=noninteractive
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        cmake git build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+ENV ISAACLAB_DIR=${ISAACLAB_DIR}
+ENV ISAACLAB_VERSION=${ISAACLAB_VERSION}
+ENV OMNI_KIT_ACCEPT_EULA=YES
+
+RUN git clone --depth 1 --branch "${ISAACLAB_VERSION}" \
+        https://github.com/isaac-sim/IsaacLab.git "${ISAACLAB_DIR}"
+
+# isaaclab.sh picks its interpreter from the active virtualenv, so activate the
+# Isaac Sim venv before handing over. Without it the installer would target the
+# distro python, which has no isaacsim wheels.
+RUN source "${ISAAC_VENV}/bin/activate" \
+    && cd "${ISAACLAB_DIR}" \
+    && ./isaaclab.sh --install "${ISAACLAB_RL_FRAMEWORK}"
+
+# Same reasoning as the Isaac Sim layer: keep the Isaac interpreter off the
+# default PATH and expose an opt-in helper instead.
+RUN printf '\nalias isaaclab="%s/isaaclab.sh"\n' "${ISAACLAB_DIR}" \
+        >> /etc/bash.bashrc

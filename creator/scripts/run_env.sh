@@ -1,199 +1,201 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Flag-driven build/run front end for the local creator images.
+#
+# For an interactive walk-through of the same stages, use ./create_env.sh.
 
-# Global variables
+set -uo pipefail
+
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+# shellcheck source=lib/stages.sh
+source "${ROOT}/lib/stages.sh"
 
-function print_warning() {
-    echo -e "\033[33mWARNING: $1\033[0m"
-}
-
-function print_info() {
-    echo -e "\033[32mINFO: $1\033[0m"
-}
-
+ON_EXIT=()
 function cleanup() {
-    for command in "${ON_EXIT[@]}"
-    do
-        $command &>/dev/null
+    for command in "${ON_EXIT[@]:-}"; do
+        $command &>/dev/null || true
     done
 }
 trap cleanup EXIT
 
 function help() {
-    echo "Usage: $0 [-b|-r] [-o <os_version>] [-v <ros_version>] [-u <ros_usage>] [-s] [-i <image_name>] [-n <username>] [-U <uid>] [-G <gid>] -w <workspace_path>"
-    echo "  -o: OS version (26.04, 24.04, 22.04) | Default: 24.04"
-    echo "  -v: ROS version (rolling, lyrical, kilted, jazzy, iron, humble, isaachumble) | Default: rolling"
-    echo "  -u: ROS usage (manipulation, navigation, both, skip) | Default: manipulation"
-    echo "  -z: Enable zehno | Default: false"
-    echo "  -s: Enable simulation | Default: false"
-    echo "  -i: Final image name"
-    echo "  -n: Username to create inside the image | Default: admin"
-    echo "  -U: UID for the created user | Default: current host UID"
-    echo "  -G: GID for the created user | Default: current host GID"
-    echo "  -w: Workspace path (mandatory for run mode)"
-    echo "  -b: Build image"
-    echo "  -r: Run container"
+    cat <<'EOF'
+Usage: run_env.sh -b|-r [options]
+
+Modes:
+  -b                Build the image stack
+  -r                Run a container from the final image
+  -p                Print the build plan and exit (dry run)
+
+Stages:
+  -o <os>           Ubuntu version: 22.04 | 24.04 | 26.04            (default: 24.04)
+  -v <ros>          ROS distro: rolling|kilted|jazzy|humble|iron|lyrical
+                                                                     (default: rolling)
+  -c [<version>]    CUDA + cuDNN devel base; "latest" or e.g. 13.3.1 (default: latest)
+  -u <usage>        manipulation | navigation | both | skip          (default: skip)
+  -m [<version>]    MuJoCo layer; "latest" or e.g. 3.12.0            (default: latest)
+  -I [<version>]    Isaac Sim layer; "latest" or e.g. 6.0.1.0        (default: latest)
+  -L [<version>]    Isaac Lab layer; "latest" or e.g. v2.3.2         (default: latest)
+                    Requires -I.
+  -z                Add the Zenoh RMW layer
+  -s                Add the Gazebo simulation layer
+
+Image / user:
+  -i <image>        Final image name. Omitted => derived from the selected
+                    stages, e.g. docker_envs:24.04-jazzy-mujoco3.12.0-moveit
+  -N <namespace>    Image namespace for derived names                (default: docker_envs)
+  -n <username>     User created inside the image                    (default: admin)
+  -U <uid>          UID for that user                                (default: current host UID)
+  -G <gid>          GID for that user                                (default: current host GID)
+
+Run mode:
+  -w <path>         Workspace to bind-mount (required with -r)
+  -g                Pass --gpus all to docker run
+  -h                Show this help
+
+Examples:
+  ./run_env.sh -b -o 24.04 -v jazzy -u manipulation -m latest
+  ./run_env.sh -b -o 22.04 -v humble -c 13.3.1 -I latest -L latest
+  ./run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w ~/colcon_ws
+EOF
     exit 1
 }
 
-# Default values
-OS_VERSION="24.04"
-ROS_VERSION="rolling"
-ROS_USAGE="manipulation"
-ZEHNO=false
-SIMULATION=false
+stages::init_selection
+
 BUILD=false
 RUN=false
-FINAL_IMAGE=""
-USERNAME="admin"
-USER_UID="$(id -u)"
-USER_GID="$(id -g)"
+DRY_RUN=false
+WORKSPACE=""
+USE_GPU=false
+# Requested versions before "latest" is resolved online.
+CUDA_REQUEST=""
+MUJOCO_REQUEST=""
+ISAACSIM_REQUEST=""
+ISAACLAB_REQUEST=""
 
-while getopts "o:v:u:z:i:w:n:U:G:bsrh" opt; do
-    case $opt in
-        o) OS_VERSION=$OPTARG ;;
-        v) ROS_VERSION=$OPTARG ;;
-        u) ROS_USAGE=$OPTARG ;;
-        z) ZEHNO=true ;;
-        i) FINAL_IMAGE=$OPTARG ;;
-        w) WORKSPACE=$OPTARG ;;
-        n) USERNAME=$OPTARG ;;
-        U) USER_UID=$OPTARG ;;
-        G) USER_GID=$OPTARG ;;
+# -c, -m, -I and -L take an optional argument: `-m` alone means "latest".
+# getopts cannot express that, so grab the next word only when it does not look
+# like another flag.
+function optional_arg() {
+    local next="${!OPTIND:-}"
+    if [[ -n "${next}" && "${next}" != -* ]]; then
+        echo "${next}"
+        OPTIND=$((OPTIND + 1))
+    else
+        echo "latest"
+    fi
+}
+
+while getopts "o:v:u:i:N:w:n:U:G:cmILzbsrpgh" opt; do
+    case ${opt} in
+        o) STAGES_OS="${OPTARG}" ;;
+        v) STAGES_ROS="${OPTARG}" ;;
+        u) STAGES_USAGE="${OPTARG}" ;;
+        i) STAGES_FINAL_IMAGE="${OPTARG}" ;;
+        N) STAGES_NAMESPACE="${OPTARG}" ;;
+        w) WORKSPACE="${OPTARG}" ;;
+        n) STAGES_USERNAME="${OPTARG}" ;;
+        U) STAGES_USER_UID="${OPTARG}" ;;
+        G) STAGES_USER_GID="${OPTARG}" ;;
+        c) STAGES_USE_CUDA=true;  CUDA_REQUEST="$(optional_arg)" ;;
+        m) STAGES_MUJOCO=true;    MUJOCO_REQUEST="$(optional_arg)" ;;
+        I) STAGES_ISAACSIM=true;  ISAACSIM_REQUEST="$(optional_arg)" ;;
+        L) STAGES_ISAACLAB=true;  ISAACLAB_REQUEST="$(optional_arg)" ;;
+        z) STAGES_ZENOH=true ;;
+        s) STAGES_SIMULATION=true ;;
         b) BUILD=true ;;
         r) RUN=true ;;
-        s) SIMULATION=true ;;
+        p) DRY_RUN=true ;;
+        g) USE_GPU=true ;;
         h | ?) help ;;
     esac
 done
 
-# Basic validations
-if [[ "$BUILD" == false && "$RUN" == false ]] || [[ "$BUILD" == true && "$RUN" == true ]]; then
-    echo "You must specify either a build(-b) or run(-r) mode"
+if [[ "${DRY_RUN}" == true ]]; then
+    BUILD=true
+fi
+
+if [[ "${BUILD}" == false && "${RUN}" == false ]] || [[ "${BUILD}" == true && "${RUN}" == true ]]; then
+    stages::error "Specify exactly one of build (-b), run (-r) or dry run (-p)."
     help
 fi
 
-if [[ "$BUILD" == true && -z "$FINAL_IMAGE" ]]; then
-    echo "Provide Image Name mandatory"
-    help
+# --------------------------------------------------------------------------- #
+# Build
+# --------------------------------------------------------------------------- #
+if [[ "${BUILD}" == true ]]; then
+    if ! stages::validate_selection; then
+        exit 1
+    fi
+
+    if [[ "${STAGES_USE_CUDA}" == true ]]; then
+        STAGES_CUDA_VERSION="$(stages::resolve_version cuda "${CUDA_REQUEST}" "${STAGES_OS}")"
+    fi
+    if [[ "${STAGES_MUJOCO}" == true ]]; then
+        STAGES_MUJOCO_VERSION="$(stages::resolve_version mujoco "${MUJOCO_REQUEST}")"
+    fi
+    if [[ "${STAGES_ISAACSIM}" == true ]]; then
+        STAGES_ISAACSIM_VERSION="$(stages::resolve_version isaacsim "${ISAACSIM_REQUEST}")"
+    fi
+    if [[ "${STAGES_ISAACLAB}" == true ]]; then
+        STAGES_ISAACLAB_VERSION="$(stages::resolve_version isaaclab "${ISAACLAB_REQUEST}")"
+    fi
+
+    if ! stages::build_plan; then
+        exit 1
+    fi
+    stages::print_plan
+
+    if [[ "${DRY_RUN}" == true ]]; then
+        stages::info "Dry run: nothing was built."
+        exit 0
+    fi
+
+    stages::run_plan
+    exit $?
 fi
 
-if [[ "$OS_VERSION" != "26.04" && "$OS_VERSION" != "24.04" && "$OS_VERSION" != "22.04" ]]; then
-    echo "Unsupported OS version: $OS_VERSION (allowed: 26.04, 24.04, 22.04)"
-    exit 1
-fi
-
-# Define and manage Docker images
-DOCKER_COMMON_DIR="${ROOT}/../common"
-DOCKER_COMMON_SEARCH_DIR=(${DOCKER_COMMON_DIR})
-echo "ROS_VERSION: $ROS_VERSION"
-if [[ "$ROS_VERSION" == "isaachumble" ]]; then
-    BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.cuda"
-else
-    BASE_FILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.base"
-fi
-IMAGE_NAME="myenvos:${ROS_VERSION}"
-
-# Build section
-if [[ "$BUILD" == true ]]; then
-    # List all the potential Dockerfiles and their final image names
-    echo "Building docker base file $BASE_FILE"
-    ${ROOT}/build_image.sh "$BASE_FILE" "$OS_VERSION" "$IMAGE_NAME"
-    declare -A DOCKERFILES=( ["rolling"]="${ROOT}/../ros2/Dockerfile.rolling"
-                             ["lyrical"]="${ROOT}/../ros2/Dockerfile.lyrical"
-                             ["kilted"]="${ROOT}/../ros2/Dockerfile.kilted"
-                             ["jazzy"]="${ROOT}/../ros2/Dockerfile.jazzy"
-                             ["iron"]="${ROOT}/../ros2/Dockerfile.iron"
-                             ["humble"]="${ROOT}/../ros2/Dockerfile.humble"
-                             ["isaachumble"]="${ROOT}/../ros2/Dockerfile.isaachumble" )
-
-    DOCKERFILE=${DOCKERFILES[$ROS_VERSION]}
-    if [[ -f "$DOCKERFILE" ]]; then
-        echo "Building image $IMAGE_NAME"
-        BASE="$IMAGE_NAME"
-        IMAGE_NAME="$IMAGE_NAME.$ROS_VERSION"
-        ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
-    else
-        print_warning "ROS version is not supported. Check your command again!"
+# --------------------------------------------------------------------------- #
+# Run
+# --------------------------------------------------------------------------- #
+if [[ "${RUN}" == true ]]; then
+    if [[ -z "${WORKSPACE}" ]]; then
+        stages::error "Workspace path (-w) is required in run mode."
+        help
     fi
-
-    declare -A USAGE_DOCKERFILES=( ["manipulation"]="${ROOT}/../usage/Dockerfile.moveit"
-                                   ["navigation"]="${ROOT}/../usage/Dockerfile.nav2"
-                                   ["both"]="${ROOT}/../usage/Dockerfile.both" )
-
-
-    DOCKERFILE=${USAGE_DOCKERFILES[$ROS_USAGE]}
-    if [[ $ROS_USAGE != "skip" ]]; then
-        BASE="$IMAGE_NAME"
-        IMAGE_NAME="$IMAGE_NAME.$ROS_USAGE"
-        echo "Building image $IMAGE_NAME and file $DOCKERFILE"
-        ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
-    fi
-
-    if [[ "$ZEHNO" == true ]]; then
-        DOCKERFILE="${ROOT}/../usage/Dockerfile.zenoh"
-        if [[ -f "$DOCKERFILE" ]]; then
-            BASE="$IMAGE_NAME"
-            IMAGE_NAME="$IMAGE_NAME.zenoh"
-            ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
-        fi
-    fi
-
-    if [[ "$SIMULATION" == true ]]; then
-        DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.gazebo"
-        if [[ -f "$DOCKERFILE" ]]; then
-            BASE="$IMAGE_NAME"
-            IMAGE_NAME="$IMAGE_NAME.gazebo"
-            ${ROOT}/build_image.sh "$DOCKERFILE" "$BASE" "$IMAGE_NAME"
-        fi
-    fi
-
-    DOCKERFILE="${DOCKER_COMMON_SEARCH_DIR}/Dockerfile.user"
-    if [[ -f "$DOCKERFILE" ]]; then
-        USER_ARGS=(--build-arg USERNAME="${USERNAME}"
-                   --build-arg USER_UID="${USER_UID}"
-                   --build-arg USER_GID="${USER_GID}"
-                   --build-arg ROS_DISTRO="${ROS_VERSION}")
-        ${ROOT}/build_image.sh "$DOCKERFILE" "$IMAGE_NAME" "$FINAL_IMAGE" "${USER_ARGS[@]}"
-    fi
-fi
-
-# Run section
-if [[ "$RUN" == true ]]; then
-    if [[ -z "$WORKSPACE" ]]; then
-        echo "Workspace path is not selected"
+    if [[ -z "${STAGES_FINAL_IMAGE}" ]]; then
+        stages::error "Image name (-i) is required in run mode."
         help
     fi
 
-    CONTAINER="${FINAL_IMAGE}_container"
-    TARGET_WS="/home/${USERNAME}/colcon_ws"
+    CONTAINER="$(echo "${STAGES_FINAL_IMAGE}" | tr ':/.' '___')_container"
+    TARGET_WS="/home/${STAGES_USERNAME}/colcon_ws"
     DOCKER_ARGS=(
-        "-e DISPLAY=$DISPLAY"
-        "-v /tmp/.X11-unix:/tmp/.X11-unix:ro"
-        "-v $HOME/.Xauthority:/home/${USERNAME}/.Xauthority:rw"
-        "-v /etc/timezone:/etc/timezone:ro"
-        "-v /etc/localtime:/etc/localtime:ro"
-        "-v $WORKSPACE:${TARGET_WS}:rw"
-        "--user ${USER_UID}:${USER_GID}"
-        "--privileged"
-        "--name $CONTAINER"
-        "--rm"
+        -e "DISPLAY=${DISPLAY:-}"
+        -v /tmp/.X11-unix:/tmp/.X11-unix:ro
+        -v /etc/timezone:/etc/timezone:ro
+        -v /etc/localtime:/etc/localtime:ro
+        -v "${WORKSPACE}:${TARGET_WS}:rw"
+        --user "${STAGES_USER_UID}:${STAGES_USER_GID}"
+        --privileged
+        --name "${CONTAINER}"
+        --rm
     )
+    # Only bind-mount .Xauthority when it exists; docker would otherwise create a
+    # directory at that path and X11 auth would silently fail.
+    if [[ -f "${HOME}/.Xauthority" ]]; then
+        DOCKER_ARGS+=(-v "${HOME}/.Xauthority:/home/${STAGES_USERNAME}/.Xauthority:rw")
+    fi
+    if [[ "${USE_GPU}" == true ]]; then
+        DOCKER_ARGS+=(--gpus all)
+    fi
 
-    # Check if xhost is available and allow local connections to X server
-    if command -v xhost &> /dev/null; then
-        xhost +local:
-        # Store the command to revert xhost changes upon exit
+    if command -v xhost &>/dev/null; then
+        xhost +local: >/dev/null
         ON_EXIT+=("xhost -local:")
     else
-        print_warning "xhost command not found. GUI might not work properly in Docker."
+        stages::warn "xhost not found; GUI applications may not work."
     fi
 
-    # Actually run the Docker container
-    docker run ${DOCKER_ARGS[@]} -it $FINAL_IMAGE bash
-
-    # Cleanup on exit
-    if [[ ${#ON_EXIT[@]} -gt 0 ]]; then
-        cleanup
-    fi
+    docker run "${DOCKER_ARGS[@]}" -it "${STAGES_FINAL_IMAGE}" bash
 fi

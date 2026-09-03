@@ -1,71 +1,70 @@
-ARG BASE_IMAGE=22.04
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu${BASE_IMAGE}
+# CUDA + cuDNN development base.
+#
+# BASE_IMAGE is a full NVIDIA CUDA image reference, e.g.
+#   nvidia/cuda:13.3.1-cudnn-devel-ubuntu24.04
+#   nvidia/cuda:13.3.1-cudnn-devel-ubuntu22.04
+#   nvidia/cuda:13.3.1-cudnn-devel-ubuntu26.04
+# creator/scripts/lib/stages.sh composes that reference from the selected CUDA
+# and Ubuntu versions. The package sets below mirror Dockerfile.base so a CUDA
+# image and a plain Ubuntu image are interchangeable for the ROS layers.
+ARG BASE_IMAGE=nvidia/cuda:13.3.1-cudnn-devel-ubuntu24.04
+FROM ${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
-COPY bashrc /etc/bash.bashrc
+# provide a consistent shell experience for interactive containers
+COPY creator/scripts/bashrc /etc/bash.bashrc
 RUN chmod a+rwx /etc/bash.bashrc
-ENV SHELL /bin/bash
+ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-c"]
 
-# Fundamentals
-RUN apt-get update && apt-get install -y \
+# Core build tooling and CLI utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
         apt-transport-https bash-completion build-essential \
         ca-certificates clang-format cmake curl \
-&& rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
-        clang gdb gdbserver \
-        git gnupg2 locales lsb-release rsync \
-        software-properties-common wget vim \
-        unzip mlocate libgoogle-glog-dev \
-&& rm -rf /var/lib/apt/lists/* \
-&& apt-get clean
+# OS-specific baseline; keep the package set aligned across 22.04, 24.04 and 26.04
+RUN . /etc/os-release \
+    && if [ "$VERSION_ID" = "24.04" ] || [ "$VERSION_ID" = "22.04" ] || [ "$VERSION_ID" = "26.04" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            clang gdb gdbserver \
+            git gnupg2 locales lsb-release rsync \
+            software-properties-common wget vim \
+            unzip libgoogle-glog-dev dirmngr tzdata; \
+    else \
+        echo "Unsupported base image: ${VERSION_ID}"; \
+        exit 1; \
+    fi \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Python basics
-RUN case $(uname -r -s) in \
-        22.04) \
-            apt-get update && apt-get install -y \
+# Python toolchain; shared across the supported Ubuntu releases
+RUN . /etc/os-release \
+    && if [ "$VERSION_ID" = "24.04" ] || [ "$VERSION_ID" = "22.04" ] || [ "$VERSION_ID" = "26.04" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends \
             python3 python3-dev python3-pip python3-setuptools \
+            python3-venv \
             python3-argcomplete python3-autopep8 python3-flake8 \
-            python3-pybind11 python3-pytest-cov \
-            && rm -rf /var/lib/apt/lists/* \
-            && apt-get clean \
-            ;; \
-        *) \
-            echo "Unsupported base image: ${BASE_IMAGE}" \
-            exit 1 \
-            ;; \
-    esac
+            python3-flake8-blind-except python3-flake8-builtins \
+            python3-flake8-class-newline python3-flake8-comprehensions \
+            python3-flake8-deprecated python3-flake8-docstrings \
+            python3-flake8-import-order python3-flake8-quotes \
+            python3-pybind11 python3-pytest-cov python3-pytest-repeat \
+            python3-pytest-rerunfailures python3-pydocstyle \
+            python3-sklearn python3-onnx; \
+    else \
+        echo "Unsupported base image: ${VERSION_ID}"; \
+        exit 1; \
+    fi \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Python3 (PIP)
-RUN case $(uname -r -s) in \
-        22.04) \
-            python3 -m pip install -U \
-            argcomplete \
-            autopep8 \
-            flake8 \
-            flake8-blind-except \
-            flake8-builtins \
-            flake8-class-newline \
-            flake8-comprehensions \
-            flake8-deprecated \
-            flake8-docstrings \
-            flake8-import-order \
-            flake8-quotes \
-            onnx \
-            pytest-repeat \
-            pytest-rerunfailures \
-            pytest \
-            pydocstyle \
-            scikit-learn \
-            ;; \
-        *) \
-            echo "Unsupported base image: ${BASE_IMAGE}" \
-            exit 1 \
-            ;; \
-    esac
+# Raise the inotify watch limits. See Dockerfile.base for why this is a drop-in
+# rather than a live sysctl: fs.inotify.* is not namespaced by Docker.
+RUN printf 'fs.inotify.max_user_watches=524288\nfs.inotify.max_user_instances=512\n' \
+        > /etc/sysctl.d/99-inotify.conf
 
 # Install Git-LFS from Ubuntu's universe repository (avoids packagecloud,
 # which lacks Release files for newer/rolling releases like 26.04).
@@ -74,3 +73,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git lfs install --system \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
+
+# nvidia-container-runtime: make the GPU visible with graphics capabilities so
+# GUI/simulation workloads (Isaac Sim, MuJoCo) work out of the box.
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
