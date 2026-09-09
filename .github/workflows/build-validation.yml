@@ -1,0 +1,37 @@
+name: Build pipeline regression checks
+
+on:
+  push:
+    paths:
+      - 'creator/**'
+      - '.github/workflows/**'
+      - '.dockerignore'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - 'creator/**'
+      - '.github/workflows/**'
+      - '.dockerignore'
+      - 'tests/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install test dependency
+        run: python -m pip install PyYAML==6.0.3
+      - name: Check workflow behavior and local builder
+        run: python -m unittest discover -s tests -v
+      - name: Check shell syntax and local plan
+        run: |
+          bash -n creator/scripts/build_image.sh
+          bash -n creator/scripts/build_pytorch_env.sh
+          creator/scripts/run_env.sh -p -o 24.04 -v jazzy -u manipulation

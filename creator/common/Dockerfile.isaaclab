@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # NVIDIA Isaac Lab layer.
 #
 # Builds on the Isaac Sim layer: Isaac Lab's extensions are installed into the
@@ -35,7 +36,9 @@ RUN git clone --depth 1 --branch "${ISAACLAB_VERSION}" \
 # isaaclab.sh picks its interpreter from the active virtualenv, so activate the
 # Isaac Sim venv before handing over. Without it the installer would target the
 # distro python, which has no isaacsim wheels.
-RUN source "${ISAAC_VENV}/bin/activate" \
+RUN --mount=type=cache,id=creator-isaaclab-pip,target=/root/.cache/pip,sharing=locked \
+    --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    source "${ISAAC_VENV}/bin/activate" \
     && cd "${ISAACLAB_DIR}" \
     && ./isaaclab.sh --install "${ISAACLAB_INSTALL}"
 

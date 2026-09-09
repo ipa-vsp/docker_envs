@@ -1,8 +1,8 @@
 # Create your own Docker workspace
 
 Local, layered image builds. Each stage is a separate Dockerfile and a separate
-image, exactly like the staged CI workflow — so a rebuild only redoes the layers
-that changed.
+image, exactly like the staged CI workflow — so a rebuild can reuse unchanged instructions. A changed layer also invalidates
+downstream layers that depend on it.
 
 There are two front ends over the same build engine:
 
@@ -147,9 +147,10 @@ cd creator/scripts
 `stages.sh` only offers the distros that make sense for the Ubuntu release you
 picked, and annotates two cases:
 
-* **built in CI** — the combination [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml)
-  publishes, so it is known-good. Anything else still builds, but upstream may
-  not publish every package.
+* **configured in CI** — the combination [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml)
+  is intended to publish. Check the actual workflow matrix and run status; local
+  menu annotations are hints, not evidence that a build succeeded. Upstream may
+  not publish every package for other combinations.
 * **frozen upstream** — ROS Rolling has migrated to Ubuntu 26.04, so `24.04` +
   `rolling` still builds from the packages that exist today but will not receive
   further updates. Prefer `26.04` + `rolling`, or `24.04` + `jazzy`/`kilted`.
@@ -334,8 +335,9 @@ Dockerfile:
 | Isaac Sim | The `isaacsim` project on `pypi.nvidia.com` |
 | Isaac Lab | Tags of `isaac-sim/IsaacLab`, plus its `main`, `develop` and `release/*` branches |
 
-Each lookup has a timeout and a built-in fallback version, so a build still works
-without network access.
+Each lookup has a timeout and a built-in fallback version, so selecting versions
+still works offline. Building still needs network access for uncached base images,
+packages, and source downloads.
 
 ## Automated builds on GitHub
 
@@ -343,11 +345,159 @@ ROS images are built and published using the
 [`ros2-staged.yml`](../.github/workflows/ros2-staged.yml) workflow. The workflow
 creates each layer in a separate job, pushing intermediate images to GHCR so the
 next job can consume them. A final `cleanup-intermediates` job then deletes those
-intermediate stage packages (`base`, `ros`, `moveit`) once every final user image
-has been published, so only the final images persist in the registry.
+intermediate stage packages (`base`, `ros`, `moveit`) only after every required
+final job succeeds. Registry caches persist in a separate `buildcache` package;
+intermediate-image cleanup does not delete them.
 
-The CUDA, Isaac Sim and Isaac Lab layers described above are **local only** — the
-staged workflow does not build them.
+The ROS workflow currently builds `24.04/rolling`, `24.04/kilted`, `24.04/jazzy`,
+`22.04/humble`, and `26.04/lyrical`; MoveIt variants are configured for Kilted,
+Jazzy, and Humble. ROS + MuJoCo/Nav2, CUDA, Isaac Sim, and Isaac Lab are local
+options and are not built by this workflow.
+
+PR validation builds each ROS stack sequentially on one runner using the Docker
+driver, so later stages can use local intermediate tags. PyTorch PRs build the
+Dockerfile's internal stages with the same Ubuntu base and versions as CI.
+Neither PR job logs into GHCR, publishes images, exports registry caches, or runs
+cleanup. Publishing runs are serialized within each workflow to protect shared
+intermediate tags.
+
+## Build cache and layer validation
+
+Use Docker with the Buildx plugin and BuildKit enabled. The local build helpers
+check for Buildx and explicitly enable BuildKit. Keep the default Docker driver
+for the local staged builder: each stage must be available in the local image
+store for the next stage. The scripts retain their existing options and image
+names. All supported creator builds use the repository root as their context;
+`.dockerignore` excludes local credentials, Git data, caches, and generated output
+while retaining source inputs.
+
+System dependencies precede shell configuration copies. A bashrc edit can reuse
+system-package installation in its base stage; later stages inheriting the changed
+base still rebuild. Entrypoint edits no longer repeat user setup and CLI
+installation. APT indexes and repository installers are removed in the same RUN
+that creates them. Zenoh's source, build tree, and logs never enter a committed
+layer; its install tree and dependencies remain available.
+
+Zenoh selects the upstream branch matching `ROS_DISTRO`, following the
+[upstream source-build instructions](https://github.com/ros2/rmw_zenoh/tree/jazzy#source-installation).
+The repository's default branch can require dependencies absent from older ROS
+distributions. Override it with `DOCKER_BUILD_EXTRA="--build-arg ZENOH_REF=<branch-or-tag>"`
+when building a specific compatible revision.
+
+MuJoCo, PyTorch, and Isaac Lab use BuildKit package cache mounts; Isaac Sim keeps
+its uv mount, and Zenoh mounts Cargo's registry and Git caches. These mounts live
+in the builder, outside the image. Registry
+`cache-to` exports reusable build layers, **not the contents of package cache
+mounts**. A new CI runner can reuse a completed installation layer, but a cache
+miss may still require downloading packages again. A local retry can reuse
+package downloads while its builder cache remains available.
+
+Non-PR CI builds use `type=registry` caches with `mode=max`, one reference per
+workflow/stage/matrix under `ghcr.io/<owner>/<repository>/buildcache`. These are
+separate from published image tags and excluded from intermediate cleanup. The
+first build works without an existing cache. Cache storage can grow; manage its
+retention separately from release images. See Docker's
+[cache optimization](https://docs.docker.com/build/cache/optimize/) and
+[registry cache](https://docs.docker.com/build/cache/backends/registry/) guidance.
+
+Final images still default to root, retain development tools, and provide the
+admin account with sudo. Use `docker run --user admin ...` or matching UID/GID
+for mounted workspaces. Removing compilers or switching to a minimal runtime base
+would change the purpose of these development environments.
+
+For a fresh local build, pull the external base first, then disable instruction
+cache reuse. Do not apply `--pull` to every local stage: intermediate images are
+local tags, not registry artifacts.
+
+```bash
+# Run from the repository root; use the selected NVIDIA tag for a CUDA base.
+docker pull ubuntu:24.04
+DOCKER_BUILD_EXTRA="--no-cache" creator/scripts/run_env.sh -b -o 24.04 -v jazzy
+```
+
+`--no-cache` reruns instructions; `--pull` checks the referenced base for updates.
+Neither makes mutable package repositories or remote branches reproducible.
+Credentials required by future builds belong in BuildKit secret/SSH mounts,
+not ARG, ENV, or copied files. `.dockerignore` is context filtering, not a
+replacement for secret mounts.
+
+### Measure a layer change
+
+Record the base image ID, dependency versions, and architecture before comparing
+an old checkout with the updated checkout. Use separate validation tags and the
+same base for both. For a cold-cache experiment, create a disposable Buildx
+builder; do not prune your normal Docker cache.
+
+```bash
+docker buildx create --name docker-envs-bench --driver docker-container
+docker buildx build --builder docker-envs-bench --load --progress=plain \
+  -f creator/common/Dockerfile.base --build-arg BASE_IMAGE=24.04 \
+  -t docker-envs-bench:base .
+# Repeat the identical command and compare cached instructions and elapsed time.
+docker image inspect docker-envs-bench:base --format '{{.Size}}'
+docker image history --no-trunc docker-envs-bench:base
+# After measurements:
+docker buildx rm docker-envs-bench
+```
+
+A shell-configuration cache test must change file **contents** in a disposable
+checkout; `touch` alone does not invalidate Docker's COPY cache. Confirm that
+package RUN instructions remain cached and the COPY reruns. For Zenoh, inspect
+saved image layers as well as the merged filesystem: deleting files from the
+merged filesystem does not prove their historical bytes are absent. Compare
+local image sizes separately from compressed registry sizes; no fixed saving is
+guaranteed.
+
+### Repository checks
+
+```bash
+python3 -m unittest discover -s tests -v
+bash -n creator/scripts/build_image.sh creator/scripts/build_pytorch_env.sh
+creator/scripts/run_env.sh -p -o 24.04 -v jazzy -u manipulation
+# With actionlint installed:
+actionlint -shellcheck= .github/workflows/{ros2-staged,pytorch-staged,docker}.yml
+```
+
+The regression tests need Python, PyYAML, and `jq`; they validate PR publication
+boundaries, cache separation, cleanup selection, and build-helper failure
+handling without contacting a registry. Image smoke checks should additionally
+cover ROS package discovery, MuJoCo/PyTorch imports, admin identity, and entrypoint
+permissions. Isaac GPU execution requires suitable NVIDIA hardware and is a
+separate runtime check.
+
+### Measured validation (2026-09-09)
+
+On Linux/amd64 with Docker 29.8.0 and Buildx 0.37.0, the original Jazzy Dockerfile
+at commit `8402cef` and the updated Dockerfile were built against the same local
+Ubuntu 24.04 development base. Their `dpkg-query -W` output was identical.
+
+| Jazzy image | `docker image inspect --format '{{.Size}}'` |
+|-------------|------------------------------------------------|
+| Original Dockerfile | 6,572,967,062 bytes |
+| Updated Dockerfile | 6,386,694,040 bytes |
+| Reduction | 186,273,022 bytes (177.6 MiB; 2.8%) |
+
+This comparison isolates the ROS layer cleanup; it is not a registry compressed
+size measurement or a prediction for other stacks. Both builds encountered a
+temporary DNS failure during rosdep initialization and completed on retry using
+their cached package-installation layers.
+
+Local smoke checks passed for the base and builder images, Jazzy, MoveIt, MuJoCo
+3.12.0/Gymnasium 1.3.0, PyTorch 2.8.0 with TorchVision 0.23.0 and TorchAudio 2.8.0,
+and the standalone and ROS user images. The user checks verified UID/GID 1000,
+workspace access, executable entrypoint, and the retained root default.
+
+Zenoh built from its Jazzy branch and initialized through `rclpy`. Inspection of
+all 12 saved image layers found no Zenoh source/build/log trees or Cargo download
+caches; the installed workspace remained intact. Content-only bashrc and
+entrypoint edits reused their preceding installation layers. Docker context
+filtering, seven regression tests, workflow linting, and shell syntax checks also
+passed.
+
+CUDA and Isaac Dockerfiles received build checks, not full GPU runtime tests.
+Docker still warns about required `BASE_IMAGE` arguments without defaults in
+stage-only Dockerfiles. Registry publication, remote cache reuse, cleanup, and
+hosted GitHub Actions execution were not exercised locally.
 
 # Docker Workspaces using VSCode devcontainer
 =============================================

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # CUDA + cuDNN development base.
 #
 # BASE_IMAGE is a full NVIDIA CUDA image reference, e.g.
@@ -12,9 +13,6 @@ FROM ${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
-# provide a consistent shell experience for interactive containers
-COPY creator/scripts/bashrc /etc/bash.bashrc
-RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-c"]
 
@@ -78,3 +76,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GUI/simulation workloads (Isaac Sim, MuJoCo) work out of the box.
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=all
+
+# Interactive configuration changes must not invalidate package installation.
+COPY --chmod=0777 creator/scripts/bashrc /etc/bash.bashrc

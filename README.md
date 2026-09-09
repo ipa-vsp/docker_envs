@@ -9,11 +9,12 @@ This repository contains Dockerfiles, compose templates and helper scripts used 
 | ROS2 Staged | [![ROS2 Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml) |
 | PyTorch Staged | [![PyTorch Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml) |
 | Docker Builder | [![Docker](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml) |
+| Build checks | [![Build checks](https://github.com/ipa-vsp/docker_envs/actions/workflows/build-validation.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/build-validation.yml) |
 | Formatting | [![Formatting](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml) |
 
 ## Available Docker Images
 
-Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list every published tag together with the main components included in the image.
+Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list the tags configured by the active workflows. Historical registry tags may differ; a workflow entry does not guarantee its latest build succeeded.
 
 ### ROS 2 Images (staged workflow - final user images)
 
@@ -23,38 +24,35 @@ Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted` | Staged ROS 2 Kilted developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy` | Staged ROS 2 Jazzy developer image on Ubuntu 24.04 |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble` | Staged ROS 2 Humble developer image on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling` | Staged ROS 2 Rolling developer image on Ubuntu 26.04 |
 | `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical` | Staged ROS 2 Lyrical developer image on Ubuntu 26.04 |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-moveit` | ROS 2 Kilted staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
 | `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-moveit` | ROS 2 Rolling (26.04) staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco` | ROS 2 Kilted staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco` | ROS 2 Jazzy staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0 and Gymnasium 1.2.0 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-moveit` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-moveit` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-moveit` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and MoveIt |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-mujoco-nav2` | ROS 2 Kilted staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-mujoco-nav2` | ROS 2 Jazzy staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-rolling-mujoco-nav2` | ROS 2 Rolling (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical-mujoco-nav2` | ROS 2 Lyrical (26.04) staged image with MuJoCo 3.4.0, Gymnasium 1.2.0, and Nav2 |
 
 ### PyTorch Images
 
 | Tag | Notes |
 |-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8.0, MuJoCo 3.4.0 |
+| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8 wheels, MuJoCo 3.4.0; Ubuntu 24.04 base |
 
 > The intermediate stage tags (`-base`, `-mujoco`, `-pytorch`) are built during the workflow but
-> deleted once the final image is published, so only the final tag persists in the registry.
+> deleted after successful final publication. Build caches persist separately under
+> `ghcr.io/ipa-vsp/docker_envs/buildcache`.
+
+The CI PyTorch image installs CUDA-enabled wheels on Ubuntu; it does not include
+the NVIDIA CUDA development base used by the local PyTorch builder.
+ROS + MuJoCo/Nav2, CUDA, Isaac Sim, and Isaac Lab combinations are available through
+the local creator scripts and are not published by the active ROS workflow.
+
+Final images retain root as their default user for compatibility with downstream
+Dockerfiles. Run with `--user admin` or matching host UID/GID for development;
+`run_env.sh -r` supplies the selected UID/GID automatically.
 
 Use `docker pull <tag>` to download an image.  The `creator/scripts/run_env.sh` helper script can build or run images locally.
 
 ## Usage compose files
 
-```bash
+```yaml
 services:
     <container_name>:
         image: ghcr.io/ipa-vsp/docker_envs:<tag>
@@ -94,6 +92,15 @@ cd creator/scripts
 # Run the container with a workspace attached
 ./run_env.sh -r -i ghcr.io/ipa-vsp/docker_envs:rolling -w ~/colcon_ws
 ```
+
+## Build optimization and validation
+
+The active builds clean temporary files before committing their layer, keep
+package downloads in BuildKit caches, and copy shell configuration after system
+dependencies. PRs build locally without publishing or registry credentials;
+non-PR builds export a separate cache for each stage and matrix combination.
+See [the build and validation guide](creator/README.md#build-cache-and-layer-validation)
+for requirements, refresh commands, cache limits, and measurement steps.
 
 ## Pre-commit Hook
 

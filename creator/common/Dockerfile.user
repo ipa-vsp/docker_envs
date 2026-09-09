@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Setup non-root admin user
 ARG USERNAME=admin
@@ -12,17 +13,17 @@ ARG ROS_DISTRO=""
 # Install prerequisites and cleanup in a single step. git is normally already
 # present from Dockerfile.base, but this layer also builds on plain ubuntu
 # (the default BASE_IMAGE) where the clone below would otherwise fail.
-RUN apt-get update && apt-get install -y --no-install-recommends sudo git ca-certificates && \
+RUN apt-get update && apt-get install -y --no-install-recommends sudo git curl ca-certificates && \
     rm -rf /var/lib/apt/lists/* && apt-get clean
 
 # Ubuntu 24.04+ ships a default 'ubuntu' user/group at UID/GID 1000.
 # Remove whatever occupies the requested UID/GID before creating ours, otherwise
 # useradd/groupadd would be skipped and ${USERNAME} would never be created.
-RUN existing_user="$(getent passwd ${USER_UID} | cut -d: -f1)"; \
+RUN existing_user="$(getent passwd ${USER_UID} | cut -d: -f1 || true)"; \
     if [ -n "${existing_user}" ] && [ "${existing_user}" != "${USERNAME}" ]; then \
         userdel -r "${existing_user}" 2>/dev/null || true; \
     fi; \
-    existing_group="$(getent group ${USER_GID} | cut -d: -f1)"; \
+    existing_group="$(getent group ${USER_GID} | cut -d: -f1 || true)"; \
     if [ -n "${existing_group}" ] && [ "${existing_group}" != "${USERNAME}" ]; then \
         groupdel "${existing_group}" 2>/dev/null || true; \
     fi
@@ -43,11 +44,6 @@ RUN if getent passwd ${USERNAME} >/dev/null 2>&1; then \
 # Ensure sudoers file is set correctly
 RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
     chmod 0440 /etc/sudoers.d/${USERNAME}
-
-# Copy and set permissions for scripts
-RUN mkdir -p /usr/local/bin/scripts
-COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
-RUN chmod +x /usr/local/bin/scripts/*.sh
 
 # Create appropriate workspace depending on ROS_DISTRO and set permissions.
 # The shared Claude config is cloned into the workspace; the entrypoint keeps it
@@ -77,6 +73,9 @@ ENV USER_UID=${USER_UID}
 ENV ROS_DISTRO=${ROS_DISTRO}
 ENV HOME=/home/${USERNAME}
 WORKDIR /home/${USERNAME}
+
+# Entrypoint edits should not repeat user setup or CLI installation.
+COPY --chmod=0755 creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/workspace-entrypoint.sh
 
 # Optionally switch to the user when running interactively
 CMD ["/bin/bash"]

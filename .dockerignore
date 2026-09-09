@@ -1,0 +1,23 @@
+# Repository metadata and local credentials
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+**/.ssh
+**/.aws
+**/.npmrc
+**/.pypirc
+
+# Generated development output
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/node_modules
+**/.cache
+**/.pytest_cache
+**/colcon_ws/build
+**/colcon_ws/install
+**/colcon_ws/log
+**/*.log
