@@ -33,7 +33,7 @@ It asks one question per stage:
 | 4. Application stack | `manipulation` (MoveIt), `navigation` (Nav2), `both`, `skip` |
 | 5. MuJoCo | Versions listed live from the MuJoCo release tags, plus the Gymnasium version |
 | 6. Isaac Sim | Versions listed live from `pypi.nvidia.com` |
-| 7. Isaac Lab | Tags listed live from the Isaac Lab repository, plus the RL framework to install |
+| 7. Isaac Lab | Tags **and** branches listed live from the Isaac Lab repository (4 of each), plus the RL framework to install |
 | 8. Extra layers | Zenoh (`rmw_zenoh_cpp`), Gazebo |
 | 9. User & naming | Username, UID, GID, image namespace, final image name |
 
@@ -89,7 +89,8 @@ Stages:
   -u <usage>        manipulation | navigation | both | skip          (default: skip)
   -m [<version>]    MuJoCo layer; "latest" or e.g. 3.12.0            (default: latest)
   -I [<version>]    Isaac Sim layer; "latest" or e.g. 6.0.1.0        (default: latest)
-  -L [<version>]    Isaac Lab layer; "latest" or e.g. v2.3.2         (default: latest)
+  -L [<version>]    Isaac Lab layer; "latest", a tag (v2.3.2) or a branch
+                    (main, release/3.0.0)                            (default: latest)
                     Requires -I.
   -z                Add the Zenoh RMW layer
   -s                Add the Gazebo simulation layer
@@ -136,7 +137,7 @@ cd creator/scripts
 | MuJoCo | [`common/Dockerfile.mujoco`](common/Dockerfile.mujoco) | Native distribution under `/opt/mujoco` **and** the Python bindings + Gymnasium in a venv at `/opt/venv` |
 | MoveIt / Nav2 | [`usage/Dockerfile.moveit`](usage/Dockerfile.moveit), [`usage/Dockerfile.nav2`](usage/Dockerfile.nav2) | `both` stacks the two layers |
 | Isaac Sim | [`common/Dockerfile.isaacsim`](common/Dockerfile.isaacsim) | `isaacsim[all,extscache]` wheels in a uv-managed venv at `/opt/isaac-venv` |
-| Isaac Lab | [`common/Dockerfile.isaaclab`](common/Dockerfile.isaaclab) | Cloned at the selected tag into `/opt/IsaacLab`, installed into the Isaac Sim venv |
+| Isaac Lab | [`common/Dockerfile.isaaclab`](common/Dockerfile.isaaclab) | Cloned at the selected tag or branch into `/opt/IsaacLab`, installed into the Isaac Sim venv |
 | Zenoh | [`usage/Dockerfile.zenoh`](usage/Dockerfile.zenoh) | Builds `rmw_zenoh_cpp` |
 | Gazebo | [`usage/Dockerfile.gazebo`](usage/Dockerfile.gazebo) | |
 | User | [`common/Dockerfile.user`](common/Dockerfile.user) | Creates the non-root user, the workspace and the entrypoint |
@@ -331,7 +332,7 @@ Dockerfile:
 | CUDA | Docker Hub tags for `nvidia/cuda`, filtered to `cudnn-devel-ubuntu<release>` |
 | MuJoCo | Release tags of `google-deepmind/mujoco` |
 | Isaac Sim | The `isaacsim` project on `pypi.nvidia.com` |
-| Isaac Lab | Tags of `isaac-sim/IsaacLab` |
+| Isaac Lab | Tags of `isaac-sim/IsaacLab`, plus its `main`, `develop` and `release/*` branches |
 
 Each lookup has a timeout and a built-in fallback version, so a build still works
 without network access.

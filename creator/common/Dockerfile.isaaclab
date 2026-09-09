@@ -3,8 +3,9 @@
 # Builds on the Isaac Sim layer: Isaac Lab's extensions are installed into the
 # same /opt/isaac-venv interpreter that carries the isaacsim wheels.
 #
-# ISAACLAB_VERSION is a git tag (e.g. v2.3.2) resolved from the GitHub tag list
-# by creator/scripts/lib/stages.sh; "main" tracks the development branch.
+# ISAACLAB_VERSION is any ref `git clone --branch` accepts: a tag (v2.3.2) or a
+# branch ("main"/"develop" track development, "release/3.0.0" a release line).
+# Both lists are read from GitHub by creator/scripts/lib/stages.sh.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 

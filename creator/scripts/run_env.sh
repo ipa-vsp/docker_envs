@@ -34,7 +34,8 @@ Stages:
   -u <usage>        manipulation | navigation | both | skip          (default: skip)
   -m [<version>]    MuJoCo layer; "latest" or e.g. 3.12.0            (default: latest)
   -I [<version>]    Isaac Sim layer; "latest" or e.g. 6.0.1.0        (default: latest)
-  -L [<version>]    Isaac Lab layer; "latest" or e.g. v2.3.2         (default: latest)
+  -L [<version>]    Isaac Lab layer; "latest", a tag (v2.3.2) or a branch
+                    (main, release/3.0.0)                            (default: latest)
                     Requires -I.
   -z                Add the Zenoh RMW layer
   -s                Add the Gazebo simulation layer
