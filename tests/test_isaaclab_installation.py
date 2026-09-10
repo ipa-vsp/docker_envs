@@ -55,6 +55,91 @@ class PlanTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn("Build plan", result.stdout)
 
+    def test_physics_and_visualization_selection(self):
+        for physics, physics_selector in (
+            ("newton", "newton"),
+            ("ovphysx", "ov[ovphysx]"),
+            ("both", "newton,ov[ovphysx]"),
+        ):
+            for visualizer in ("newton", "rerun", "viser", "all"):
+                with self.subTest(physics=physics, visualizer=visualizer):
+                    result = self.plan(
+                        "-L", "release/3.0.0", "-e", "core", "-B", physics, "-V", visualizer
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn(
+                        f"packages: {physics_selector},visualizer[{visualizer}]", result.stdout
+                    )
+                    self.assertIn(
+                        f"physics: {physics}; visualization: {visualizer}", result.stdout
+                    )
+
+    def test_sim_physics_and_kit_require_sim(self):
+        for extra in (("-B", "isaacsim"), ("-B", "all"), ("-V", "kit")):
+            with self.subTest(extra=extra):
+                result = self.plan("-L", "release/3.0.0", *extra)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("require the Isaac Sim layer", result.stderr)
+                result = self.plan("-I", "6.1.0.0", "-L", "release/3.0.0", "-e", "core", *extra)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_unknown_and_v2_backend_selections_are_rejected(self):
+        for extra in (("-B", "invalid"), ("-V", "invalid")):
+            self.assertNotEqual(self.plan("-L", "release/3.0.0", *extra).returncode, 0)
+        result = self.plan("-I", "5.1.0", "-L", "v2.3.2", "-B", "newton")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires Isaac Lab 3.x", result.stderr)
+
+    def test_backend_additions_preserve_default_packages(self):
+        result = self.plan("-L", "release/3.0.0", "-B", "ovphysx", "-V", "rerun")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "packages: mimic,teleop,newton,rl,visualizer,ov[ovphysx],visualizer[rerun]",
+            result.stdout,
+        )
+
+    def test_effective_selectors_reach_docker_build(self):
+        with tempfile.TemporaryDirectory() as directory:
+            docker = Path(directory) / "docker"
+            log = Path(directory) / "calls"
+            docker.write_text("""#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:3] != ['buildx', 'version']:
+    with open(os.environ['LAB_BUILD_LOG'], 'a') as log:
+        log.write(json.dumps(sys.argv[1:]) + '\\n')
+""")
+            docker.chmod(0o755)
+            env = dict(
+                os.environ, PATH=f"{directory}:{os.environ['PATH']}", LAB_BUILD_LOG=str(log)
+            )
+            result = subprocess.run(
+                [
+                    str(ROOT / "creator/scripts/run_env.sh"),
+                    "-b",
+                    "-o",
+                    "24.04",
+                    "-v",
+                    "jazzy",
+                    "-L",
+                    "release/3.0.0",
+                    "-e",
+                    "rl[rsl-rl]",
+                    "-B",
+                    "ovphysx",
+                    "-V",
+                    "viser",
+                ],
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = [json.loads(line) for line in log.read_text().splitlines()]
+            lab = next(
+                call for call in calls if any(arg.endswith("Dockerfile.isaaclab") for arg in call)
+            )
+            self.assertIn("ISAACLAB_INSTALL=rl[rsl-rl],ov[ovphysx],visualizer[viser]", lab)
+
     def test_v2_with_sim_remains_available(self):
         result = self.plan("-I", "5.1.0", "-L", "v2.3.2", "-e", "none")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -79,6 +164,8 @@ class PlanTests(unittest.TestCase):
                 "release/3.0.0",
                 "8",
                 "newton,rl[rsl-rl],visualizer[newton]",
+                "3",  # OV PhysX
+                "4",  # Viser
                 "n",
                 "n",
                 "admin",
@@ -103,6 +190,8 @@ class PlanTests(unittest.TestCase):
             args = shlex.split(command)
             self.assertEqual(args[args.index("-e") + 1], answers[9])
             self.assertEqual(args[args.index("-j") + 1], "legacy")
+            self.assertEqual(args[args.index("-B") + 1], "ovphysx")
+            self.assertEqual(args[args.index("-V") + 1], "viser")
             self.assertEqual(args[args.index("-N") + 1], "test-envs")
             args[0] = str(ROOT / "creator/scripts/run_env.sh")
             args[args.index("-b")] = "-p"

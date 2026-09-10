@@ -31,6 +31,11 @@ Stages:
   -j <method>       Isaac Lab: auto | python-env (with -I) | legacy (Kit-less)
   -e <selectors>    Isaac Lab packages: default | core | 'newton,rl[rsl-rl]'
                     default invokes upstream -i without a selector.
+  -B <physics>     Lab physics support: default | newton | ovphysx | both |
+                    isaacsim | all (isaacsim/all require -I)
+  -V <visualizer>  Lab visualization: default | newton | rerun | viser | kit | all
+                    kit requires -I; all adds Newton, Rerun and Viser.
+                    -B/-V add to -e; use -e core for only the selected extras.
   -z                Add the Zenoh RMW layer
   -s                Add the Gazebo simulation layer
 
@@ -105,7 +110,7 @@ function optional_arg() {
     fi
 }
 
-while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:cmILzbsrpgPXh" opt; do
+while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:cmILzbsrpgPXh" opt; do
     case ${opt} in
         o) STAGES_OS="${OPTARG}" ;;
         v) STAGES_ROS="${OPTARG}" ;;
@@ -119,6 +124,8 @@ while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:cmILzbsrpgPXh" opt; do
         c) STAGES_USE_CUDA=true;  optional_arg; CUDA_REQUEST="${OPT_VALUE}" ;;
         m) STAGES_MUJOCO=true;    optional_arg; MUJOCO_REQUEST="${OPT_VALUE}" ;;
         I) STAGES_ISAACSIM=true;  optional_arg; ISAACSIM_REQUEST="${OPT_VALUE}" ;;
+        B) STAGES_ISAACLAB_PHYSICS="${OPTARG}" ;;
+        V) STAGES_ISAACLAB_VISUALIZER="${OPTARG}" ;;
         j) STAGES_ISAACLAB_METHOD="${OPTARG}" ;;
         e) STAGES_ISAACLAB_INSTALL="${OPTARG}" ;;
         L) STAGES_ISAACLAB=true;  optional_arg; ISAACLAB_REQUEST="${OPT_VALUE}" ;;

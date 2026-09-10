@@ -278,6 +278,8 @@ stages::init_selection() {
     STAGES_ISAACLAB_VERSION="${STAGES_DEFAULT_ISAACLAB}"
     STAGES_ISAACLAB_METHOD="auto"
     STAGES_ISAACLAB_INSTALL="default"
+    STAGES_ISAACLAB_PHYSICS="default"
+    STAGES_ISAACLAB_VISUALIZER="default"
     STAGES_USERNAME="admin"
     STAGES_USER_UID="$(id -u)"
     STAGES_USER_GID="$(id -g)"
@@ -349,11 +351,58 @@ stages::isaaclab_method() {
     fi
 }
 
+# Fold backend choices into upstream's installation selectors. These add
+# support to the base package selection; they do not set task runtime defaults.
+stages::isaaclab_effective_install() {
+    local packages="${STAGES_ISAACLAB_INSTALL}" extras="" selector
+    case "${STAGES_ISAACLAB_PHYSICS}" in
+        newton) extras=newton ;;
+        ovphysx) extras='ov[ovphysx]' ;;
+        both|all) extras='newton,ov[ovphysx]' ;;
+        # Isaac Sim is supplied by its separate layer, not reinstalled by Lab.
+        default|isaacsim) ;;
+    esac
+    case "${STAGES_ISAACLAB_VISUALIZER}" in
+        default) ;;
+        *)
+            selector="visualizer[${STAGES_ISAACLAB_VISUALIZER}]"
+            extras+="${extras:+,}${selector}"
+            ;;
+    esac
+    if [[ -z "$extras" ]]; then
+        echo "$packages"
+        return
+    fi
+    case "$packages" in
+        # Preserve the documented 3.x default extras when adding support.
+        default|all) packages='mimic,teleop,newton,rl,visualizer' ;;
+        core|none) packages="" ;;
+    esac
+    printf '%s%s%s\n' "$packages" "${packages:+,}" "$extras"
+}
+
 stages::validate_isaaclab() {
     [[ "${STAGES_ISAACLAB}" == true ]] || return 0
     local method major
     method="$(stages::isaaclab_method)"
     major="$(stages::isaaclab_major "${STAGES_ISAACLAB_VERSION}")"
+    case "${STAGES_ISAACLAB_PHYSICS}" in
+        default|newton|ovphysx|isaacsim|both|all) ;;
+        *) stages::error "Unknown Isaac Lab physics: ${STAGES_ISAACLAB_PHYSICS}"; return 1 ;;
+    esac
+    case "${STAGES_ISAACLAB_VISUALIZER}" in
+        default|newton|rerun|viser|kit|all) ;;
+        *) stages::error "Unknown Isaac Lab visualizer: ${STAGES_ISAACLAB_VISUALIZER}"; return 1 ;;
+    esac
+    if (( major < 3 )) && [[ "${STAGES_ISAACLAB_PHYSICS}:${STAGES_ISAACLAB_VISUALIZER}" != default:default ]]; then
+        stages::error "Physics and visualization package selection requires Isaac Lab 3.x."
+        return 1
+    fi
+    if [[ "${STAGES_ISAACSIM}" != true ]] &&
+       [[ "${STAGES_ISAACLAB_PHYSICS}" == isaacsim || "${STAGES_ISAACLAB_PHYSICS}" == all || "${STAGES_ISAACLAB_VISUALIZER}" == kit ]]; then
+        stages::error "Isaac Sim PhysX and Kit visualization require the Isaac Sim layer (-I)."
+        return 1
+    fi
     case "$method" in
         python-env)
             if [[ "${STAGES_ISAACSIM}" != true ]]; then
@@ -477,17 +526,18 @@ stages::build_plan() {
     # --- Isaac Lab ----------------------------------------------------------
     if [[ "${STAGES_ISAACLAB}" == true ]]; then
         stages::tag_add "isaaclab$(stages::tag_slug "${STAGES_ISAACLAB_VERSION#v}")"
-        local lab_method
+        local lab_method lab_install
+        lab_install="$(stages::isaaclab_effective_install)"
         lab_method="$(stages::isaaclab_method)"
         stages::tag_add "$lab_method"
-        if [[ "${STAGES_ISAACLAB_INSTALL}" != default ]]; then
-            stages::tag_add "packages$(printf %s "${STAGES_ISAACLAB_INSTALL}" | sha256sum | cut -c1-8)"
+        if [[ "${lab_install}" != default ]]; then
+            stages::tag_add "packages$(printf %s "${lab_install}" | sha256sum | cut -c1-8)"
         fi
         image="$(stages::layer_image isaaclab)"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.isaaclab" "${base_image}" "${image}" \
             "--build-arg" "ISAACLAB_VERSION=${STAGES_ISAACLAB_VERSION}" \
             "--build-arg" "ISAACLAB_METHOD=${lab_method}" \
-            "--build-arg" "ISAACLAB_INSTALL=${STAGES_ISAACLAB_INSTALL}"
+            "--build-arg" "ISAACLAB_INSTALL=${lab_install}"
         base_image="${image}"
     fi
 
@@ -536,7 +586,8 @@ stages::print_plan() {
         printf '  %d. %-28s %s\n' "${i}" "${dockerfile#"${CREATOR_DIR}/"}" "${image}"
         printf '     %-28s from %s\n' "" "${base}"
         if [[ "$dockerfile" == */Dockerfile.isaaclab ]]; then
-            printf '     installation: %s; packages: %s\n' "$(stages::isaaclab_method)" "${STAGES_ISAACLAB_INSTALL}"
+            printf '     installation: %s; packages: %s\n' "$(stages::isaaclab_method)" "$(stages::isaaclab_effective_install)"
+            printf '     physics: %s; visualization: %s\n' "${STAGES_ISAACLAB_PHYSICS}" "${STAGES_ISAACLAB_VISUALIZER}"
         fi
         i=$((i + 1))
     done

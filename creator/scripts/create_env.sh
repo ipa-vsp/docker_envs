@@ -154,7 +154,8 @@ equivalent_command() {
     [[ "$STAGES_MUJOCO" == true ]] && cmd+=(-m "$STAGES_MUJOCO_VERSION")
     [[ "$STAGES_ISAACSIM" == true ]] && cmd+=(-I "$STAGES_ISAACSIM_VERSION")
     [[ "$STAGES_ISAACLAB" == true ]] && cmd+=(-L "$STAGES_ISAACLAB_VERSION"
-        -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL")
+        -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL"
+        -B "$STAGES_ISAACLAB_PHYSICS" -V "$STAGES_ISAACLAB_VISUALIZER")
     [[ "$STAGES_ZENOH" == true ]] && cmd+=(-z)
     [[ "$STAGES_SIMULATION" == true ]] && cmd+=(-s)
     cmd+=(-n "$STAGES_USERNAME" -U "$STAGES_USER_UID" -G "$STAGES_USER_GID")
@@ -258,7 +259,13 @@ if ask_yes_no "Add the Isaac Lab layer?" "no"; then
     INSTALL_VALUES=(default)
     for fw in none rsl_rl rl_games skrl sb3 all; do
         selector="$(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "$fw")"
-        INSTALL_LABELS+=("${fw} (${selector})")
+        if [[ "$fw" == none ]]; then
+            INSTALL_LABELS+=("core (no optional packages; ${selector})")
+        elif [[ "$fw" == all ]]; then
+            INSTALL_LABELS+=("all RL frameworks (${selector})")
+        else
+            INSTALL_LABELS+=("${fw} (${selector})")
+        fi
         INSTALL_VALUES+=("$selector")
     done
     INSTALL_LABELS+=("custom (comma-separated package selectors)")
@@ -269,6 +276,28 @@ if ask_yes_no "Add the Isaac Lab layer?" "no"; then
     else
         STAGES_ISAACLAB_INSTALL="${INSTALL_VALUES[CHOICE_INDEX-1]}"
     fi
+    if (( $(stages::isaaclab_major "${STAGES_ISAACLAB_VERSION}") >= 3 )); then
+        PHYSICS_LABELS=("default (keep package selection)" "newton (Newton physics)"
+                        "ovphysx (OV PhysX runtime)" "both (Newton + OV PhysX)")
+        if [[ "${STAGES_ISAACSIM}" == true ]]; then
+            PHYSICS_LABELS+=("isaacsim (Isaac Sim PhysX)" "all (Newton + OV PhysX + Isaac Sim)")
+        fi
+        ask_choice "Which physics support should Isaac Lab include?" 1 "${PHYSICS_LABELS[@]}"
+        STAGES_ISAACLAB_PHYSICS="${CHOICE%% *}"
+
+        VISUALIZER_LABELS=("default (keep package selection)" "newton (Newton viewer)"
+                           "rerun (Rerun viewer)" "viser (Viser web viewer)"
+                           "all (Newton + Rerun + Viser)")
+        if [[ "${STAGES_ISAACSIM}" == true ]]; then
+            VISUALIZER_LABELS+=("kit (Isaac Sim Kit viewer)")
+        fi
+        ask_choice "Which visualization support should Isaac Lab include?" 1 "${VISUALIZER_LABELS[@]}"
+        STAGES_ISAACLAB_VISUALIZER="${CHOICE%% *}"
+        stages::info "These choices add packages. Select physics and visualization at task launch."
+    else
+        stages::info "Isaac Lab 2.x uses Isaac Sim physics and Kit visualization."
+    fi
+
 fi
 
 # --- Stage 8: extras -------------------------------------------------------
@@ -311,6 +340,11 @@ printf '  %-16s %s\n' "Usage:"     "${STAGES_USAGE}"
 printf '  %-16s %s\n' "MuJoCo:"    "$([[ ${STAGES_MUJOCO} == true ]] && echo "${STAGES_MUJOCO_VERSION} (gymnasium ${STAGES_GYM_VERSION})" || echo "-")"
 printf '  %-16s %s\n' "Isaac Sim:" "$([[ ${STAGES_ISAACSIM} == true ]] && echo "${STAGES_ISAACSIM_VERSION}" || echo "-")"
 printf '  %-16s %s\n' "Isaac Lab:" "$([[ ${STAGES_ISAACLAB} == true ]] && echo "${STAGES_ISAACLAB_VERSION} ($(stages::isaaclab_method); packages: ${STAGES_ISAACLAB_INSTALL})" || echo "-")"
+if [[ "${STAGES_ISAACLAB}" == true ]]; then
+    printf '  %-16s %s\n' "Lab physics:" "${STAGES_ISAACLAB_PHYSICS}"
+    printf '  %-16s %s\n' "Lab visualization:" "${STAGES_ISAACLAB_VISUALIZER}"
+    printf '  %-16s %s\n' "Lab selectors:" "$(stages::isaaclab_effective_install)"
+fi
 printf '  %-16s %s\n' "Zenoh:"     "$([[ ${STAGES_ZENOH} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "Gazebo:"    "$([[ ${STAGES_SIMULATION} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "User:"      "${STAGES_USERNAME} (${STAGES_USER_UID}:${STAGES_USER_GID})"

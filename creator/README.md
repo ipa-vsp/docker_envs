@@ -26,6 +26,7 @@ These are dependent development images; each retains its parent's tools.
 | MuJoCo + Gymnasium | `-m [version]` |
 | Isaac Sim / Isaac Lab | `-I [version]`, `-L [tag-or-branch]` |
 | Isaac Lab installation | `-j auto\|python-env\|legacy`, `-e <selectors>` |
+| Lab physics / visualization | `-B <physics>`, `-V <visualizer>` |
 | Zenoh / Gazebo | `-z`, `-s` |
 | Account | `-n <name>`, `-U <uid>`, `-G <gid>`; defaults: admin, host UID/GID |
 | Naming | `-N <namespace>`, `-i <final-image>`; default namespace: `docker_envs` |
@@ -184,6 +185,39 @@ Select Sim through `-I`, not the `isaacsim` package selector, to keep its versio
 and runtime metadata in the separate Sim layer.
 The menu's `all` framework choice selects all four RL frameworks explicitly,
 not every optional feature. Quote selectors containing brackets or commas.
+
+The interactive creator also asks which physics and visualization support to
+include. Equivalent command-line options are:
+
+| Option | Choices |
+|---|---|
+| `-B` physics | `default`, `newton`, `ovphysx`, `both` (Newton + OV PhysX), `isaacsim`, `all` |
+| `-V` visualization | `default`, `newton`, `rerun`, `viser`, `kit`, `all` (Newton + Rerun + Viser) |
+
+Physics `isaacsim`/`all` and visualization `kit` require `-I`; the interactive
+menus only offer them when Sim is selected. These menus target Lab 3.x. For 2.x,
+the creator retains the existing Sim/Kit installation and package choices.
+
+```bash
+# Core plus an RL framework, OV PhysX, and the Viser web viewer:
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy -L release/3.0.0 \
+  -e 'rl[rsl-rl]' -B ovphysx -V viser
+
+# Isaac Sim PhysX and Kit support:
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 \
+  -L release/3.0.0 -e core -B isaacsim -V kit
+```
+
+Backend choices **add** to `-e`; `default` keeps the package selection unchanged.
+Use `-e core` to avoid the upstream default optional packages. Adding to
+`-e default` or `-e all` preserves their documented Lab 3.x optional packages
+before appending the requested selectors. Custom `-e` choices also remain intact.
+The summary shows the effective selectors passed to Docker, and image tags hash
+that effective package selection.
+
+These options install support, not a task's default physics or display. Select
+those when launching the task (for example `physics=ovphysx` or `--viz viser`,
+where supported by the task). GPU and display requirements still apply.
 
 Kit-less builds create Python 3.12 under `/opt/isaac-venv`. Full builds reuse the
 Sim venv and require Sim 6.x for Lab 3.x. Sim is installed with NVIDIA's extra
