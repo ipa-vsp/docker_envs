@@ -12,18 +12,14 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-ARG ISAACSIM_VERSION=6.0.1.0
+ARG ISAACSIM_VERSION=6.1.0.0
 ARG ISAACSIM_EXTRAS=all,extscache
 ARG PYTHON_VERSION=3.12
 ARG TORCH_VERSION=2.11.0
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
-# Pinned BY isaacsim-core, not chosen independently: 6.0.1.0 requires exactly
-# 0.2.0. It has to be installed in its own step, before isaacsim, because uv
-# only considers the first index that carries a package -- once
-# https://pypi.nvidia.com is in play it would resolve mujoco-usd-converter there,
-# and that index does not publish 0.2.0. Installing it from PyPI first satisfies
-# the constraint. Bump only in lockstep with ISAACSIM_VERSION.
-ARG USD_CONVERTER_VERSION=0.2.0
+ARG TORCHVISION_VERSION=0.26.0
+# Empty selects the documented platform index: amd64 cu128, arm64 cu130.
+ARG TORCH_INDEX_URL=""
+ARG TARGETARCH
 ARG ISAAC_VENV=/opt/isaac-venv
 
 # This layer pulls ~8 GB of wheels (isaacsim-extscache-kit alone is 5.5 GiB).
@@ -37,7 +33,7 @@ ARG UV_CONCURRENT_DOWNLOADS=8
 ENV DEBIAN_FRONTEND=noninteractive
 ENV UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
 ENV UV_CONCURRENT_DOWNLOADS=${UV_CONCURRENT_DOWNLOADS}
-ENV UV_CACHE_DIR=/root/.cache/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -64,15 +60,22 @@ ENV OMNI_KIT_ACCEPT_EULA=YES
 # (a timeout, a dropped connection) does not re-download everything on the next
 # attempt -- a failed RUN layer is discarded, but the cache mount persists.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
-    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install --upgrade pip \
-    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
-        "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}" \
-    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
-        "mujoco-usd-converter==${USD_CONVERTER_VERSION}" \
-    && VIRTUAL_ENV="${ISAAC_VENV}" uv pip install \
-        "isaacsim[${ISAACSIM_EXTRAS}]==${ISAACSIM_VERSION}" \
-        --extra-index-url https://pypi.nvidia.com
+    export UV_CACHE_DIR=/root/.cache/uv \
+    && uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
+    && source "${ISAAC_VENV}/bin/activate" \
+    && uv pip install --upgrade pip \
+    && uv pip install "isaacsim[${ISAACSIM_EXTRAS}]==${ISAACSIM_VERSION}" \
+        --extra-index-url https://pypi.nvidia.com \
+        --index-strategy unsafe-best-match --prerelease=allow \
+    && if [ -z "${TORCH_INDEX_URL}" ]; then \
+        case "${TARGETARCH}" in \
+            amd64) TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 ;; \
+            arm64) TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130 ;; \
+            *) echo "Unsupported Isaac architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+        esac; \
+    fi \
+    && uv pip install --upgrade "torch==${TORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}" \
+        --index-url "${TORCH_INDEX_URL}"
 
 # Deliberately NOT prepended to PATH: the Isaac interpreter is a different
 # CPython than the one ROS 2 was built against, so prepending it would break

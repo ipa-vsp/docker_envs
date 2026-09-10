@@ -25,10 +25,12 @@ Stages:
   -c [<version>]    CUDA + cuDNN devel base; "latest" or e.g. 13.3.1 (default: latest)
   -u <usage>        manipulation | navigation | both | skip          (default: skip)
   -m [<version>]    MuJoCo layer; "latest" or e.g. 3.12.0            (default: latest)
-  -I [<version>]    Isaac Sim layer; "latest" or e.g. 6.0.1.0        (default: latest)
+  -I [<version>]    Isaac Sim layer; "latest" or e.g. 6.1.0.0        (default: latest)
   -L [<version>]    Isaac Lab layer; "latest", a tag (v2.3.2) or a branch
                     (main, release/3.0.0)                            (default: latest)
-                    Requires -I.
+  -j <method>       Isaac Lab: auto | python-env (with -I) | legacy (Kit-less)
+  -e <selectors>    Isaac Lab packages: default | core | 'newton,rl[rsl-rl]'
+                    default invokes upstream -i without a selector.
   -z                Add the Zenoh RMW layer
   -s                Add the Gazebo simulation layer
 
@@ -103,7 +105,7 @@ function optional_arg() {
     fi
 }
 
-while getopts "o:v:u:i:N:w:n:U:G:a:M:d:cmILzbsrpgPXh" opt; do
+while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:cmILzbsrpgPXh" opt; do
     case ${opt} in
         o) STAGES_OS="${OPTARG}" ;;
         v) STAGES_ROS="${OPTARG}" ;;
@@ -117,6 +119,8 @@ while getopts "o:v:u:i:N:w:n:U:G:a:M:d:cmILzbsrpgPXh" opt; do
         c) STAGES_USE_CUDA=true;  optional_arg; CUDA_REQUEST="${OPT_VALUE}" ;;
         m) STAGES_MUJOCO=true;    optional_arg; MUJOCO_REQUEST="${OPT_VALUE}" ;;
         I) STAGES_ISAACSIM=true;  optional_arg; ISAACSIM_REQUEST="${OPT_VALUE}" ;;
+        j) STAGES_ISAACLAB_METHOD="${OPTARG}" ;;
+        e) STAGES_ISAACLAB_INSTALL="${OPTARG}" ;;
         L) STAGES_ISAACLAB=true;  optional_arg; ISAACLAB_REQUEST="${OPT_VALUE}" ;;
         z) STAGES_ZENOH=true ;;
         s) STAGES_SIMULATION=true ;;

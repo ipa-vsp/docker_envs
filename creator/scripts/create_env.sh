@@ -148,17 +148,21 @@ ask_version() {
 # Print the ./run_env.sh invocation matching the answers just given, so an
 # interactive session can be replayed non-interactively (scripts, CI, notes).
 equivalent_command() {
-    local cmd="./run_env.sh -b -o ${STAGES_OS} -v ${STAGES_ROS}"
-    [[ "${STAGES_USE_CUDA}" == true ]]   && cmd+=" -c ${STAGES_CUDA_VERSION}"
-    [[ "${STAGES_USAGE}" != skip ]]      && cmd+=" -u ${STAGES_USAGE}"
-    [[ "${STAGES_MUJOCO}" == true ]]     && cmd+=" -m ${STAGES_MUJOCO_VERSION}"
-    [[ "${STAGES_ISAACSIM}" == true ]]   && cmd+=" -I ${STAGES_ISAACSIM_VERSION}"
-    [[ "${STAGES_ISAACLAB}" == true ]]   && cmd+=" -L ${STAGES_ISAACLAB_VERSION}"
-    [[ "${STAGES_ZENOH}" == true ]]      && cmd+=" -z"
-    [[ "${STAGES_SIMULATION}" == true ]] && cmd+=" -s"
-    cmd+=" -n ${STAGES_USERNAME} -U ${STAGES_USER_UID} -G ${STAGES_USER_GID}"
-    [[ "${STAGES_FINAL_IMAGE}" != "${DERIVED_IMAGE}" ]] && cmd+=" -i ${STAGES_FINAL_IMAGE}"
-    echo "    ${cmd}"
+    local -a cmd=(./run_env.sh -b -o "$STAGES_OS" -v "$STAGES_ROS" -N "$STAGES_NAMESPACE")
+    [[ "$STAGES_USE_CUDA" == true ]] && cmd+=(-c "$STAGES_CUDA_VERSION")
+    [[ "$STAGES_USAGE" != skip ]] && cmd+=(-u "$STAGES_USAGE")
+    [[ "$STAGES_MUJOCO" == true ]] && cmd+=(-m "$STAGES_MUJOCO_VERSION")
+    [[ "$STAGES_ISAACSIM" == true ]] && cmd+=(-I "$STAGES_ISAACSIM_VERSION")
+    [[ "$STAGES_ISAACLAB" == true ]] && cmd+=(-L "$STAGES_ISAACLAB_VERSION"
+        -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL")
+    [[ "$STAGES_ZENOH" == true ]] && cmd+=(-z)
+    [[ "$STAGES_SIMULATION" == true ]] && cmd+=(-s)
+    cmd+=(-n "$STAGES_USERNAME" -U "$STAGES_USER_UID" -G "$STAGES_USER_GID")
+    [[ "$STAGES_FINAL_IMAGE" != "$DERIVED_IMAGE" ]] && cmd+=(-i "$STAGES_FINAL_IMAGE")
+    printf '    '
+    printf '%q ' "${cmd[@]}"
+    printf '\n'
+
 }
 
 # --------------------------------------------------------------------------- #
@@ -239,23 +243,32 @@ fi
 
 # --- Stage 7: Isaac Lab ----------------------------------------------------
 stages::heading "Stage 7/9 - NVIDIA Isaac Lab"
-if [[ "${STAGES_ISAACSIM}" == true ]]; then
-    if ask_yes_no "Add the Isaac Lab layer?" "no"; then
-        STAGES_ISAACLAB=true
-        ask_version "Isaac Lab" isaaclab
-        STAGES_ISAACLAB_VERSION="${VERSION}"
-        # Isaac Lab 2.x and 3.x spell these differently; show what each choice
-        # actually becomes for the version selected above.
-        RL_LABELS=()
-        for fw in none rsl_rl rl_games skrl sb3 all; do
-            RL_LABELS+=("${fw} -> --install $(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "${fw}")")
-        done
-        ask_choice "Which reinforcement-learning framework should Isaac Lab install?" 1 \
-            "${RL_LABELS[@]}"
-        STAGES_ISAACLAB_RL="${CHOICE%% *}"
+if ask_yes_no "Add the Isaac Lab layer?" "no"; then
+    STAGES_ISAACLAB=true
+    ask_version "Isaac Lab" isaaclab
+    STAGES_ISAACLAB_VERSION="${VERSION}"
+    if [[ "${STAGES_ISAACSIM}" == true ]]; then
+        STAGES_ISAACLAB_METHOD=python-env
+        stages::info "Python environment with Isaac Sim: reuse the selected Sim layer."
+    else
+        STAGES_ISAACLAB_METHOD=legacy
+        stages::info "Legacy installer: create a Kit-less Python 3.12 environment (Isaac Lab 3.x)."
     fi
-else
-    stages::info "Skipped: Isaac Lab builds on the Isaac Sim layer, which was not selected."
+    INSTALL_LABELS=("default (upstream -i defaults)")
+    INSTALL_VALUES=(default)
+    for fw in none rsl_rl rl_games skrl sb3 all; do
+        selector="$(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "$fw")"
+        INSTALL_LABELS+=("${fw} (${selector})")
+        INSTALL_VALUES+=("$selector")
+    done
+    INSTALL_LABELS+=("custom (comma-separated package selectors)")
+    ask_choice "Which Isaac Lab packages should be installed?" 1 "${INSTALL_LABELS[@]}"
+    if (( CHOICE_INDEX > ${#INSTALL_VALUES[@]} )); then
+        ask_value "Selectors, e.g. newton,rl[rsl-rl],visualizer[newton]" core
+        STAGES_ISAACLAB_INSTALL="${VALUE}"
+    else
+        STAGES_ISAACLAB_INSTALL="${INSTALL_VALUES[CHOICE_INDEX-1]}"
+    fi
 fi
 
 # --- Stage 8: extras -------------------------------------------------------
@@ -297,7 +310,7 @@ printf '  %-16s %s\n' "ROS 2:"     "${STAGES_ROS}"
 printf '  %-16s %s\n' "Usage:"     "${STAGES_USAGE}"
 printf '  %-16s %s\n' "MuJoCo:"    "$([[ ${STAGES_MUJOCO} == true ]] && echo "${STAGES_MUJOCO_VERSION} (gymnasium ${STAGES_GYM_VERSION})" || echo "-")"
 printf '  %-16s %s\n' "Isaac Sim:" "$([[ ${STAGES_ISAACSIM} == true ]] && echo "${STAGES_ISAACSIM_VERSION}" || echo "-")"
-printf '  %-16s %s\n' "Isaac Lab:" "$([[ ${STAGES_ISAACLAB} == true ]] && echo "${STAGES_ISAACLAB_VERSION} (rl: ${STAGES_ISAACLAB_RL})" || echo "-")"
+printf '  %-16s %s\n' "Isaac Lab:" "$([[ ${STAGES_ISAACLAB} == true ]] && echo "${STAGES_ISAACLAB_VERSION} ($(stages::isaaclab_method); packages: ${STAGES_ISAACLAB_INSTALL})" || echo "-")"
 printf '  %-16s %s\n' "Zenoh:"     "$([[ ${STAGES_ZENOH} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "Gazebo:"    "$([[ ${STAGES_SIMULATION} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "User:"      "${STAGES_USERNAME} (${STAGES_USER_UID}:${STAGES_USER_GID})"

@@ -1,0 +1,203 @@
+"""Regression coverage for the two Isaac Lab source-installation paths."""
+
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class PlanTests(unittest.TestCase):
+    def plan(self, *args):
+        return subprocess.run(
+            [str(ROOT / "creator/scripts/run_env.sh"), "-p", "-o", "24.04", "-v", "jazzy", *args],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_kitless_plan_does_not_include_sim(self):
+        result = self.plan("-L", "release/3.0.0", "-e", "newton,rl[rsl-rl],visualizer[newton]")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("Dockerfile.isaacsim", result.stdout)
+        self.assertIn(
+            "installation: legacy; packages: newton,rl[rsl-rl],visualizer[newton]", result.stdout
+        )
+
+    def test_full_sim_plan_and_package_variants(self):
+        tags = []
+        for selector in ("default", "core", "rl[rsl-rl]"):
+            result = self.plan("-I", "6.1.0.0", "-L", "release/3.0.0", "-e", selector)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Dockerfile.isaacsim", result.stdout)
+            self.assertIn(f"installation: python-env; packages: {selector}", result.stdout)
+            tags.append(
+                next(line for line in result.stdout.splitlines() if "Final image:" in line)
+            )
+        self.assertEqual(len(set(tags)), 3)
+
+    def test_invalid_combinations_fail_before_building(self):
+        for args in (
+            ("-L", "release/3.0.0", "-j", "python-env"),
+            ("-I", "6.1.0.0", "-L", "release/3.0.0", "-j", "legacy"),
+            ("-I", "5.1.0", "-L", "release/3.0.0"),
+            ("-L", "v2.3.2"),
+            ("-L", "release/3.0.0", "-j", "unknown"),
+            ("-L", "release/3.0.0", "-e", "rl[broken"),
+            ("-L", "release/3.0.0", "-e", "core|injected"),
+            ("-L", "release/3.0.0", "-e", "isaacsim"),
+        ):
+            with self.subTest(args=args):
+                result = self.plan(*args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("Build plan", result.stdout)
+
+    def test_v2_with_sim_remains_available(self):
+        result = self.plan("-I", "5.1.0", "-L", "v2.3.2", "-e", "none")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_interactive_command_preserves_selectors_and_namespace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            curl = Path(directory) / "curl"
+            curl.write_text("#!/bin/sh\nexit 7\n")
+            curl.chmod(0o755)
+            git = Path(directory) / "git"
+            git.write_text("#!/bin/sh\nexit 7\n")
+            git.chmod(0o755)
+            env = dict(os.environ, PATH=f"{directory}:{os.environ['PATH']}")
+            answers = [
+                "2",
+                "n",
+                "3",
+                "4",
+                "n",
+                "n",
+                "y",
+                "release/3.0.0",
+                "8",
+                "newton,rl[rsl-rl],visualizer[newton]",
+                "n",
+                "n",
+                "admin",
+                "12345",
+                "23456",
+                "test-envs",
+                "",
+            ]
+            result = subprocess.run(
+                [str(ROOT / "creator/scripts/create_env.sh"), "--dry-run"],
+                input="\n".join(answers) + "\n",
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            command = next(
+                line.strip()
+                for line in result.stdout.splitlines()
+                if line.strip().startswith("./run_env.sh")
+            )
+            args = shlex.split(command)
+            self.assertEqual(args[args.index("-e") + 1], answers[9])
+            self.assertEqual(args[args.index("-j") + 1], "legacy")
+            self.assertEqual(args[args.index("-N") + 1], "test-envs")
+            args[0] = str(ROOT / "creator/scripts/run_env.sh")
+            args[args.index("-b")] = "-p"
+            replay = subprocess.run(args, env=env, capture_output=True, text=True)
+            self.assertEqual(replay.returncode, 0, replay.stderr)
+            for line in result.stdout.splitlines():
+                if "Final image:" in line:
+                    self.assertIn(line, replay.stdout)
+
+
+class InstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.temp = Path(self.directory.name)
+        self.lab = self.temp / "IsaacLab"
+        (self.lab / "source/isaaclab/isaaclab/cli").mkdir(parents=True)
+        self.venv = self.temp / "venv"
+        (self.venv / "bin").mkdir(parents=True)
+        self.log = self.temp / "calls.jsonl"
+        fake = """#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
+    log.write(json.dumps([os.path.basename(sys.argv[0]), *sys.argv[1:]]) + '\\n')
+"""
+        for path in (self.temp / "uv", self.venv / "bin/python", self.lab / "isaaclab.sh"):
+            path.write_text(fake)
+            path.chmod(0o755)
+        (self.venv / "bin/activate").write_text(
+            f"export VIRTUAL_ENV={shlex.quote(str(self.venv))}\n"
+            f'export PATH={shlex.quote(str(self.venv / "bin"))}:$PATH\n'
+        )
+        self.env = dict(
+            os.environ,
+            PATH=f"{self.temp}:{os.environ['PATH']}",
+            ISAACLAB_DIR=str(self.lab),
+            ISAAC_VENV=str(self.venv),
+            INSTALL_TEST_LOG=str(self.log),
+        )
+
+    def install(self, method, selector="default"):
+        return subprocess.run(
+            ["bash", str(ROOT / "creator/common/install_isaaclab.sh")],
+            env=dict(self.env, ISAACLAB_METHOD=method, ISAACLAB_INSTALL=selector),
+            capture_output=True,
+            text=True,
+        )
+
+    def test_default_is_a_bare_install_flag(self):
+        result = self.install("legacy")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertIn(["uv", "venv", "--python", "3.12", "--seed", str(self.venv)], calls)
+        self.assertEqual(calls[-1], ["isaaclab.sh", "-i"])
+
+    def test_python_env_reuses_sim_and_preserves_selectors(self):
+        selector = "newton,rl[rsl-rl],visualizer[newton]"
+        result = self.install("python-env", selector)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertFalse(any(call[:2] == ["uv", "venv"] for call in calls))
+        self.assertEqual(calls[-1], ["isaaclab.sh", "-i", selector])
+
+    def test_missing_sim_environment_fails(self):
+        (self.venv / "bin/python").unlink()
+        self.assertNotEqual(self.install("python-env").returncode, 0)
+        self.assertFalse(self.log.exists())
+
+    def test_sim_installs_platform_torch_and_nvidia_resolution_options(self):
+        dockerfile = (ROOT / "creator/common/Dockerfile.isaacsim").read_text()
+        instruction = dockerfile.split("RUN --mount=type=cache", 1)[1].split("# Deliberately", 1)[
+            0
+        ]
+        command = "\n".join(instruction.splitlines()[1:])
+        for architecture, index in (("amd64", "cu128"), ("arm64", "cu130")):
+            with self.subTest(architecture=architecture):
+                self.log.unlink(missing_ok=True)
+                env = dict(
+                    self.env,
+                    TARGETARCH=architecture,
+                    PYTHON_VERSION="3.12",
+                    ISAACSIM_VERSION="6.1.0.0",
+                    ISAACSIM_EXTRAS="all,extscache",
+                    TORCH_VERSION="2.11.0",
+                    TORCHVISION_VERSION="0.26.0",
+                    TORCH_INDEX_URL="",
+                )
+                result = subprocess.run(
+                    ["bash", "-e", "-c", command], env=env, capture_output=True, text=True
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+                sim = next(call for call in calls if "isaacsim[all,extscache]==6.1.0.0" in call)
+                self.assertIn("unsafe-best-match", sim)
+                self.assertIn("--prerelease=allow", sim)
+                self.assertIn("torch==2.11.0", calls[-1])
+                self.assertIn("torchvision==0.26.0", calls[-1])
+                self.assertIn(f"https://download.pytorch.org/whl/{index}", calls[-1])

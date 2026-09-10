@@ -17,6 +17,9 @@ mkdir -p "$HOME/colcon_ws/src"
 creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w "$HOME/colcon_ws"
 ```
 
+Isaac Lab 3.x can also be built without Isaac Sim using `-L release/3.0.0 -j legacy`.
+For the full Sim environment, use `-I 6.1.0.0 -L release/3.0.0 -j python-env`.
+
 For interactive stage selection, run `creator/scripts/create_env.sh`. To inspect
 a build without executing it, replace `-b` with `-p`. See the
 [creator guide](creator/README.md) for flags, Isaac configuration, and caching.

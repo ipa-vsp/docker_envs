@@ -36,6 +36,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check shell syntax and local plan
         run: |
+          bash -n creator/common/install_isaaclab.sh
+          bash -n creator/scripts/create_env.sh
           bash -n creator/common/create_user.sh
           bash -n creator/scripts/run_env.sh
           bash -n creator/scripts/workspace-entrypoint.sh

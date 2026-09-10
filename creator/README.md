@@ -24,7 +24,8 @@ These are dependent development images; each retains its parent's tools.
 | CUDA + cuDNN development base | `-c [version]` |
 | MoveIt / Nav2 | `-u manipulation\|navigation\|both\|skip` |
 | MuJoCo + Gymnasium | `-m [version]` |
-| Isaac Sim / Isaac Lab | `-I [version]`, `-L [tag-or-branch]`; Lab requires Sim |
+| Isaac Sim / Isaac Lab | `-I [version]`, `-L [tag-or-branch]` |
+| Isaac Lab installation | `-j auto\|python-env\|legacy`, `-e <selectors>` |
 | Zenoh / Gazebo | `-z`, `-s` |
 | Account | `-n <name>`, `-U <uid>`, `-G <gid>`; defaults: admin, host UID/GID |
 | Naming | `-N <namespace>`, `-i <final-image>`; default namespace: `docker_envs` |
@@ -156,27 +157,60 @@ host-wide kernel settings.
 
 ## Isaac Sim and Isaac Lab
 
+The creator supports both documented source-installation paths:
+[legacy installer](https://isaac-sim.github.io/IsaacLab/release/3.0.0/source/setup/installation/index.html#installation-legacy-installer)
+and [Python environment with Isaac Sim](https://isaac-sim.github.io/IsaacLab/release/3.0.0/source/setup/installation/index.html#installation-method-python-env).
+
 ```bash
-creator/scripts/run_env.sh -b -o 24.04 -v jazzy -c -I -L
-# Use the final image name printed by the builder:
-creator/scripts/run_env.sh -r -i <final-image> -w "$HOME/colcon_ws"
+# Kit-less Isaac Lab 3.x: no Isaac Sim layer.
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
+  -L release/3.0.0 -j legacy -e 'newton,rl[rsl-rl],visualizer[newton]'
+
+# Full Isaac Sim + Isaac Lab in the same Python environment.
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
+  -I 6.1.0.0 -L release/3.0.0 -j python-env
 ```
 
-The creator installs Isaac Sim into `/opt/isaac-venv` with a uv-managed Python.
-It stays off the default PATH so ROS uses the distribution interpreter:
+`-j auto` (the default) chooses `python-env` when `-I` is selected and `legacy`
+otherwise. The interactive `create_env.sh` offers Lab even if Sim was skipped,
+shows the resulting method, and includes method, selectors, and namespace in
+its reproducible command. Installation method and non-default selector hashes
+are part of image tags so package variants do not overwrite each other.
+
+`-e default` runs `./isaaclab.sh -i` without a selector. For 3.x, this installs
+the core and upstream default optional packages. `-e core` installs core only;
+custom selectors can request Newton, RL frameworks, visualizers, or OV runtimes.
+Select Sim through `-I`, not the `isaacsim` package selector, to keep its version
+and runtime metadata in the separate Sim layer.
+The menu's `all` framework choice selects all four RL frameworks explicitly,
+not every optional feature. Quote selectors containing brackets or commas.
+
+Kit-less builds create Python 3.12 under `/opt/isaac-venv`. Full builds reuse the
+Sim venv and require Sim 6.x for Lab 3.x. Sim is installed with NVIDIA's extra
+index, `unsafe-best-match`, and prereleases enabled; Torch 2.11.0 and TorchVision
+0.26.0 use cu128 on amd64 and cu130 on arm64. The CUDA base version does not
+select the wheel index. The old independent converter pin has been removed.
+The current Sim fallback is 6.1.0.0; the Lab fallback is `release/3.0.0`.
+Explicit 2.x tags remain available with a compatible Sim layer and their older
+selectors (`none`, `rsl_rl`, etc.); Kit-less mode requires 3.x.
+
+Python installations live under `/opt/uv/python` so the non-root development
+account can access them. Neither venv replaces ROS's distribution Python:
 
 ```bash
 isaac-activate
-python -c "from isaacsim import SimulationApp"
-isaaclab -p scripts/tutorials/00_sim/create_empty.py
+cd /opt/IsaacLab
+# Full Sim verification (requires a compatible GPU/display):
+isaaclab -p scripts/tutorials/00_sim/create_empty.py --viz kit
 # Return to the ROS interpreter:
 deactivate
 ```
 
-Isaac Lab lives under `/opt/IsaacLab` and uses the same venv. These image-owned
-installations are shared dependencies; put writable training output in your
-workspace or home and select an output directory supported by your training
-script.
+Isaac Lab lives under `/opt/IsaacLab`. Keep writable training output in your
+workspace or home and select an output directory supported by the training
+script. Run the final image name printed by the builder with `run_env.sh -r`.
+For Kit-less GPU workloads, pass `-g` explicitly; automatic GPU/cache setup is
+triggered only by an Isaac Sim layer.
 
 The launcher detects `ISAACSIM_VERSION` in a local image and adds GPU access and
 persistent host directories under `~/docker/isaac-sim`. Override the root with

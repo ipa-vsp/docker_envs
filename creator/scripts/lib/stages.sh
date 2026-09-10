@@ -144,13 +144,10 @@ stages::cuda_versions() {
 STAGES_DEFAULT_CUDA="13.3.1"
 STAGES_DEFAULT_MUJOCO="3.12.0"
 STAGES_DEFAULT_GYM="1.3.0"
-STAGES_DEFAULT_ISAACSIM="6.0.1.0"
-STAGES_DEFAULT_ISAACLAB="v2.3.2"
+STAGES_DEFAULT_ISAACSIM="6.1.0.0"
+STAGES_DEFAULT_ISAACLAB="release/3.0.0"
 STAGES_DEFAULT_TORCH="2.11.0"
-# NOT a "latest" candidate: isaacsim-core pins mujoco-usd-converter to an exact
-# version (6.0.1.0 requires ==0.2.0), so installing a newer one makes the Isaac
-# Sim resolve fail outright. Bump this only in lockstep with ISAACSIM_VERSION.
-STAGES_DEFAULT_USD_CONVERTER="0.2.0"
+STAGES_DEFAULT_TORCHVISION="0.26.0"
 
 # stages::resolve_version <kind> <requested> [os]
 # Turns "latest" (or an empty value) into the newest version discovered online,
@@ -191,119 +188,20 @@ stages::isaacsim_python() {
     esac
 }
 
-# Published PyTorch CUDA wheel indexes, newest first.
-#
-# PyTorch does NOT publish one index per CUDA release: there is no cu133 for
-# CUDA 13.3.1, so deriving the name arithmetically from the CUDA version yields
-# a 403 and the whole layer fails. The list has to be read from the server.
-stages::torch_indexes() {
-    "${STAGES_CURL[@]}" https://download.pytorch.org/whl/ 2>/dev/null \
-        | grep -oE 'cu[0-9]{3}' | sort -uV | tac
-}
-
-# Does <index> publish <torch_version>?
-#   0 = yes
-#   1 = fetched successfully, not there
-#   2 = could not fetch (offline, rate limited, ...)
-# The third case must not be confused with the second: treating a failed fetch
-# as "not there" is how a transient blip silently picks the wrong index and
-# wastes a multi-GB build.
-stages::torch_index_has() {
-    local body
-    if ! body="$("${STAGES_CURL[@]}" "https://download.pytorch.org/whl/$1/torch/" 2>/dev/null)"; then
-        return 2
-    fi
-    [[ -z "${body}" ]] && return 2
-    grep -qF -- "torch-$2" <<<"${body}"
-}
-
-# stages::torch_index_url <cuda_version> [torch_version]
-#
-# Picks the newest published index that is not ahead of the selected CUDA and
-# actually carries the requested torch build. Both halves matter: cu132 exists
-# for CUDA 13.3 but only ships torch >= 2.12, while the torch 2.11.0 that the
-# Isaac Sim wheels pin lives in cu130.
-stages::torch_index_url() {
-    local cuda="$1" torch="${2:-}"
-    local major="${cuda%%.*}"
-    local minor="${cuda#*.}"; minor="${minor%%.*}"
-    local want=$(( major * 10 + minor ))
-
-    local -a candidates=()
-    local idx n
-    while read -r idx; do
-        [[ -z "${idx}" ]] && continue
-        n="${idx#cu}"
-        # Same CUDA major, and not newer than the CUDA we are building against.
-        if (( n / 10 == major && n <= want )); then
-            candidates+=("${idx}")
-        fi
-    done < <(stages::torch_indexes)
-
-    local probe_failed=false rc
-    for idx in "${candidates[@]}"; do
-        if [[ -z "${torch}" ]]; then
-            echo "https://download.pytorch.org/whl/${idx}"
-            return 0
-        fi
-        stages::torch_index_has "${idx}" "${torch}"; rc=$?
-        case ${rc} in
-            0) echo "https://download.pytorch.org/whl/${idx}"; return 0 ;;
-            2) probe_failed=true ;;
-        esac
-    done
-
-    # Known-good index per CUDA series, used whenever the online check could not
-    # give a definite answer. Guessing the newest candidate instead would pick an
-    # index that does not carry the pinned torch and fail the layer minutes in.
-    local fallback
-    case "${major}" in
-        13) fallback="cu130" ;;
-        12) fallback="cu128" ;;
-        11) fallback="cu118" ;;
-        *)  fallback="cu130" ;;
-    esac
-
-    if [[ "${probe_failed}" == true || ${#candidates[@]} -eq 0 ]]; then
-        stages::warn "Could not confirm which PyTorch index carries torch ${torch}; using the known-good ${fallback} for CUDA ${major}.x." >&2
-    else
-        stages::warn "No PyTorch index for CUDA ${cuda} publishes torch ${torch}; falling back to ${fallback}." >&2
-        stages::warn "If that is wrong, pin the index by editing STAGES_DEFAULT_TORCH in lib/stages.sh." >&2
-    fi
-    echo "https://download.pytorch.org/whl/${fallback}"
-}
-
-# stages::isaaclab_major <ref>
-#
-# Major version of an Isaac Lab ref, which is a tag (v2.3.2) or a branch
-# (main, develop, release/3.0.0). Release branches carry their version in the
-# name; the development branches do not, so they are assumed to be the line the
-# newest published tag belongs to. Looked up once and cached: the RL-framework
-# menu asks for this per entry.
-STAGES_ISAACLAB_DEV_MAJOR=""
+# Versioned refs are unambiguous; current development branches use 3.x.
 stages::isaaclab_major() {
-    local ref="${1#v}"
-
-    case "${ref}" in
-        [0-9]*) echo "${ref%%.*}"; return 0 ;;
-        release/*)
-            ref="${ref#release/}"
-            [[ "${ref#v}" =~ ^[0-9]+ ]] && { echo "${BASH_REMATCH[0]}"; return 0; }
-            ;;
-    esac
-
-    if [[ -z "${STAGES_ISAACLAB_DEV_MAJOR}" ]]; then
-        local latest; latest="$(stages::isaaclab_versions 1)"
-        latest="${latest:-${STAGES_DEFAULT_ISAACLAB}}"
-        latest="${latest#v}"
-        STAGES_ISAACLAB_DEV_MAJOR="${latest%%.*}"
+    local ref="${1#release/}"
+    ref="${ref#v}"
+    if [[ "$ref" =~ ^([0-9]+)\. ]]; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        echo 3
     fi
-    echo "${STAGES_ISAACLAB_DEV_MAJOR}"
 }
 
 # stages::isaaclab_install_arg <version> <framework>
 #
-# Isaac Lab 3.x replaced the isaaclab.sh installer with a Python CLI and changed
+# Isaac Lab 3.x delegates isaaclab.sh to its Python CLI and changed
 # the --install vocabulary: "none" is gone (the equivalent is "core") and the RL
 # frameworks moved behind an rl[...] selector with hyphenated names. Passing a
 # 2.x token to a 3.x checkout fails the layer, so translate here.
@@ -318,7 +216,7 @@ stages::isaaclab_install_arg() {
 
     case "${framework}" in
         none)     echo "core" ;;
-        all)      echo "all" ;;
+        all)      echo "rl[rsl-rl],rl[rl-games],rl[skrl],rl[sb3]" ;;
         rsl_rl)   echo "rl[rsl-rl]" ;;
         rl_games) echo "rl[rl-games]" ;;
         sb3)      echo "rl[sb3]" ;;
@@ -378,7 +276,8 @@ stages::init_selection() {
     STAGES_ISAACSIM_VERSION="${STAGES_DEFAULT_ISAACSIM}"
     STAGES_ISAACLAB=false
     STAGES_ISAACLAB_VERSION="${STAGES_DEFAULT_ISAACLAB}"
-    STAGES_ISAACLAB_RL="none"
+    STAGES_ISAACLAB_METHOD="auto"
+    STAGES_ISAACLAB_INSTALL="default"
     STAGES_USERNAME="admin"
     STAGES_USER_UID="$(id -u)"
     STAGES_USER_GID="$(id -g)"
@@ -419,11 +318,6 @@ stages::validate_selection() {
         ok=1
     fi
 
-    if [[ "${STAGES_ISAACLAB}" == true && "${STAGES_ISAACSIM}" != true ]]; then
-        stages::error "Isaac Lab requires the Isaac Sim layer; enable Isaac Sim too."
-        ok=1
-    fi
-
     if [[ "${STAGES_ISAACSIM}" == true && "${STAGES_USE_CUDA}" != true ]]; then
         stages::warn "Isaac Sim without the CUDA base: the image will need a CUDA-capable runtime mounted at run time."
     fi
@@ -444,10 +338,57 @@ stages::validate_selection() {
     return ${ok}
 }
 
+# Match the two source-installation paths documented for release/3.0.0.
+stages::isaaclab_method() {
+    if [[ "${STAGES_ISAACLAB_METHOD}" != auto ]]; then
+        echo "${STAGES_ISAACLAB_METHOD}"
+    elif [[ "${STAGES_ISAACSIM}" == true ]]; then
+        echo python-env
+    else
+        echo legacy
+    fi
+}
+
+stages::validate_isaaclab() {
+    [[ "${STAGES_ISAACLAB}" == true ]] || return 0
+    local method major
+    method="$(stages::isaaclab_method)"
+    major="$(stages::isaaclab_major "${STAGES_ISAACLAB_VERSION}")"
+    case "$method" in
+        python-env)
+            if [[ "${STAGES_ISAACSIM}" != true ]]; then
+                stages::error "python-env requires Isaac Sim (-I). Use -j legacy for Kit-less Isaac Lab 3.x."
+                return 1
+            fi
+            if (( major >= 3 )) && [[ "${STAGES_ISAACSIM_VERSION%%.*}" != 6 ]]; then
+                stages::error "Isaac Lab 3.x requires Isaac Sim 6.x with Python 3.12."
+                return 1
+            fi
+            ;;
+        legacy)
+            if (( major < 3 )) || [[ "${STAGES_ISAACSIM}" == true ]]; then
+                stages::error "legacy selects Kit-less Isaac Lab 3.x; omit -I or use -j python-env."
+                return 1
+            fi
+            ;;
+        *) stages::error "Isaac Lab method must be auto, legacy, or python-env."; return 1 ;;
+    esac
+    if [[ ",${STAGES_ISAACLAB_INSTALL}," == *,isaacsim,* ]]; then
+        stages::error "Select Isaac Sim through -I and -j python-env, not the isaacsim package selector."
+        return 1
+    fi
+    local selector_pattern='^[a-z0-9_-]+(\[[a-z0-9_,-]+\])?(,[a-z0-9_-]+(\[[a-z0-9_,-]+\])?)*$'
+    if [[ ! "${STAGES_ISAACLAB_INSTALL}" =~ $selector_pattern ]]; then
+        stages::error "Invalid Isaac Lab package selectors: ${STAGES_ISAACLAB_INSTALL}"
+        return 1
+    fi
+}
+
 # Turn the selection into an ordered build plan and derive the image names.
 # Layer order matches ros2-staged.yml: base -> ros -> mujoco -> usage -> extras
 # -> user.
 stages::build_plan() {
+    stages::validate_isaaclab || return 1
     STAGES_PLAN=()
     stages::tag_reset
     stages::tag_add "${STAGES_OS}"
@@ -523,27 +464,30 @@ stages::build_plan() {
     if [[ "${STAGES_ISAACSIM}" == true ]]; then
         stages::tag_add "isaacsim${STAGES_ISAACSIM_VERSION}"
         image="$(stages::layer_image isaacsim)"
-        local py torch_index
+        local py
         py="$(stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}")"
-        torch_index="$(stages::torch_index_url "${STAGES_CUDA_VERSION}" "${STAGES_DEFAULT_TORCH}")"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.isaacsim" "${base_image}" "${image}" \
             "--build-arg" "ISAACSIM_VERSION=${STAGES_ISAACSIM_VERSION}" \
             "--build-arg" "PYTHON_VERSION=${py}" \
             "--build-arg" "TORCH_VERSION=${STAGES_DEFAULT_TORCH}" \
-            "--build-arg" "TORCH_INDEX_URL=${torch_index}" \
-            "--build-arg" "USD_CONVERTER_VERSION=${STAGES_DEFAULT_USD_CONVERTER}"
+            "--build-arg" "TORCHVISION_VERSION=${STAGES_DEFAULT_TORCHVISION}"
         base_image="${image}"
     fi
 
     # --- Isaac Lab ----------------------------------------------------------
     if [[ "${STAGES_ISAACLAB}" == true ]]; then
         stages::tag_add "isaaclab$(stages::tag_slug "${STAGES_ISAACLAB_VERSION#v}")"
+        local lab_method
+        lab_method="$(stages::isaaclab_method)"
+        stages::tag_add "$lab_method"
+        if [[ "${STAGES_ISAACLAB_INSTALL}" != default ]]; then
+            stages::tag_add "packages$(printf %s "${STAGES_ISAACLAB_INSTALL}" | sha256sum | cut -c1-8)"
+        fi
         image="$(stages::layer_image isaaclab)"
-        local lab_install
-        lab_install="$(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "${STAGES_ISAACLAB_RL}")"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.isaaclab" "${base_image}" "${image}" \
             "--build-arg" "ISAACLAB_VERSION=${STAGES_ISAACLAB_VERSION}" \
-            "--build-arg" "ISAACLAB_INSTALL=${lab_install}"
+            "--build-arg" "ISAACLAB_METHOD=${lab_method}" \
+            "--build-arg" "ISAACLAB_INSTALL=${STAGES_ISAACLAB_INSTALL}"
         base_image="${image}"
     fi
 
@@ -591,6 +535,9 @@ stages::print_plan() {
         IFS='|' read -r dockerfile base image _rest <<<"${record}"
         printf '  %d. %-28s %s\n' "${i}" "${dockerfile#"${CREATOR_DIR}/"}" "${image}"
         printf '     %-28s from %s\n' "" "${base}"
+        if [[ "$dockerfile" == */Dockerfile.isaaclab ]]; then
+            printf '     installation: %s; packages: %s\n' "$(stages::isaaclab_method)" "${STAGES_ISAACLAB_INSTALL}"
+        fi
         i=$((i + 1))
     done
     echo

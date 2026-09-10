@@ -1,48 +1,37 @@
 # syntax=docker/dockerfile:1
-# NVIDIA Isaac Lab layer.
-#
-# Builds on the Isaac Sim layer: Isaac Lab's extensions are installed into the
-# same /opt/isaac-venv interpreter that carries the isaacsim wheels.
-#
-# ISAACLAB_VERSION is any ref `git clone --branch` accepts: a tag (v2.3.2) or a
-# branch ("main"/"develop" track development, "release/3.0.0" a release line).
-# Both lists are read from GitHub by creator/scripts/lib/stages.sh.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
-
-ARG ISAACLAB_VERSION=v2.3.2
-# Value passed to `isaaclab.sh --install`. The vocabulary differs by Isaac Lab
-# major version (2.x: none/all/rsl_rl/...; 3.x: core/all/rl[rsl-rl]/...), so
-# stages::isaaclab_install_arg translates the user's choice before it gets here.
-ARG ISAACLAB_INSTALL=core
-ARG ISAACLAB_DIR=/opt/IsaacLab
-ARG ISAAC_VENV=/opt/isaac-venv
-
-ENV DEBIAN_FRONTEND=noninteractive
+USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        cmake git build-essential \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+        ca-certificates curl cmake git build-essential \
+        libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev \
+    && rm -rf /var/lib/apt/lists/* && apt-get clean
+RUN if ! command -v uv >/dev/null; then \
+        curl -LsSf https://astral.sh/uv/install.sh \
+          | env UV_INSTALL_DIR=/usr/local/bin UV_UNMANAGED_INSTALL=1 sh; \
+    fi && uv --version
 
-ENV ISAACLAB_DIR=${ISAACLAB_DIR}
-ENV ISAACLAB_VERSION=${ISAACLAB_VERSION}
+ARG ISAACLAB_VERSION=release/3.0.0
+# python-env reuses the Isaac Sim venv; legacy creates a Kit-less Python 3.12 venv.
+ARG ISAACLAB_METHOD=python-env
+ARG ISAACLAB_INSTALL=default
+ARG ISAACLAB_DIR=/opt/IsaacLab
+ARG ISAAC_VENV=/opt/isaac-venv
+ENV ISAACLAB_DIR=${ISAACLAB_DIR} ISAACLAB_VERSION=${ISAACLAB_VERSION}
+ENV ISAACLAB_METHOD=${ISAACLAB_METHOD} ISAACLAB_INSTALL=${ISAACLAB_INSTALL}
+ENV ISAAC_VENV=${ISAAC_VENV} UV_PYTHON_INSTALL_DIR=/opt/uv/python
 ENV OMNI_KIT_ACCEPT_EULA=YES
 
 RUN git clone --depth 1 --branch "${ISAACLAB_VERSION}" \
         https://github.com/isaac-sim/IsaacLab.git "${ISAACLAB_DIR}"
-
-# isaaclab.sh picks its interpreter from the active virtualenv, so activate the
-# Isaac Sim venv before handing over. Without it the installer would target the
-# distro python, which has no isaacsim wheels.
 RUN --mount=type=cache,id=creator-isaaclab-pip,target=/root/.cache/pip,sharing=locked \
     --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    source "${ISAAC_VENV}/bin/activate" \
-    && cd "${ISAACLAB_DIR}" \
-    && ./isaaclab.sh --install "${ISAACLAB_INSTALL}"
+    --mount=type=bind,source=creator/common/install_isaaclab.sh,target=/tmp/install_isaaclab.sh \
+    UV_CACHE_DIR=/root/.cache/uv bash /tmp/install_isaaclab.sh
 
-# Same reasoning as the Isaac Sim layer: keep the Isaac interpreter off the
-# default PATH and expose an opt-in helper instead.
-RUN printf '\nalias isaaclab="%s/isaaclab.sh"\n' "${ISAACLAB_DIR}" \
-        >> /etc/bash.bashrc
+# Keep ROS on the distribution Python; activation selects the Isaac environment.
+RUN printf '\nalias isaac-activate="source %s/bin/activate"\nalias isaaclab="%s/isaaclab.sh"\n' \
+        "${ISAAC_VENV}" "${ISAACLAB_DIR}" >> /etc/bash.bashrc
