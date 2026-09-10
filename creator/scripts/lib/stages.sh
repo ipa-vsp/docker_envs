@@ -666,20 +666,20 @@ stages::image_env() {
 # Appends the Isaac Sim docker run arguments to STAGES_ISAAC_ARGS and creates the
 # host cache directories.
 stages::isaac_run_args() {
-    local image="$1" home="$2"
+    local image="$1" container_home="$2"
     local root="${STAGES_ISAAC_CACHE_ROOT}"
     STAGES_ISAAC_ARGS=()
 
     # host subdir : container path (relative to the container user's home)
     local -a mounts=(
-        "cache/ov:${home}/.cache/ov"
-        "cache/pip:${home}/.cache/pip"
-        "cache/glcache:${home}/.cache/nvidia/GLCache"
-        "cache/computecache:${home}/.nv/ComputeCache"
-        "logs:${home}/.nvidia-omniverse/logs"
-        "config:${home}/.nvidia-omniverse/config"
-        "data:${home}/.local/share/ov/data"
-        "documents:${home}/Documents"
+        "cache/ov:${container_home}/.cache/ov"
+        "cache/pip:${container_home}/.cache/pip"
+        "cache/glcache:${container_home}/.cache/nvidia/GLCache"
+        "cache/computecache:${container_home}/.nv/ComputeCache"
+        "logs:${container_home}/.nvidia-omniverse/logs"
+        "config:${container_home}/.nvidia-omniverse/config"
+        "data:${container_home}/.local/share/ov/data"
+        "documents:${container_home}/Documents"
     )
 
     # The Kit SDK cache lives inside the venv; Dockerfile.isaacsim records where.
@@ -694,8 +694,17 @@ stages::isaac_run_args() {
         target="${entry#*:}"
         # Created here rather than left to docker: docker would create them
         # root-owned, and the container runs as the host user.
-        mkdir -p "${host_dir}"
-        STAGES_ISAAC_ARGS+=(-v "${host_dir}:${target}:rw")
+        mkdir -p "${host_dir}" || return 1
+        if [[ ! -w "${host_dir}" ]]; then
+            stages::error "Isaac cache directory is not writable: ${host_dir}"
+            return 1
+        fi
+        host_dir="$(cd -- "${host_dir}" && pwd -P)" || return 1
+        if [[ "${host_dir}" == *,* ]]; then
+            stages::error "Isaac cache paths containing commas are not supported."
+            return 1
+        fi
+        STAGES_ISAAC_ARGS+=(--mount "type=bind,source=${host_dir},target=${target}")
     done
 
     STAGES_ISAAC_ARGS+=(

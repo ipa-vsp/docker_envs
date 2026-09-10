@@ -5,24 +5,8 @@ export TERM=xterm-256color
 alias grep="grep --color=auto"
 alias ls="ls --color=auto"
 
-echo -e "\e[1;31m"
-cat<<PT
-🔦 Torch 🔦
-PT
-echo -e "\e[0;33m"
-
-if [[ $EUID -eq 0 ]]; then
-  cat <<WARN
-WARNING: You are running this container as root, which can cause new files in
-mounted volumes to be created as the root user on your host machine.
-To avoid this, run the container by specifying your user's userid:
-$ docker run -u \$(id -u):\$(id -g) args...
-WARN
-else
-  cat <<EXPL
-You are running this container as user with ID $(id -u) and group $(id -g),
-which should map to the ID and group for your user on the Docker host. Great!
-EXPL
+if [[ "${WORKSPACE_UMASK:-0022}" =~ ^[0-7]{3,4}$ ]]; then
+  umask "${WORKSPACE_UMASK:-0022}"
 fi
 
 # Function to get the current git branch

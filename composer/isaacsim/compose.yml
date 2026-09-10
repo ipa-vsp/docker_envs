@@ -1,26 +1,16 @@
-# Isaac Sim (pip distribution) on top of the staged ROS 2 Jazzy image.
-#
-# Copy .env.example to .env first — it supplies LOCAL_UID/LOCAL_GID and the
-# workspace path:
-#     cp .env.example .env && ${EDITOR:-vi} .env
-#     docker compose up -d && docker compose exec mp0700-6.0.1 bash
-#
-# See README.md for how to launch Isaac Sim inside the container.
-
 services:
   mp0700-6.0.1:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: composer/isaacsim/Dockerfile
       args:
         USERNAME: "${CONTAINER_USER:-admin}"
-        USER_UID: "${LOCAL_UID:-1000}"
-        USER_GID: "${LOCAL_GID:-1000}"
+        USER_UID: "${LOCAL_UID:?Export LOCAL_UID using id -u}"
+        USER_GID: "${LOCAL_GID:?Export LOCAL_GID using id -g}"
     container_name: mp0700-6.0.1
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
     stdin_open: true
     tty: true
-    runtime: nvidia
     deploy:
       resources:
         reservations:
@@ -29,40 +19,29 @@ services:
               count: all
               capabilities: ["gpu"]
     network_mode: host
-    ipc: host
     environment:
       TZ: "${TZ:-Europe/Berlin}"
-      DISPLAY: "${DISPLAY}"
+      DISPLAY: "${DISPLAY:-}"
+      WORKSPACE_UMASK: "${WORKSPACE_UMASK:-0022}"
       QT_X11_NO_MITSHM: "1"
       NVIDIA_VISIBLE_DEVICES: "all"
       NVIDIA_DRIVER_CAPABILITIES: "all"
       ROS_LOCALHOST_ONLY: "0"
-      # The pip distribution reads OMNI_KIT_ACCEPT_EULA; ACCEPT_EULA and
-      # PRIVACY_CONSENT are what the NGC binary image reads. Setting all three
-      # keeps this compose file working if the image is ever swapped for
-      # nvcr.io/nvidia/isaac-sim.
       OMNI_KIT_ACCEPT_EULA: "YES"
-      ACCEPT_EULA: "Y"
-      PRIVACY_CONSENT: "Y"
     volumes:
-      - "${HOST_WS:?HOST_WS is not set - copy .env.example to .env and set it}/src:/home/${CONTAINER_USER:-admin}/colcon_ws/src"
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - type: bind
+        source: ${HOST_WS:?Set HOST_WS to an existing workspace}/src
+        target: /home/${CONTAINER_USER:-admin}/colcon_ws/src
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /tmp/.X11-unix
+        target: /tmp/.X11-unix
+        read_only: true
+        bind:
+          create_host_path: false
       - /etc/localtime:/etc/localtime:ro
-
-      # Persistent Omniverse caches. Without these every `up` recompiles all
-      # shaders — the multi-minute "first launch" that looks like a hang.
-      #
-      # Named volumes rather than host bind mounts on purpose: compose creates a
-      # missing bind-mount source as root, which the container (running as
-      # ${CONTAINER_USER}) then cannot write. Named volumes inherit ownership from
-      # the image path they cover -- which is why the Dockerfile pre-creates all
-      # of these as ${USERNAME}; a named volume over a path that does not exist
-      # in the image is created root-owned and stays unwritable.
-      # Isaac Lab's own compose file uses named volumes for the same reason.
-      #
-      # NOTE: these paths are under $HOME because Isaac Sim is installed from
-      # wheels. The NVIDIA container docs mount /isaac-sim/... instead - that is
-      # the binary distribution and those paths do not exist here.
+      # Empty named volumes are populated from these user-owned image paths.
       - isaac-cache-ov:/home/${CONTAINER_USER:-admin}/.cache/ov
       - isaac-cache-pip:/home/${CONTAINER_USER:-admin}/.cache/pip
       - isaac-cache-gl:/home/${CONTAINER_USER:-admin}/.cache/nvidia/GLCache

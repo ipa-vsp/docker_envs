@@ -1,123 +1,99 @@
 # docker_envs
 
-This repository contains Dockerfiles, compose templates and helper scripts used to build robotics development environments.  Images are automatically published to [GitHub Container Registry](https://ghcr.io) using GitHub Actions.
+Docker development environments for ROS 2, PyTorch, MuJoCo, and NVIDIA Isaac.
+Use the staged builder for a custom stack or start with a published image.
+These images include compilers, development tools, and passwordless sudo for the
+named development account.
 
-## Continuous Integration
+## Quick start
 
-| Workflow | Status |
-|----------|--------|
-| ROS2 Staged | [![ROS2 Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/ros2-staged.yml) |
-| PyTorch Staged | [![PyTorch Staged](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/pytorch-staged.yml) |
-| Docker Builder | [![Docker](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/docker.yml) |
-| Build checks | [![Build checks](https://github.com/ipa-vsp/docker_envs/actions/workflows/build-validation.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/build-validation.yml) |
-| Formatting | [![Formatting](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml/badge.svg)](https://github.com/ipa-vsp/docker_envs/actions/workflows/format.yml) |
-
-## Available Docker Images
-
-Images are published under `ghcr.io/ipa-vsp/docker_envs`.  The tables below list the tags configured by the active workflows. Historical registry tags may differ; a workflow entry does not guarantee its latest build succeeded.
-
-### ROS 2 Images (staged workflow - final user images)
-
-| Tag | Notes |
-|-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs:24.04-rolling` | Staged ROS 2 Rolling developer image on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted` | Staged ROS 2 Kilted developer image on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy` | Staged ROS 2 Jazzy developer image on Ubuntu 24.04 |
-| `ghcr.io/ipa-vsp/docker_envs:22.04-humble` | Staged ROS 2 Humble developer image on Ubuntu 22.04 |
-| `ghcr.io/ipa-vsp/docker_envs:26.04-lyrical` | Staged ROS 2 Lyrical developer image on Ubuntu 26.04 |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-kilted-moveit` | ROS 2 Kilted staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy-moveit` | ROS 2 Jazzy staged image with MoveIt pre-installed |
-| `ghcr.io/ipa-vsp/docker_envs:22.04-humble-moveit` | ROS 2 Humble staged image with MoveIt pre-installed |
-
-### PyTorch Images
-
-| Tag | Notes |
-|-----|-------|
-| `ghcr.io/ipa-vsp/docker_envs:cuda12.8-torch2.8` | Staged final image with PyTorch 2.8.0, TorchVision 0.23.0, TorchAudio 2.8.0, CUDA 12.8 wheels, MuJoCo 3.4.0; Ubuntu 24.04 base |
-
-> The intermediate stage tags (`-base`, `-mujoco`, `-pytorch`) are built during the workflow but
-> deleted after successful final publication. Build caches persist separately under
-> `ghcr.io/ipa-vsp/docker_envs/buildcache`.
-
-The CI PyTorch image installs CUDA-enabled wheels on Ubuntu; it does not include
-the NVIDIA CUDA development base used by the local PyTorch builder.
-ROS + MuJoCo/Nav2, CUDA, Isaac Sim, and Isaac Lab combinations are available through
-the local creator scripts and are not published by the active ROS workflow.
-
-Final images retain root as their default user for compatibility with downstream
-Dockerfiles. Run with `--user admin` or matching host UID/GID for development;
-`run_env.sh -r` supplies the selected UID/GID automatically.
-
-Use `docker pull <tag>` to download an image.  The `creator/scripts/run_env.sh` helper script can build or run images locally.
-
-## Usage compose files
-
-```yaml
-services:
-    <container_name>:
-        image: ghcr.io/ipa-vsp/docker_envs:<tag>
-        user: admin:1000 # adjust UID if needed. Recommended to use non-root user
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro
-            - /your/local/path/to/colcon_ws/src:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=$DISPLAY
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh # already installed in the image
-        command: tail -f /dev/null # change to your desired command
-```
-
-### Build Locally
-
-The local builder is layered the same way the staged workflow is, and names the
-images for you. It can additionally add layers CI does not build: a CUDA +
-cuDNN devel base, Isaac Sim and Isaac Lab. See
-[`creator/README.md`](creator/README.md) for the full description.
+Run from the repository root with Docker Engine and the Buildx plugin installed:
 
 ```bash
-cd creator/scripts
+# Build a named account with your host UID/GID.
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy -u manipulation
 
-# Interactive: pick a value for every stage, with the current MuJoCo /
-# Isaac Sim / Isaac Lab / CUDA versions fetched online and offered as a menu
-./create_env.sh
-
-# Non-interactive: the final image is named from the stages you picked,
-# here docker_envs:24.04-rolling
-./run_env.sh -b -o 24.04 -v rolling
-
-# ... or name it yourself
-./run_env.sh -b -o 24.04 -v rolling -i ghcr.io/ipa-vsp/docker_envs:rolling
-
-# Run the container with a workspace attached
-./run_env.sh -r -i ghcr.io/ipa-vsp/docker_envs:rolling -w ~/colcon_ws
+mkdir -p "$HOME/colcon_ws/src"
+creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w "$HOME/colcon_ws"
 ```
 
-## Build optimization and validation
+For interactive stage selection, run `creator/scripts/create_env.sh`. To inspect
+a build without executing it, replace `-b` with `-p`. See the
+[creator guide](creator/README.md) for flags, Isaac configuration, and caching.
 
-The active builds clean temporary files before committing their layer, keep
-package downloads in BuildKit caches, and copy shell configuration after system
-dependencies. PRs build locally without publishing or registry credentials;
-non-PR builds export a separate cache for each stage and matrix combination.
-See [the build and validation guide](creator/README.md#build-cache-and-layer-validation)
-for requirements, refresh commands, cache limits, and measurement steps.
+Final creator images start as `admin` by default; local builds use your numeric
+UID/GID. The launcher also supplies your host IDs at runtime and requires an
+existing workspace. It never changes workspace ownership. Device access is
+explicit: use `-g` for NVIDIA GPUs or `-d /dev/<device>` for a specific device.
 
-## Pre-commit Hook
+## Published images
 
-1. Install: `pip install pre-commit`
-2. Install git hook: `pre-commit install`
-3. Run on all files: `pre-commit run --all-files`
+The active workflows configure the following tags under
+`ghcr.io/ipa-vsp/docker_envs`. Check workflow results for publication status;
+existing registry images keep their previous behavior until rebuilt.
 
-### Attaching your workspace
-If the workspace on the host is not owned by UID `1000`, adjust permissions:
+| Stack | Tags |
+|---|---|
+| ROS 2 | `24.04-rolling`, `24.04-kilted`, `24.04-jazzy`, `22.04-humble`, `26.04-lyrical` |
+| ROS 2 + MoveIt | `24.04-kilted-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
+| PyTorch | `cuda12.8-torch2.8` (Torch 2.8.0, CUDA wheels, MuJoCo 3.4.0, Ubuntu 24.04) |
+
+CI's PyTorch image uses Ubuntu plus CUDA-enabled wheels. The local PyTorch helper
+uses a CUDA development base. CUDA, Isaac Sim/Lab, Nav2, and additional MuJoCo
+combinations are available through local builds.
+
+- [ROS publication workflow](.github/workflows/ros2-staged.yml)
+- [PyTorch publication workflow](.github/workflows/pytorch-staged.yml)
+- [Build regression checks](.github/workflows/build-validation.yml)
+
+## Compose and host files
+
+Use the [minimal Compose template](composer/template/docker-compose.yml):
 
 ```bash
-sudo chown -R 1000:1000 <workspace> || sudo chmod -R u+w <workspace>
+export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+export HOST_WS="$HOME/colcon_ws"
+export IMAGE=docker_envs:24.04-jazzy-moveit
+docker compose -f composer/template/docker-compose.yml run --rm ros
 ```
 
-Check the example `composer/coverless` folder for the updated permissions in the compose file.
-- First run `id -u` to get UID and `id -g` to get GID.
-- in the `.env` file set `LOCAL_UID` and `LOCAL_GID` accordingly.
+UID/GID determine ownership; umask determines initial permissions. For shared
+group access, use the launcher's `-a <gid> -M 0002`, or Compose `group_add` and
+`WORKSPACE_UMASK: "0002"`. Published accounts use `1000:1000`; rebuild the final
+user layer if your application needs a writable named home with different IDs.
+Do not recursively change ownership of a repository to match a published image.
 
-### GUI with Docker on Windows
-For using GUI applications on Windows see [docker_gui_windows11](https://github.com/prachandabhanu/docker_gui_windows11.git).
+See [permissions and storage](creator/README.md#permissions-and-storage) for
+named volumes, troubleshooting, and platform differences, and the
+[Isaac Sim example](composer/isaacsim/README.md) for persistent simulator caches.
+Other `composer/` directories are application-specific examples; review their
+hardware, network, and path settings before using them. Files under
+`creator/_deprecated/` are historical references.
+
+## Extending an image
+
+Final images now default to non-root. Downstream package installation must select
+root explicitly, then restore the development user:
+
+```dockerfile
+FROM ghcr.io/ipa-vsp/docker_envs:24.04-jazzy
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends tmux \
+    && rm -rf /var/lib/apt/lists/*
+USER admin
+```
+
+Startup loads ROS/Zenoh when installed, applies `WORKSPACE_UMASK`, and executes
+the command. Package updates, rosdep updates, Git pulls, host sysctl changes, and
+Claude CLI/config installation are no longer automatic. Run development setup
+commands explicitly when needed.
+
+## Validation
+
+```bash
+python3 -m unittest discover -s tests -v
+pre-commit run --all-files
+```
+
+Tests require Python, PyYAML, and `jq`. Install hooks with `pre-commit install`.
+See the creator guide for image smoke checks and cache inspection.

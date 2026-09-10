@@ -26,7 +26,7 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Interactive configuration comes after the system dependencies.
-COPY --chmod=0777 creator/pytorch/bashrc /etc/bash.bashrc
+COPY --chmod=0644 creator/pytorch/bashrc /etc/bash.bashrc
 
 # -----------------------------------------------------------------------------
 # Stage 2: install MuJoCo and Gymnasium
@@ -86,56 +86,20 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
 # -----------------------------------------------------------------------------
 FROM ${BASE_IMAGE_FINAL} AS final
 
-# Setup non-root admin user
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends sudo && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
+
 ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
+RUN --mount=type=bind,source=creator/common/create_user.sh,target=/tmp/create_user.sh \
+    bash /tmp/create_user.sh
 
-# Install prerequisites and cleanup in a single step
-RUN apt-get update && apt-get install -y sudo && \
-    rm -rf /var/lib/apt/lists/* && apt-get clean
-
-# Ubuntu may already reserve the requested UID/GID for its default user.
-RUN existing_user="$(getent passwd "${USER_UID}" | cut -d: -f1)"; \
-    if [ -n "${existing_user}" ] && [ "${existing_user}" != "${USERNAME}" ]; then \
-        userdel -r "${existing_user}"; \
-    fi; \
-    existing_group="$(getent group "${USER_GID}" | cut -d: -f1)"; \
-    if [ -n "${existing_group}" ] && [ "${existing_group}" != "${USERNAME}" ]; then \
-        groupmod -n "${USERNAME}" "${existing_group}"; \
-    fi
-RUN getent group "${USER_GID}" >/dev/null || groupadd --gid "${USER_GID}" "${USERNAME}"
-RUN id -u "${USERNAME}" >/dev/null 2>&1 || \
-    useradd --uid "${USER_UID}" --gid "${USER_GID}" -m -d /home/${USERNAME} -s /bin/bash "${USERNAME}"
-
-# Set proper ownership of the home directory after user creation
-RUN chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}
-
-# Ensure usermod only runs if the user exists
-RUN if getent passwd ${USERNAME} >/dev/null 2>&1; then \
-        usermod -aG sudo,video ${USERNAME}; \
-    fi
-
-# Ensure sudoers file is set correctly
-RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && \
-    chmod 0440 /etc/sudoers.d/${USERNAME}
-
-# Copy and set permissions for scripts
-# RUN mkdir -p /usr/local/bin/scripts
-# COPY creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/
-# RUN chmod +x /usr/local/bin/scripts/*.sh
-
-# Create appropriate workspace depending on ROS_DISTRO and set permissions
-RUN mkdir -p /home/${USERNAME}/workspace && \
-    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/workspace
-
-# Keep root as the active user for further builds
-USER root
-
-# Set Environment Variables
-ENV USERNAME=${USERNAME}
-ENV USER_GID=${USER_GID}
-ENV USER_UID=${USER_UID}
-
-# Optionally switch to the user when running interactively
+ENV USERNAME=${USERNAME} USER_UID=${USER_UID} USER_GID=${USER_GID}
+ENV HOME=/home/${USERNAME}
+COPY --chmod=0755 creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/workspace-entrypoint.sh
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}/workspace
+ENTRYPOINT ["/usr/local/bin/scripts/workspace-entrypoint.sh"]
 CMD ["/bin/bash"]

@@ -4,12 +4,16 @@ on:
   push:
     paths:
       - 'creator/**'
+      - 'composer/template/**'
+      - 'composer/isaacsim/**'
       - '.github/workflows/**'
       - '.dockerignore'
       - 'tests/**'
   pull_request:
     paths:
       - 'creator/**'
+      - 'composer/template/**'
+      - 'composer/isaacsim/**'
       - '.github/workflows/**'
       - '.dockerignore'
       - 'tests/**'
@@ -32,6 +36,25 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check shell syntax and local plan
         run: |
+          bash -n creator/common/create_user.sh
+          bash -n creator/scripts/run_env.sh
+          bash -n creator/scripts/workspace-entrypoint.sh
+          bash -n creator/scripts/lib/stages.sh
           bash -n creator/scripts/build_image.sh
           bash -n creator/scripts/build_pytorch_env.sh
           creator/scripts/run_env.sh -p -o 24.04 -v jazzy -u manipulation
+      - name: Validate development Compose templates
+        env:
+          LOCAL_UID: '1000'
+          LOCAL_GID: '1000'
+          HOST_WS: /tmp/docker-envs-workspace
+        run: |
+          docker compose -f composer/template/docker-compose.yml config --quiet
+          docker compose -f composer/isaacsim/compose.yml config --quiet
+      - name: Build and test a nonstandard development account
+        run: |
+          docker build -f creator/common/Dockerfile.user \
+            --build-arg USER_UID=12345 --build-arg USER_GID=23456 \
+            -t docker-envs-permissions:test .
+          DOCKER_ENVS_TEST_IMAGE=docker-envs-permissions:test \
+            python -m unittest discover -s tests -p 'test_image_permissions.py' -v

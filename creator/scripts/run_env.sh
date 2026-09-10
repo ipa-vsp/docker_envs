@@ -9,14 +9,6 @@ ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # shellcheck source=lib/stages.sh
 source "${ROOT}/lib/stages.sh"
 
-ON_EXIT=()
-function cleanup() {
-    for command in "${ON_EXIT[@]:-}"; do
-        $command &>/dev/null || true
-    done
-}
-trap cleanup EXIT
-
 function help() {
     cat <<'EOF'
 Usage: run_env.sh -b|-r [options]
@@ -51,6 +43,10 @@ Image / user:
 Run mode:
   -w <path>         Workspace to bind-mount (required with -r)
   -g                Pass --gpus all to docker run
+  -a <gid>          Add a supplementary numeric group (repeatable)
+  -M <umask>        New-file permission mask (default: 0022; shared group: 0002)
+  -d <device>       Pass a specific device to Docker (repeatable)
+  -P                Enable privileged mode explicitly for hardware workloads
   -X                Do not auto-configure Isaac Sim (skip GPU + cache mounts)
   -h                Show this help
 
@@ -75,6 +71,8 @@ DRY_RUN=false
 WORKSPACE=""
 USE_GPU=false
 NO_ISAAC_SETUP=false
+EXTRA_RUN_ARGS=()
+WORKSPACE_UMASK=0022
 # Requested versions before "latest" is resolved online.
 CUDA_REQUEST=""
 MUJOCO_REQUEST=""
@@ -105,7 +103,7 @@ function optional_arg() {
     fi
 }
 
-while getopts "o:v:u:i:N:w:n:U:G:cmILzbsrpgXh" opt; do
+while getopts "o:v:u:i:N:w:n:U:G:a:M:d:cmILzbsrpgPXh" opt; do
     case ${opt} in
         o) STAGES_OS="${OPTARG}" ;;
         v) STAGES_ROS="${OPTARG}" ;;
@@ -126,6 +124,12 @@ while getopts "o:v:u:i:N:w:n:U:G:cmILzbsrpgXh" opt; do
         r) RUN=true ;;
         p) DRY_RUN=true ;;
         g) USE_GPU=true ;;
+        a)
+            [[ "${OPTARG}" =~ ^[0-9]+$ ]] || { stages::error "Supplementary GID must be numeric"; exit 1; }
+            EXTRA_RUN_ARGS+=(--group-add "${OPTARG}") ;;
+        M) WORKSPACE_UMASK="${OPTARG}" ;;
+        d) EXTRA_RUN_ARGS+=(--device "${OPTARG}") ;;
+        P) EXTRA_RUN_ARGS+=(--privileged) ;;
         X) NO_ISAAC_SETUP=true ;;
         h | ?) help ;;
     esac
@@ -188,23 +192,47 @@ if [[ "${RUN}" == true ]]; then
         help
     fi
 
+    if [[ ! "${STAGES_USER_UID}" =~ ^[0-9]+$ || ! "${STAGES_USER_GID}" =~ ^[0-9]+$ ]]; then
+        stages::error "UID and GID must be numeric."
+        exit 1
+    fi
+    if [[ ! "${WORKSPACE_UMASK}" =~ ^[0-7]{3,4}$ ]]; then
+        stages::error "Umask must contain three or four octal digits."
+        exit 1
+    fi
+    if [[ ! -d "${WORKSPACE}" ]]; then
+        stages::error "Workspace does not exist: ${WORKSPACE}. Create it as your host user first."
+        exit 1
+    fi
+    WORKSPACE="$(cd -- "${WORKSPACE}" && pwd -P)" || exit 1
+    if [[ "${WORKSPACE}" == *,* ]]; then
+        stages::error "Workspace paths containing commas are not supported by this launcher."
+        exit 1
+    fi
+
     CONTAINER="$(echo "${STAGES_FINAL_IMAGE}" | tr ':/.' '___')_container"
     TARGET_WS="/home/${STAGES_USERNAME}/colcon_ws"
     DOCKER_ARGS=(
         -e "DISPLAY=${DISPLAY:-}"
-        -v /tmp/.X11-unix:/tmp/.X11-unix:ro
-        -v /etc/timezone:/etc/timezone:ro
-        -v /etc/localtime:/etc/localtime:ro
-        -v "${WORKSPACE}:${TARGET_WS}:rw"
+        -e "HOME=/home/${STAGES_USERNAME}"
+        -e "WORKSPACE_UMASK=${WORKSPACE_UMASK}"
+        --mount "type=bind,source=${WORKSPACE},target=${TARGET_WS}"
+        --workdir "${TARGET_WS}"
         --user "${STAGES_USER_UID}:${STAGES_USER_GID}"
-        --privileged
         --name "${CONTAINER}"
         --rm
+        "${EXTRA_RUN_ARGS[@]}"
     )
-    # Only bind-mount .Xauthority when it exists; docker would otherwise create a
-    # directory at that path and X11 auth would silently fail.
-    if [[ -f "${HOME}/.Xauthority" ]]; then
-        DOCKER_ARGS+=(-v "${HOME}/.Xauthority:/home/${STAGES_USERNAME}/.Xauthority:rw")
+    for host_path in /tmp/.X11-unix /etc/timezone /etc/localtime; do
+        if [[ -e "${host_path}" ]]; then
+            DOCKER_ARGS+=(--mount "type=bind,source=${host_path},target=${host_path},readonly")
+        fi
+    done
+    # Use the existing X11 cookie without changing the host X server ACL.
+    AUTHORITY="${XAUTHORITY:-${HOME}/.Xauthority}"
+    if [[ -f "${AUTHORITY}" ]]; then
+        DOCKER_ARGS+=(--mount "type=bind,source=${AUTHORITY},target=/tmp/docker-envs.Xauthority,readonly"
+                      -e XAUTHORITY=/tmp/docker-envs.Xauthority)
     fi
     # An Isaac Sim image needs the GPU and the persistent Omniverse caches, or it
     # recompiles every shader on each start. Detected from the image so this does
@@ -212,7 +240,7 @@ if [[ "${RUN}" == true ]]; then
     ISAAC_CONFIGURED=false
     if [[ "${NO_ISAAC_SETUP}" != true ]] && stages::image_has_isaacsim "${STAGES_FINAL_IMAGE}"; then
         stages::info "Isaac Sim image detected; mounting Omniverse caches from ${STAGES_ISAAC_CACHE_ROOT}"
-        stages::isaac_run_args "${STAGES_FINAL_IMAGE}" "/home/${STAGES_USERNAME}"
+        stages::isaac_run_args "${STAGES_FINAL_IMAGE}" "/home/${STAGES_USERNAME}" || exit 1
         DOCKER_ARGS+=("${STAGES_ISAAC_ARGS[@]}")
         ISAAC_CONFIGURED=true
     fi
@@ -220,13 +248,6 @@ if [[ "${RUN}" == true ]]; then
     # Only add --gpus once: isaac_run_args already did when it ran.
     if [[ "${USE_GPU}" == true && "${ISAAC_CONFIGURED}" == false ]]; then
         DOCKER_ARGS+=(--gpus all)
-    fi
-
-    if command -v xhost &>/dev/null; then
-        xhost +local: >/dev/null
-        ON_EXIT+=("xhost -local:")
-    else
-        stages::warn "xhost not found; GUI applications may not work."
     fi
 
     docker run "${DOCKER_ARGS[@]}" -it "${STAGES_FINAL_IMAGE}" bash

@@ -21,3 +21,8 @@
 **/colcon_ws/install
 **/colcon_ws/log
 **/*.log
+
+# Local editor and assistant state
+**/.vscode
+**/.idea
+**/.claude
