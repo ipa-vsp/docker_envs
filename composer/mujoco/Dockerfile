@@ -1,6 +1,7 @@
 ARG BASE_IMAGE
 ARG ROS_DISTRO=
 FROM ${BASE_IMAGE}
+USER root
 
 ENV ROS_DISTRO $ROS_DISTRO
 ARG MUJOCO_VERSION=3.4.0
@@ -20,3 +21,5 @@ RUN mkdir -p ${MUJOCO_DIR}
 RUN wget https://github.com/google-deepmind/mujoco/releases/download/${MUJOCO_VERSION}/mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz
 RUN mkdir -p /home/mujoco
 RUN tar -xzf "mujoco-${MUJOCO_VERSION}-linux-${CPU_ARCH}.tar.gz" -C $(dirname "${MUJOCO_DIR}")
+
+USER ${USERNAME:-admin}

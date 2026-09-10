@@ -3,22 +3,59 @@ name: Build and Push PyTorch in Stages
 on:
   workflow_dispatch:
   push:
-    # branches: [ main ]
     paths:
       - 'creator/**'
+      - '.dockerignore'
+      - '.github/workflows/pytorch-staged.yml'
   pull_request:
     branches: [ main ]
-    # paths:
-      # - 'creator/**'
-  # schedule:
-  #   - cron: '0 0 * * 0'
+    paths:
+      - 'creator/**'
+      - '.dockerignore'
+      - '.github/workflows/pytorch-staged.yml'
+
+# All publishing runs share intermediate tags; do not cancel one during cleanup.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  validate-pr:
+    name: Validate PyTorch without publishing
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Build all stages locally
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: creator/pytorch/Dockerfile
+          target: final
+          push: false
+          load: true
+          tags: docker-envs-pr:pytorch
+          build-args: |
+            BASE_IMAGE=ubuntu:24.04
+            MUJOCO_VERSION=3.4.0
+            GYM_VERSION=1.2.0
+            TORCH_VERSION=2.8.0
+            TORCHVISION_VERSION=0.23.0
+            TORCHAUDIO_VERSION=2.8.0
+      - name: Check imports and admin identity
+        run: |
+          docker run --rm --user admin docker-envs-pr:pytorch bash -c \
+            'test "$(id -u)" = 1000 && python3 -c "import torch, torchvision, torchaudio, mujoco, gymnasium"'
+
   build-base:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Build Base Image
     runs-on: ubuntu-latest
     permissions:
@@ -51,13 +88,15 @@ jobs:
           context: .
           file: creator/pytorch/Dockerfile
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-base-${{ matrix.env.TAG }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-base-${{ matrix.env.TAG }},mode=max
           target: base
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-base
           build-args: |
             BASE_IMAGE=ubuntu:24.04
-            # nvidia/cuda:${{ matrix.env.CUDA }}-cudnn-devel-ubuntu${{ matrix.env.OS_VERSION }}
 
   build-mujoco:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Install MuJoCo and Gymnasium
     runs-on: ubuntu-latest
     needs: build-base
@@ -91,6 +130,8 @@ jobs:
           context: .
           file: creator/pytorch/Dockerfile
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-mujoco-${{ matrix.env.TAG }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-mujoco-${{ matrix.env.TAG }},mode=max
           target: mujoco
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-mujoco
           build-args: |
@@ -99,6 +140,7 @@ jobs:
             GYM_VERSION=${{ matrix.env.GYM }}
 
   build-pytorch:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Install PyTorch
     runs-on: ubuntu-latest
     needs: build-mujoco
@@ -132,6 +174,8 @@ jobs:
           context: .
           file: creator/pytorch/Dockerfile
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-pytorch-${{ matrix.env.TAG }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-build-pytorch-${{ matrix.env.TAG }},mode=max
           target: pytorch
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}-pytorch
           build-args: |
@@ -142,6 +186,7 @@ jobs:
             TORCHAUDIO_VERSION=${{ matrix.env.AUDIO }}
 
   finalize:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Final Image With User
     runs-on: ubuntu-latest
     needs: build-pytorch
@@ -175,6 +220,8 @@ jobs:
           context: .
           file: creator/pytorch/Dockerfile
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-finalize-${{ matrix.env.TAG }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:pytorch-finalize-${{ matrix.env.TAG }},mode=max
           target: final
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.env.TAG }}
           build-args: |
@@ -194,7 +241,7 @@ jobs:
     # Only the final image (:<TAG>) is meant to persist. Delete the intermediate
     # stage tags (-base/-mujoco/-pytorch) once the final image has been pushed.
     # Skipped on PRs (which don't push).
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    if: ${{ success() && github.event_name != 'pull_request' }}
     permissions:
       contents: read
       packages: write
@@ -224,14 +271,16 @@ jobs:
             exit 0
           fi
 
-          # Select versions whose tags include one of the intermediate stage tags.
+          # Delete only versions carrying exclusively intermediate tags.
+          # A digest also tagged as a final image must survive.
           SELECTION=$(echo "${VERSIONS}" | jq --arg tag "${TAG}" '
             map(select(type == "object"))
             | map(
                 (.metadata? // {}) as $m
                 | ($m.container.tags // []) as $tags
                 | select(
-                    ($tags | any(. == "\($tag)-base" or . == "\($tag)-mujoco" or . == "\($tag)-pytorch"))
+                    ($tags | length > 0) and
+                    ($tags | all(. == "\($tag)-base" or . == "\($tag)-mujoco" or . == "\($tag)-pytorch"))
                   )
               )
           ')

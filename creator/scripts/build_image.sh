@@ -39,7 +39,12 @@ fi
 read -r -a DOCKER_BUILD_EXTRA_ARGS <<<"${DOCKER_BUILD_EXTRA:-}"
 
 echo "Building Docker image from: ${DOCKERFILE} with base: ${BASE_IMAGE} and Image name: ${IMAGE_NAME}"
-docker build "${CPUSET_ARGS[@]}" \
+# Require BuildKit while retaining locally loaded stage images for the next build.
+if ! docker buildx version >/dev/null 2>&1; then
+    echo "Docker Buildx is required. Install the docker-buildx-plugin package." >&2
+    exit 1
+fi
+DOCKER_BUILDKIT=1 docker build "${CPUSET_ARGS[@]}" \
              "${DOCKER_BUILD_EXTRA_ARGS[@]}" \
              -f "${DOCKERFILE}" \
              --network host \

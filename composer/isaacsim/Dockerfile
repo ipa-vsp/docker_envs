@@ -1,25 +1,8 @@
+# syntax=docker/dockerfile:1
 FROM ghcr.io/ipa-vsp/docker_envs:24.04-jazzy
-
-ARG USERNAME=admin
-ARG USER_UID=1000
-ARG USER_GID=1000
+USER root
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-# RUN set -eux; \
-#     if getent passwd $USER_UID >/dev/null; then \
-#         userdel -r "$(getent passwd $USER_UID | cut -d: -f1)"; \
-#     fi; \
-#     if getent group $USER_GID >/dev/null; then \
-#         groupdel "$(getent group $USER_GID | cut -d: -f1)"; \
-#     fi; \
-#     groupadd --gid $USER_GID $USERNAME; \
-#     useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME; \
-#     apt-get update; \
-#     apt-get install -y --no-install-recommends sudo; \
-#     echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME; \
-#     chmod 0440 /etc/sudoers.d/$USERNAME; \
-#     rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -36,23 +19,28 @@ RUN apt-get update \
         python3-rosdep \
     && rm -rf /var/lib/apt/lists/*
 
-RUN echo 'source /opt/ros/jazzy/setup.bash' >> /home/$USERNAME/.bashrc \
-    && echo '[ -f /workspace/install/setup.bash ] && source /workspace/install/setup.bash' >> /home/$USERNAME/.bashrc
-
-RUN mkdir -p /home/admin/colcon_ws \
-    && chown $USERNAME:$USERNAME /home/admin/colcon_ws
-
-# Install UV
+# Install shared tooling before personalized account setup.
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_UNMANAGED_INSTALL=1 sh \
     && uv --version
 
-ENV VIRTUAL_ENV=/home/admin/colcon_ws/.venv
+ARG USERNAME=admin
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Apply the requested IDs before creating user-owned wheels and caches.
+RUN --mount=type=bind,source=creator/common/create_user.sh,target=/tmp/create_user.sh \
+    bash /tmp/create_user.sh
+ENV HOME=/home/${USERNAME}
+ENV USERNAME=${USERNAME} USER_UID=${USER_UID} USER_GID=${USER_GID}
+
+ENV VIRTUAL_ENV=/home/${USERNAME}/colcon_ws/.venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 USER $USERNAME
-WORKDIR /home/admin/colcon_ws
+WORKDIR /home/${USERNAME}/colcon_ws
 
-RUN uv venv --python 3.12 --seed $VIRTUAL_ENV \
+RUN --mount=type=cache,id=isaacsim-uv-${USER_UID}-${USER_GID},target=/home/${USERNAME}/.cache/uv,uid=${USER_UID},gid=${USER_GID},sharing=locked \
+    uv venv --python 3.12 --seed $VIRTUAL_ENV \
     && uv pip install --upgrade pip \
     && uv pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu130 \
     && uv pip install mujoco-usd-converter==0.2.0 \
@@ -72,3 +60,7 @@ RUN mkdir -p /home/${USERNAME}/.cache/ov \
              /home/${USERNAME}/.local/share/ov/data \
              /home/${USERNAME}/Documents \
              ${VIRTUAL_ENV}/lib/python3.12/site-packages/isaacsim/kit/cache
+
+COPY --chmod=0755 creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/workspace-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/scripts/workspace-entrypoint.sh"]
+CMD ["/bin/bash"]

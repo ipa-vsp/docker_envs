@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
@@ -16,18 +17,17 @@ RUN apt-get update -qq && \
 # Initialize and update rosdep
 RUN rosdep update
 
-# Clone the rmw_zenoh package and install dependencies
-RUN mkdir -p /home/ws_rmw_zenoh/src && \
-    cd /home/ws_rmw_zenoh/src && \
-    git clone https://github.com/ros2/rmw_zenoh.git && \
-    cd /home/ws_rmw_zenoh && \
-    apt-get update -qq && \
-    rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y
-
-RUN cd /home/ws_rmw_zenoh && \
-    /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
-
-# Clean up folders
-RUN rm -rf /home/ws_rmw_zenoh/src && \
-    rm -rf /home/ws_rmw_zenoh/build && \
-    rm -rf /home/ws_rmw_zenoh/log
+# Only the installed workspace survives this instruction. Deleting build inputs
+# in a later RUN would leave their bytes in historical layers.
+# Upstream's default branch tracks Rolling and may require newer ROS APIs.
+ARG ZENOH_REF=${ROS_DISTRO}
+RUN --mount=type=cache,id=creator-zenoh-cargo-registry,target=/root/.cargo/registry,sharing=locked \
+    --mount=type=cache,id=creator-zenoh-cargo-git,target=/root/.cargo/git,sharing=locked \
+    mkdir -p /home/ws_rmw_zenoh/src \
+    && git clone --branch "${ZENOH_REF}" https://github.com/ros2/rmw_zenoh.git /home/ws_rmw_zenoh/src/rmw_zenoh \
+    && cd /home/ws_rmw_zenoh \
+    && apt-get update -qq \
+    && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
+    && /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release" \
+    && rm -rf src build log /var/lib/apt/lists/* \
+    && apt-get clean

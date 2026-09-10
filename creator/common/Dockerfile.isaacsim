@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # NVIDIA Isaac Sim layer (pip distribution).
 #
 # Isaac Sim ships wheels on https://pypi.nvidia.com. They pin an exact CPython

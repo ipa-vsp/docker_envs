@@ -4,19 +4,66 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    # paths:
-    #   - 'creator/**'
+    paths:
+      - 'creator/**'
+      - '.dockerignore'
+      - '.github/workflows/ros2-staged.yml'
   pull_request:
     branches: [ main ]
-  # schedule:
-  #   - cron: '0 0 * * 0'
+    paths:
+      - 'creator/**'
+      - '.dockerignore'
+      - '.github/workflows/ros2-staged.yml'
+
+# All publishing runs share intermediate tags; do not cancel one during cleanup.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  validate-pr:
+    name: Validate ROS stack without publishing
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: "24.04", ros: rolling, usage: skip }
+          - { os: "24.04", ros: kilted, usage: skip }
+          - { os: "24.04", ros: jazzy, usage: skip }
+          - { os: "22.04", ros: humble, usage: skip }
+          - { os: "26.04", ros: lyrical, usage: skip }
+          - { os: "24.04", ros: kilted, usage: manipulation }
+          - { os: "24.04", ros: jazzy, usage: manipulation }
+          - { os: "22.04", ros: humble, usage: manipulation }
+    steps:
+      - uses: actions/checkout@v7
+      # The docker driver keeps each intermediate image available to the next build.
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+      - name: Build the complete local stack
+        env:
+          OS_VERSION: ${{ matrix.os }}
+          ROS_DISTRO: ${{ matrix.ros }}
+          USAGE: ${{ matrix.usage }}
+        run: |
+          creator/scripts/run_env.sh -b -o "$OS_VERSION" -v "$ROS_DISTRO" \
+            -u "$USAGE" -U 1000 -G 1000 -i docker-envs-pr:ros
+      - name: Check ROS and user setup
+        run: |
+          docker run --rm --user admin docker-envs-pr:ros bash -c \
+            'test "$(id -u)" = 1000 && test -x /usr/local/bin/scripts/workspace-entrypoint.sh && source /opt/ros/$ROS_DISTRO/setup.bash && ros2 pkg prefix rclcpp'
+
   build-base:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Build Base Image
     runs-on: ubuntu-latest
     permissions:
@@ -39,11 +86,14 @@ jobs:
           context: .
           file: creator/common/Dockerfile.base
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }},mode=max
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
           build-args: |
             BASE_IMAGE=${{ matrix.os }}
 
   build-ros:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Add ROS
     runs-on: ubuntu-latest
     needs: build-base
@@ -74,11 +124,14 @@ jobs:
           context: .
           file: ${{ env.ROS_FILE }}
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.os }}-${{ matrix.ros }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.os }}-${{ matrix.ros }},mode=max
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
 
   build-moveit:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Add MoveIt
     runs-on: ubuntu-latest
     needs: build-ros
@@ -106,12 +159,15 @@ jobs:
           context: .
           file: creator/usage/Dockerfile.moveit
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.os }}-${{ matrix.ros }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.os }}-${{ matrix.ros }},mode=max
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
             ROS_DISTRO=${{ matrix.ros }}
 
   finalize-base-ros-user:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Final User Image (ROS only)
     runs-on: ubuntu-latest
     needs: build-ros
@@ -140,6 +196,8 @@ jobs:
           context: .
           file: creator/common/Dockerfile.user
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.os }}-${{ matrix.ros }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.os }}-${{ matrix.ros }},mode=max
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
@@ -149,6 +207,7 @@ jobs:
             ROS_DISTRO=${{ matrix.ros }}
 
   finalize-base-ros-moveit-user:
+    if: ${{ github.event_name != 'pull_request' }}
     name: Final User Image (MoveIt)
     runs-on: ubuntu-latest
     needs: build-moveit
@@ -176,6 +235,8 @@ jobs:
           context: .
           file: creator/common/Dockerfile.user
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.os }}-${{ matrix.ros }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.os }}-${{ matrix.ros }},mode=max
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-moveit
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
@@ -192,8 +253,8 @@ jobs:
       - finalize-base-ros-moveit-user
     # Only the final user images are meant to persist. Delete the intermediate
     # secondary packages once every final image has been pushed. Skipped on PRs
-    # (which don't push), and runs even if some optional finalize job was skipped.
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    # (which don't push). All required final jobs must succeed.
+    if: ${{ success() && github.event_name != 'pull_request' }}
     permissions:
       contents: read
       packages: write

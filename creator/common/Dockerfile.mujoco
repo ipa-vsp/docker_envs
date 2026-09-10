@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # MuJoCo layer.
 #
 # Installs both the native MuJoCo distribution (headers/libs under /opt/mujoco)
@@ -34,9 +35,10 @@ ENV LD_LIBRARY_PATH="${MUJOCO_DIR}/lib:${LD_LIBRARY_PATH:-}"
 # managed (PEP 668), so install into a venv. --system-site-packages keeps the
 # ROS 2 Python packages importable from inside it.
 ENV VIRTUAL_ENV=${VENV_PATH}
-RUN python3 -m venv --system-site-packages "${VIRTUAL_ENV}" \
-    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir --upgrade pip \
-    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir \
+RUN --mount=type=cache,id=creator-mujoco-pip,target=/root/.cache/pip,sharing=locked \
+    python3 -m venv --system-site-packages "${VIRTUAL_ENV}" \
+    && "${VIRTUAL_ENV}/bin/pip" install --upgrade pip \
+    && "${VIRTUAL_ENV}/bin/pip" install \
         "mujoco==${MUJOCO_VERSION}" \
         "gymnasium==${GYM_VERSION}"
 

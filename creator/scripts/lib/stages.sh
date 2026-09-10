@@ -104,6 +104,31 @@ stages::isaaclab_versions() {
         | sort -uV | tail -n "${limit}" | tac
 }
 
+# Isaac Lab branches worth building from: the two development lines first, then
+# the release maintenance branches newest first. The repository also carries
+# dozens of personal, CI and backport branches; they are filtered out so the
+# menu stays short and every entry is something a user would actually pin to.
+stages::isaaclab_branches() {
+    local limit="${1:-4}"
+    local -a heads=() ordered=()
+    mapfile -t heads < <(
+        git ls-remote --heads https://github.com/isaac-sim/IsaacLab.git 2>/dev/null \
+            | awk -F'refs/heads/' '{print $2}'
+    )
+    (( ${#heads[@]} == 0 )) && return 0
+
+    local b
+    for b in main develop; do
+        printf '%s\n' "${heads[@]}" | grep -qxF "${b}" && ordered+=("${b}")
+    done
+    mapfile -t -O "${#ordered[@]}" ordered < <(
+        printf '%s\n' "${heads[@]}" | grep -E '^release/v?[0-9]+\.[0-9]+' | sort -urV
+    )
+
+    (( ${#ordered[@]} == 0 )) && return 0
+    printf '%s\n' "${ordered[@]}" | head -n "${limit}"
+}
+
 # Newest -> oldest CUDA versions that publish a cudnn-devel image for this
 # Ubuntu release.
 stages::cuda_versions() {
@@ -248,6 +273,34 @@ stages::torch_index_url() {
     echo "https://download.pytorch.org/whl/${fallback}"
 }
 
+# stages::isaaclab_major <ref>
+#
+# Major version of an Isaac Lab ref, which is a tag (v2.3.2) or a branch
+# (main, develop, release/3.0.0). Release branches carry their version in the
+# name; the development branches do not, so they are assumed to be the line the
+# newest published tag belongs to. Looked up once and cached: the RL-framework
+# menu asks for this per entry.
+STAGES_ISAACLAB_DEV_MAJOR=""
+stages::isaaclab_major() {
+    local ref="${1#v}"
+
+    case "${ref}" in
+        [0-9]*) echo "${ref%%.*}"; return 0 ;;
+        release/*)
+            ref="${ref#release/}"
+            [[ "${ref#v}" =~ ^[0-9]+ ]] && { echo "${BASH_REMATCH[0]}"; return 0; }
+            ;;
+    esac
+
+    if [[ -z "${STAGES_ISAACLAB_DEV_MAJOR}" ]]; then
+        local latest; latest="$(stages::isaaclab_versions 1)"
+        latest="${latest:-${STAGES_DEFAULT_ISAACLAB}}"
+        latest="${latest#v}"
+        STAGES_ISAACLAB_DEV_MAJOR="${latest%%.*}"
+    fi
+    echo "${STAGES_ISAACLAB_DEV_MAJOR}"
+}
+
 # stages::isaaclab_install_arg <version> <framework>
 #
 # Isaac Lab 3.x replaced the isaaclab.sh installer with a Python CLI and changed
@@ -255,8 +308,8 @@ stages::torch_index_url() {
 # frameworks moved behind an rl[...] selector with hyphenated names. Passing a
 # 2.x token to a 3.x checkout fails the layer, so translate here.
 stages::isaaclab_install_arg() {
-    local version="${1#v}" framework="$2"
-    local major="${version%%.*}"
+    local version="$1" framework="$2"
+    local major; major="$(stages::isaaclab_major "${version}")"
 
     if (( major < 3 )); then
         echo "${framework}"
@@ -288,6 +341,11 @@ STAGES_NAMESPACE="${STAGES_NAMESPACE:-docker_envs}"
 # stages::tag_add <component>  — append one component to the running tag.
 stages::tag_reset() { STAGES_TAG_PARTS=(); }
 stages::tag_add()   { STAGES_TAG_PARTS+=("$1"); }
+
+# stages::tag_slug <text> — make <text> safe for a Docker tag component. Only
+# needed for refs typed by the user (an Isaac Lab branch such as
+# release/3.0.0 would otherwise produce an invalid image reference).
+stages::tag_slug() { local s="${1//[^A-Za-z0-9._-]/-}"; echo "${s}"; }
 stages::tag()       { local IFS='-'; echo "${STAGES_TAG_PARTS[*]}"; }
 
 # stages::layer_image <layer> — intermediate image name for the current tag.
@@ -479,7 +537,7 @@ stages::build_plan() {
 
     # --- Isaac Lab ----------------------------------------------------------
     if [[ "${STAGES_ISAACLAB}" == true ]]; then
-        stages::tag_add "isaaclab${STAGES_ISAACLAB_VERSION#v}"
+        stages::tag_add "isaaclab$(stages::tag_slug "${STAGES_ISAACLAB_VERSION#v}")"
         image="$(stages::layer_image isaaclab)"
         local lab_install
         lab_install="$(stages::isaaclab_install_arg "${STAGES_ISAACLAB_VERSION}" "${STAGES_ISAACLAB_RL}")"
@@ -608,20 +666,20 @@ stages::image_env() {
 # Appends the Isaac Sim docker run arguments to STAGES_ISAAC_ARGS and creates the
 # host cache directories.
 stages::isaac_run_args() {
-    local image="$1" home="$2"
+    local image="$1" container_home="$2"
     local root="${STAGES_ISAAC_CACHE_ROOT}"
     STAGES_ISAAC_ARGS=()
 
     # host subdir : container path (relative to the container user's home)
     local -a mounts=(
-        "cache/ov:${home}/.cache/ov"
-        "cache/pip:${home}/.cache/pip"
-        "cache/glcache:${home}/.cache/nvidia/GLCache"
-        "cache/computecache:${home}/.nv/ComputeCache"
-        "logs:${home}/.nvidia-omniverse/logs"
-        "config:${home}/.nvidia-omniverse/config"
-        "data:${home}/.local/share/ov/data"
-        "documents:${home}/Documents"
+        "cache/ov:${container_home}/.cache/ov"
+        "cache/pip:${container_home}/.cache/pip"
+        "cache/glcache:${container_home}/.cache/nvidia/GLCache"
+        "cache/computecache:${container_home}/.nv/ComputeCache"
+        "logs:${container_home}/.nvidia-omniverse/logs"
+        "config:${container_home}/.nvidia-omniverse/config"
+        "data:${container_home}/.local/share/ov/data"
+        "documents:${container_home}/Documents"
     )
 
     # The Kit SDK cache lives inside the venv; Dockerfile.isaacsim records where.
@@ -636,8 +694,17 @@ stages::isaac_run_args() {
         target="${entry#*:}"
         # Created here rather than left to docker: docker would create them
         # root-owned, and the container runs as the host user.
-        mkdir -p "${host_dir}"
-        STAGES_ISAAC_ARGS+=(-v "${host_dir}:${target}:rw")
+        mkdir -p "${host_dir}" || return 1
+        if [[ ! -w "${host_dir}" ]]; then
+            stages::error "Isaac cache directory is not writable: ${host_dir}"
+            return 1
+        fi
+        host_dir="$(cd -- "${host_dir}" && pwd -P)" || return 1
+        if [[ "${host_dir}" == *,* ]]; then
+            stages::error "Isaac cache paths containing commas are not supported."
+            return 1
+        fi
+        STAGES_ISAAC_ARGS+=(--mount "type=bind,source=${host_dir},target=${target}")
     done
 
     STAGES_ISAAC_ARGS+=(

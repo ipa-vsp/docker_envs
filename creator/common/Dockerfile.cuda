@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # CUDA + cuDNN development base.
 #
 # BASE_IMAGE is a full NVIDIA CUDA image reference, e.g.
@@ -12,9 +13,6 @@ FROM ${BASE_IMAGE}
 
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
-# provide a consistent shell experience for interactive containers
-COPY creator/scripts/bashrc /etc/bash.bashrc
-RUN chmod a+rwx /etc/bash.bashrc
 ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-c"]
 
@@ -61,11 +59,6 @@ RUN . /etc/os-release \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Raise the inotify watch limits. See Dockerfile.base for why this is a drop-in
-# rather than a live sysctl: fs.inotify.* is not namespaced by Docker.
-RUN printf 'fs.inotify.max_user_watches=524288\nfs.inotify.max_user_instances=512\n' \
-        > /etc/sysctl.d/99-inotify.conf
-
 # Install Git-LFS from Ubuntu's universe repository (avoids packagecloud,
 # which lacks Release files for newer/rolling releases like 26.04).
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -78,3 +71,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # GUI/simulation workloads (Isaac Sim, MuJoCo) work out of the box.
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=all
+
+# Interactive configuration changes must not invalidate package installation.
+COPY --chmod=0644 creator/scripts/bashrc /etc/bash.bashrc

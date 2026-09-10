@@ -75,7 +75,13 @@ case $CUDA_VERSION in
 esac
 
 print_info "Building Docker image: ${IMAGE_NAME}"
-docker build \
+# Cache mounts and COPY --chmod require BuildKit; keep the Docker driver so
+# the next stage can consume this stage's locally tagged image.
+if ! docker buildx version >/dev/null 2>&1; then
+    echo "Docker Buildx is required. Install the docker-buildx-plugin package." >&2
+    exit 1
+fi
+DOCKER_BUILDKIT=1 docker build \
     --build-arg BASE_IMAGE=nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu${OS_VERSION} \
     --build-arg TORCH_VERSION=${TORCH_VERSION} \
     --build-arg TORCHVISION_VERSION=${TORCHVISION_VERSION} \

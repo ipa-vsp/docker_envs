@@ -3,7 +3,9 @@
 #
 # Walks through every build stage, offering the choices valid for the previous
 # selections. MuJoCo, Isaac Sim, Isaac Lab and CUDA version lists are fetched
-# online on every run, so the newest release is always on the menu.
+# online on every run, so the newest release is always on the menu. Isaac Lab
+# is offered as tags and as branches, since the branches often carry support
+# for a new Isaac Sim before it is tagged.
 #
 # The non-interactive equivalent is ./run_env.sh.
 
@@ -29,7 +31,7 @@ fi
 # --------------------------------------------------------------------------- #
 
 # ask_choice <prompt> <default-index> <option>...
-# Result in CHOICE.
+# Result in CHOICE, its 1-based position in CHOICE_INDEX.
 ask_choice() {
     local prompt="$1" default="$2"; shift 2
     local options=("$@") i answer
@@ -48,6 +50,7 @@ ask_choice() {
         answer="${answer:-${default}}"
         if [[ "${answer}" =~ ^[0-9]+$ ]] && (( answer >= 1 && answer <= ${#options[@]} )); then
             CHOICE="${options[answer - 1]}"
+            CHOICE_INDEX="${answer}"
             echo "  -> ${CHOICE}"
             return 0
         fi
@@ -81,19 +84,26 @@ ask_value() {
 
 # ask_version <label> <kind> [os]
 # Shows the versions discovered online plus a manual-entry escape hatch.
+# Isaac Lab is offered as both released tags and the branches worth tracking
+# (main/develop and the release lines), 4 of each: a new Isaac Sim often lands
+# on a branch well before the tag that supports it exists.
 # Result in VERSION.
 ask_version() {
     local label="$1" kind="$2" os="${3:-}"
-    local -a versions=()
+    local -a versions=() branches=()
     printf '\nLooking up available %s versions...\n' "${label}"
     case "${kind}" in
         mujoco)   mapfile -t versions < <(stages::mujoco_versions 8) ;;
         isaacsim) mapfile -t versions < <(stages::isaacsim_versions 8) ;;
-        isaaclab) mapfile -t versions < <(stages::isaaclab_versions 8) ;;
+        isaaclab) mapfile -t versions < <(stages::isaaclab_versions 4)
+                  mapfile -t branches < <(stages::isaaclab_branches 4) ;;
         cuda)     mapfile -t versions < <(stages::cuda_versions "${os}" 8) ;;
     esac
 
-    if (( ${#versions[@]} == 0 )); then
+    local manual="other (type a version)"
+    [[ "${kind}" == isaaclab ]] && manual="other (type a tag or branch)"
+
+    if (( ${#versions[@]} == 0 && ${#branches[@]} == 0 )); then
         stages::warn "Could not reach the ${label} index (offline?). Falling back to the built-in default."
         case "${kind}" in
             mujoco)   VERSION="${STAGES_DEFAULT_MUJOCO}" ;;
@@ -106,20 +116,32 @@ ask_version() {
         return 0
     fi
 
-    # The list is newest first, so entry 1 is always "the latest".
-    local -a labelled=("${versions[0]} (latest)")
-    local v
-    for v in "${versions[@]:1}"; do
-        labelled+=("${v}")
+    # Both lists are newest first, so entry 1 is always "the latest release".
+    # `values` holds what gets passed to the build, `labelled` what is shown.
+    local -a values=() labelled=()
+    local i
+    for i in "${!versions[@]}"; do
+        values+=("${versions[i]}")
+        if (( i == 0 )); then
+            labelled+=("${versions[i]} (latest$([[ "${kind}" == isaaclab ]] && echo " tag"))")
+        elif [[ "${kind}" == isaaclab ]]; then
+            labelled+=("${versions[i]} (tag)")
+        else
+            labelled+=("${versions[i]}")
+        fi
     done
-    labelled+=("other (type a version)")
+    for i in "${!branches[@]}"; do
+        values+=("${branches[i]}")
+        labelled+=("${branches[i]} (branch, moves with upstream)")
+    done
+    labelled+=("${manual}")
 
     ask_choice "Which ${label} version?" 1 "${labelled[@]}"
-    if [[ "${CHOICE}" == "other (type a version)" ]]; then
-        ask_value "${label} version" "${versions[0]}"
+    if (( CHOICE_INDEX > ${#values[@]} )); then
+        ask_value "${label} version" "${values[0]}"
         VERSION="${VALUE}"
     else
-        VERSION="${CHOICE% (latest)}"
+        VERSION="${values[CHOICE_INDEX - 1]}"
     fi
 }
 
