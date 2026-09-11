@@ -41,6 +41,8 @@ jobs:
           bash -n creator/common/create_user.sh
           bash -n creator/scripts/run_env.sh
           bash -n creator/scripts/workspace-entrypoint.sh
+          bash -n creator/scripts/container-banner.bash
+          bash -n creator/scripts/bashrc
           bash -n creator/scripts/lib/stages.sh
           bash -n creator/scripts/build_image.sh
           bash -n creator/scripts/build_pytorch_env.sh

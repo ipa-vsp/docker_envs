@@ -5,7 +5,8 @@ USER root
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Dependencies precede personalized account metadata for cache sharing.
-RUN apt-get update && apt-get install -y --no-install-recommends sudo && \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl git libstdc++6 sudo && \
     rm -rf /var/lib/apt/lists/* && apt-get clean
 
 ARG USERNAME=admin
@@ -17,9 +18,24 @@ RUN --mount=type=bind,source=creator/common/create_user.sh,target=/tmp/create_us
 
 ENV USERNAME=${USERNAME} USER_UID=${USER_UID} USER_GID=${USER_GID}
 ENV HOME=/home/${USERNAME} ROS_DISTRO=${ROS_DISTRO}
+ENV PATH=/home/${USERNAME}/.local/bin:${PATH}
 COPY --chmod=0755 creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/workspace-entrypoint.sh
 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}/colcon_ws
+# Install into the development user's home, with pipefail propagating download errors.
+RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN claude --version && \
+    if [[ ! -e .claude && ! -L .claude ]]; then \
+        git clone https://github.com/ipa-vsp/.claude.git .claude; \
+    fi
+
+# Append the interactive banner without replacing ROS/Isaac shell setup.
+USER root
+COPY --chmod=0644 creator/scripts/container-banner.bash /etc/docker-envs-banner.bash
+RUN banner_source='source /etc/docker-envs-banner.bash'; \
+    grep -Fxq "$banner_source" /etc/bash.bashrc || \
+    printf '\n%s\n' "$banner_source" >> /etc/bash.bashrc
+USER ${USERNAME}
 ENTRYPOINT ["/usr/local/bin/scripts/workspace-entrypoint.sh"]
 CMD ["/bin/bash"]

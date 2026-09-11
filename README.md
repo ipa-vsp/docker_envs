@@ -87,9 +87,13 @@ USER admin
 ```
 
 Startup loads ROS/Zenoh when installed, applies `WORKSPACE_UMASK`, and executes
-the command. Package updates, rosdep updates, Git pulls, host sysctl changes, and
-Claude CLI/config installation are no longer automatic. Run development setup
-commands explicitly when needed.
+the command. Final user images include Claude Code and a clone of
+[`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) at
+`~/colcon_ws/.claude`, installed during the image build. Interactive Bash shells
+show workspace and user information, including a warning when running as root.
+Package updates, rosdep updates, Git pulls, and host sysctl changes are not run
+at startup. See the [creator guide](creator/README.md#claude-code-and-skills)
+for using Claude with a mounted host workspace.
 
 ## Validation
 

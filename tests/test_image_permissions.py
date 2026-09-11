@@ -47,6 +47,49 @@ class ImagePermissionsTests(unittest.TestCase):
         finally:
             self.docker("volume", "rm", volume)
 
+    def test_claude_and_workspace_skills_are_installed_for_development_user(self):
+        result = self.docker(
+            "run",
+            "--rm",
+            "--network=none",
+            IMAGE,
+            "bash",
+            "-c",
+            'claude --version && '
+            'test -w "$HOME/.local/share/claude" && '
+            'test -w "$HOME/colcon_ws/.claude" && '
+            'git -C "$HOME/colcon_ws/.claude" remote get-url origin',
+        )
+        self.assertIn("Claude Code", result.stdout)
+        self.assertIn("https://github.com/ipa-vsp/.claude.git", result.stdout)
+
+    def test_interactive_banner_reports_identity_and_root_warning(self):
+        for user in ("12345:23456", "0:0"):
+            with self.subTest(user=user):
+                result = self.docker(
+                    "run",
+                    "--rm",
+                    "--network=none",
+                    "--user",
+                    user,
+                    "-e",
+                    "NO_COLOR=1",
+                    IMAGE,
+                    "bash",
+                    "-ic",
+                    "exit",
+                )
+                self.assertIn("docker_envs", result.stdout)
+                self.assertIn("/home/admin/colcon_ws", result.stdout)
+                self.assertNotIn("\x1b[", result.stdout)
+                if user == "0:0":
+                    self.assertIn("WARNING: This shell is running as root", result.stdout)
+                    self.assertIn('"$(id -u):$(id -g)"', result.stdout)
+                else:
+                    self.assertIn("UID 12345 · GID 23456", result.stdout)
+                    self.assertIn("Running as a non-root user", result.stdout)
+                    self.assertNotIn("WARNING", result.stdout)
+
     def test_conflicting_accounts_are_rejected(self):
         for name, uid, gid in (
             ("root", "12345", "23456"),

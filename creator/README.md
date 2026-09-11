@@ -87,6 +87,32 @@ status. It never edits `.bashrc`, updates packages, pulls Git content, changes
 ownership, or applies host sysctls. Interactive ROS shells also load the
 system configuration when started with `docker exec`.
 
+## Claude Code and skills
+
+The final user stage installs Claude Code as the development user with the
+[native installer](https://code.claude.com/docs/en/setup):
+`curl -fsSL https://claude.ai/install.sh | bash`. Its `~/.local/bin` directory is
+on `PATH`, including for non-interactive commands. The build also clones
+`https://github.com/ipa-vsp/.claude.git` into `~/colcon_ws/.claude`; an existing
+`.claude` directory is preserved when extending an image.
+
+A host workspace mounted at `~/colcon_ws` hides the image's clone. To set up
+skills in that workspace, run once inside the container:
+
+```bash
+cd ~/colcon_ws
+git clone https://github.com/ipa-vsp/.claude.git
+```
+
+Keep an existing `.claude` directory if you already have one. Start `claude`
+from the workspace and follow its sign-in prompts. Shell startup does not
+download software or change workspace files.
+
+Interactive Bash displays the user, numeric UID/GID, workspace, ROS distro
+(when set), and Claude availability. Root shells show a permissions warning;
+non-root shells remind you to match host IDs without assuming they match.
+Set `NO_COLOR=1` to disable banner colors.
+
 ## Permissions and storage
 
 On native Linux without user namespace translation, the container process's
