@@ -120,6 +120,85 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(args[arg], expected[key])
 
 
+class RosCleanupTests(unittest.TestCase):
+    def run_cleanup(self, error="", owner_type="User"):
+        job = workflow("ros2-staged.yml")["jobs"]["cleanup-intermediates"]
+        with tempfile.TemporaryDirectory() as directory:
+            temp = Path(directory)
+            gh = temp / "gh"
+            gh.write_text("""#!/bin/bash
+set -eu
+if [[ "$2" == /repos/* ]]; then
+  echo "$TEST_OWNER_TYPE"
+elif [[ "$2" == --paginate ]]; then
+  printf '1\\n2\\n'
+elif [[ "$2" == -X && "$3" == DELETE ]]; then
+  echo "$4" >> "$TEST_DELETE_LOG"
+  if [[ "$4" == */base/versions/1 && -n "$TEST_DELETE_ERROR" ]]; then
+    echo "$TEST_DELETE_ERROR" >&2
+    exit 1
+  fi
+else
+  exit 99
+fi
+""")
+            gh.chmod(0o755)
+            log = temp / "deletions"
+            result = subprocess.run(
+                ["bash", "-c", job["steps"][0]["run"]],
+                env=dict(
+                    os.environ,
+                    PATH=f"{temp}:{os.environ['PATH']}",
+                    REPO="test/docker_envs",
+                    INTERMEDIATE_PACKAGES='["base", "docker_envs/ros"]',
+                    TEST_OWNER_TYPE=owner_type,
+                    TEST_DELETE_LOG=str(log),
+                    TEST_DELETE_ERROR=error,
+                ),
+                capture_output=True,
+                text=True,
+            )
+            return result, log.read_text().splitlines()
+
+    def test_download_protection_retains_package_and_continues_cleanup(self):
+        error = (
+            "gh: Publicly visible package versions with more than 5000 downloads "
+            "cannot be deleted. Contact GitHub support for further assistance. (HTTP 400)"
+        )
+        for owner_type, prefix in (("User", "/users"), ("Organization", "/orgs")):
+            with self.subTest(owner_type=owner_type):
+                result, deletions = self.run_cleanup(error, owner_type)
+                base = f"{prefix}/test/packages/container"
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("::warning::Retaining base version 1", result.stdout)
+                self.assertEqual(
+                    deletions,
+                    [
+                        f"{base}/base/versions/1",
+                        f"{base}/base/versions/2",
+                        f"{base}/docker_envs%2Fros/versions/1",
+                        f"{base}/docker_envs%2Fros/versions/2",
+                        f"{base}/docker_envs%2Fros",
+                    ],
+                )
+
+    def test_successful_cleanup_removes_packages(self):
+        result, deletions = self.run_cleanup()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(deletions), 6)
+        self.assertEqual(deletions[2], "/users/test/packages/container/base")
+        self.assertEqual(deletions[5], "/users/test/packages/container/docker_envs%2Fros")
+        self.assertNotIn("::warning::", result.stdout)
+
+    def test_unexpected_deletion_errors_fail_cleanup(self):
+        for error in ("gh: Forbidden (HTTP 403)", "gh: Bad request (HTTP 400)"):
+            with self.subTest(error=error):
+                result, deletions = self.run_cleanup(error)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(error, result.stderr)
+                self.assertEqual(deletions, ["/users/test/packages/container/base/versions/1"])
+
+
 class LocalBuilderTests(unittest.TestCase):
     def test_stage_failure_stops_the_stack(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -253,7 +253,8 @@ jobs:
       - finalize-base-ros-moveit-user
     # Only the final user images are meant to persist. Delete the intermediate
     # secondary packages once every final image has been pushed. Skipped on PRs
-    # (which don't push). All required final jobs must succeed.
+    # (which don't push). All required final jobs must succeed. Versions protected
+    # by GitHub's public download limit must remain.
     if: ${{ success() && github.event_name != 'pull_request' }}
     permissions:
       contents: read
@@ -288,11 +289,23 @@ jobs:
               continue
             fi
 
-            echo "${VERSIONS}" | while read -r id; do
+            RETAINED_VERSIONS=false
+            while read -r id; do
               [[ -z "${id}" ]] && continue
-              gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}/versions/${id}"
-            done
+              if DELETE_OUTPUT=$(gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}/versions/${id}" 2>&1); then
+                continue
+              fi
+              if [[ "${DELETE_OUTPUT}" == *"(HTTP 400)"* && "${DELETE_OUTPUT}" == *"Publicly visible package versions with more than 5000 downloads cannot be deleted"* ]]; then
+                echo "::warning::Retaining ${pkg} version ${id}: GitHub prevents deletion above 5000 public downloads."
+                RETAINED_VERSIONS=true
+              else
+                printf '%s\n' "${DELETE_OUTPUT}" >&2
+                exit 1
+              fi
+            done <<< "${VERSIONS}"
 
+            # Do not attempt to delete a package that still has protected versions.
+            [[ "${RETAINED_VERSIONS}" == true ]] && continue
             # Once the last version is removed the package itself is deleted; ignore 404s.
             gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}" 2>/dev/null || true
           done
