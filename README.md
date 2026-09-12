@@ -1,39 +1,89 @@
 # docker_envs
 
-Docker development environments for ROS 2, PyTorch, MuJoCo, and NVIDIA Isaac.
-Use the staged builder for a custom stack or start with a published image.
-These images include compilers, development tools, and passwordless sudo for the
-named development account.
+Docker development environments for ROS 2, PyTorch, MuJoCo and NVIDIA Isaac Sim / Isaac Lab.
+
+- Staged builder → pick only the layers you need
+- Published images → ROS 2, MoveIt, PyTorch
+- Development images → compilers, dev tools, passwordless `sudo` for the development account
+- Non-root by default → your host UID/GID inside the container
+
+## Requirements
+
+- Docker Engine + Buildx plugin
+- Bash, Python 3 (tests: PyYAML, `jq`)
+- GPU stacks → NVIDIA driver + NVIDIA Container Toolkit
+- GUI → X11 display + `xauth`
 
 ## Quick start
 
-Run from the repository root with Docker Engine and the Buildx plugin installed:
+Run from the repository root.
+
+### ROS 2
 
 ```bash
-# Build a named account with your host UID/GID.
-creator/scripts/run_env.sh -b -o 24.04 -v jazzy -u manipulation
-
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy -u manipulation      # build
 mkdir -p "$HOME/colcon_ws/src"
 creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w "$HOME/colcon_ws"
 ```
 
-Isaac Lab 3.x can also be built without Isaac Sim using `-L release/3.0.0 -j legacy`.
-For the full Sim environment, use `-I 6.1.0.0 -L release/3.0.0 -j python-env`.
+### Isaac Sim + Isaac Lab
 
-For interactive stage selection, run `creator/scripts/create_env.sh`. To inspect
-a build without executing it, replace `-b` with `-p`. See the
-[creator guide](creator/README.md) for flags, Isaac configuration, and caching.
+```bash
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
+  -I 6.1.0.0 -L release/3.0.0 -j python-env -i docker_envs:isaaclab
+creator/scripts/run_env.sh -S -H -i docker_envs:isaaclab -w "$HOME/colcon_ws"
+creator/scripts/run_env.sh -E -i docker_envs:isaaclab
+```
 
-Final creator images start as `admin` by default; local builds use your numeric
-UID/GID. The launcher also supplies your host IDs at runtime and requires an
-existing workspace. It never changes workspace ownership. Device access is
-explicit: use `-g` for NVIDIA GPUs or `-d /dev/<device>` for a specific device.
+### Isaac Lab without Isaac Sim (Kit-less)
+
+```bash
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
+  -L release/3.0.0 -j legacy -i docker_envs:isaaclab-kitless
+```
+
+### Other entry points
+
+| Goal | Command |
+|---|---|
+| Interactive stage selection | `creator/scripts/create_env.sh` |
+| Graphical stage selection | AppImage from a release, or `pip install ./gui && docker-envs-gui` |
+| Preview a build (no build) | replace `-b` with `-p` |
+| All flags | `creator/scripts/run_env.sh -h` |
+
+### Graphical builder
+
+A desktop front end over the same staged builder: all nine stages on one form,
+with the derived image name, the layer plan and the equivalent `run_env.sh`
+command updating as you choose, and the build log streamed with per-layer
+progress. It runs the command it shows, so images are identical to CLI builds.
+Combinations `stages.sh` would reject are disabled with the reason attached.
+
+```bash
+pip install ./gui && docker-envs-gui      # from a checkout
+./docker-envs-gui-<version>-x86_64.AppImage   # self-contained; no checkout needed
+```
+
+See the [GUI guide](gui/README.md).
+
+## Daily loop
+
+| Action | Command |
+|---|---|
+| Start in background | `creator/scripts/run_env.sh -S -H -i <img> -w <workspace>` |
+| New shell (repeatable) | `creator/scripts/run_env.sh -E -i <img>` |
+| Stop + remove | `creator/scripts/run_env.sh -K -i <img>` |
+| One-off shell | `creator/scripts/run_env.sh -r -i <img> -w <workspace>` |
+
+- Workspace → must already exist; mounted at `~/colcon_ws`; ownership never changed
+- Devices → explicit only: `-g` all NVIDIA GPUs, `-d /dev/<device>` one device
+- `-H` → host network + IPC (ROS 2 discovery)
+- Isaac images → GPU, caches and Isaac Lab output mounts added automatically
+- Replay a build → `docker image inspect -f '{{index .Config.Labels "org.docker_envs.build-command"}}' <img>`
 
 ## Published images
 
-The active workflows configure the following tags under
-`ghcr.io/ipa-vsp/docker_envs`. Check workflow results for publication status;
-existing registry images keep their previous behavior until rebuilt.
+Registry: `ghcr.io/ipa-vsp/docker_envs`
 
 | Stack | Tags |
 |---|---|
@@ -41,17 +91,45 @@ existing registry images keep their previous behavior until rebuilt.
 | ROS 2 + MoveIt | `24.04-kilted-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
 | PyTorch | `cuda12.8-torch2.8` (Torch 2.8.0, CUDA wheels, MuJoCo 3.4.0, Ubuntu 24.04) |
 
-CI's PyTorch image uses Ubuntu plus CUDA-enabled wheels. The local PyTorch helper
-uses a CUDA development base. CUDA, Isaac Sim/Lab, Nav2, and additional MuJoCo
-combinations are available through local builds.
+- Publication status → check workflow results
+- Existing registry images → keep previous behavior until rebuilt
+- CI PyTorch image → Ubuntu + CUDA-enabled wheels
+- Local PyTorch helper → CUDA development base
+- CUDA, Isaac Sim/Lab, Nav2, other MuJoCo combinations → local builds only
+- Workflows:
+  - [ROS publication](.github/workflows/ros2-staged.yml)
+  - [PyTorch publication](.github/workflows/pytorch-staged.yml)
+  - [Build regression checks](.github/workflows/build-validation.yml)
 
-- [ROS publication workflow](.github/workflows/ros2-staged.yml)
-- [PyTorch publication workflow](.github/workflows/pytorch-staged.yml)
-- [Build regression checks](.github/workflows/build-validation.yml)
+## Repository layout
 
-## Compose and host files
+| Path | Contents |
+|---|---|
+| `creator/scripts/` | `create_env.sh` (interactive), `run_env.sh` (flags), shared `lib/stages.sh` |
+| `creator/common/`, `creator/ros2/`, `creator/usage/` | layer Dockerfiles + build-time helpers |
+| `gui/` | desktop image builder (PySide6) + its AppImage packaging |
+| `composer/template/` | minimal Compose file for any creator image |
+| `composer/isaaclab/` | persistent Isaac Sim / Lab Compose service for a creator image |
+| `composer/isaacsim/` | fixed Isaac Sim 6.0.1 example (not the creator path) |
+| `composer/isaac/` | legacy NGC Isaac Sim 4.5 reference |
+| `composer/<other>/` | application examples → review hardware, network, paths first |
+| `creator/_deprecated/` | historical references |
+| `docs/` | workflow guides |
+| `tests/` | regression tests (no Docker needed) |
 
-Use the [minimal Compose template](composer/template/docker-compose.yml):
+## Documentation map
+
+| Topic | Guide |
+|---|---|
+| Isaac Sim + Lab end-to-end workflow | [docs/ISAAC_WORKFLOW.md](docs/ISAAC_WORKFLOW.md) |
+| Build flags, run flags, Isaac options, permissions, caching | [creator/README.md](creator/README.md) |
+| Graphical builder, its bridge to `stages.sh`, AppImage packaging | [gui/README.md](gui/README.md) |
+| Compose with a creator image, custom Dockerfile | [composer/template/README.md](composer/template/README.md) |
+| Isaac Compose service | [composer/isaaclab/README.md](composer/isaaclab/README.md) |
+| Fixed Isaac Sim example | [composer/isaacsim/README.md](composer/isaacsim/README.md) |
+| `uv sync: Permission denied` | [creator/README.md#uv-sync-permission-denied](creator/README.md#uv-sync-permission-denied) |
+
+## Compose in one minute
 
 ```bash
 export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
@@ -60,29 +138,19 @@ export IMAGE=docker_envs:24.04-jazzy-moveit
 docker compose -f composer/template/docker-compose.yml run --rm ros
 ```
 
-See the [Compose walkthrough](composer/template/README.md) to build with the
-interactive creator, write your own Compose file, extend the image with a custom
-Dockerfile, and run project commands inside the container. If `uv sync` reports
-`uv.lock: Permission denied`, follow the
-[existing-file repair instructions](creator/README.md#uv-sync-permission-denied).
+## Permissions in one minute
 
-UID/GID determine ownership; umask determines initial permissions. For shared
-group access, use the launcher's `-a <gid> -M 0002`, or Compose `group_add` and
-`WORKSPACE_UMASK: "0002"`. Published accounts use `1000:1000`; rebuild the final
-user layer if your application needs a writable named home with different IDs.
-Do not recursively change ownership of a repository to match a published image.
-
-See [permissions and storage](creator/README.md#permissions-and-storage) for
-named volumes, troubleshooting, and platform differences, and the
-[Isaac Sim example](composer/isaacsim/README.md) for persistent simulator caches.
-Other `composer/` directories are application-specific examples; review their
-hardware, network, and path settings before using them. Files under
-`creator/_deprecated/` are historical references.
+- UID/GID → decide ownership; umask → decides initial permissions
+- Shared group access → launcher `-a <gid> -M 0002`, or Compose `group_add` + `WORKSPACE_UMASK: "0002"`
+- Published images → account `admin`, `1000:1000`
+- Different IDs + writable named home → rebuild the final user layer
+- Never recursively `chown` a repository to match an image
+- Details → [permissions and storage](creator/README.md#permissions-and-storage)
 
 ## Extending an image
 
-Final images now default to non-root. Downstream package installation must select
-root explicitly, then restore the development user:
+- Final images end as the non-root account
+- Package installs → switch to `root`, then back to the account
 
 ```dockerfile
 FROM ghcr.io/ipa-vsp/docker_envs:24.04-jazzy
@@ -92,14 +160,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends tmux \
 USER admin
 ```
 
-Startup loads ROS/Zenoh when installed, applies `WORKSPACE_UMASK`, and executes
-the command. Final user images include Claude Code and a clone of
-[`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) at
-`~/colcon_ws/.claude`, installed during the image build. Interactive Bash shells
-show workspace and user information, including a warning when running as root.
-Package updates, rosdep updates, Git pulls, and host sysctl changes are not run
-at startup. See the [creator guide](creator/README.md#claude-code-and-skills)
-for using Claude with a mounted host workspace.
+## Container startup behavior
+
+- Loads ROS and Zenoh (when installed), applies `WORKSPACE_UMASK`, then `exec`s the command
+- No package updates, rosdep updates, Git pulls or host sysctl changes at startup
+- Interactive Bash → banner with user, workspace, ROS distro; warning when root
+- Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) cloned at `~/colcon_ws/.claude`
+- Mounted workspace hides that clone → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
 
 ## Validation
 
@@ -108,5 +175,5 @@ python3 -m unittest discover -s tests -v
 pre-commit run --all-files
 ```
 
-Tests require Python, PyYAML, and `jq`. Install hooks with `pre-commit install`.
-See the creator guide for image smoke checks and cache inspection.
+- Install hooks once → `pre-commit install`
+- Image smoke checks, cache inspection → [creator checks](creator/README.md#checks)

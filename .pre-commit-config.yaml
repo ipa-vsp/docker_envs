@@ -79,5 +79,7 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        args: ['--write-changes']
+        # "datas" is PyInstaller's own spelling (Analysis(datas=...), a.datas),
+        # and --write-changes would rewrite it to "data" and break the build.
+        args: ['--write-changes', '--ignore-words-list=datas']
         exclude: CHANGELOG\.rst|\.(svg|pyc|drawio|dcf|eds)$

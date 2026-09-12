@@ -1,0 +1,10 @@
+#!/bin/sh
+# AppImage entry point.
+#
+# The PyInstaller bundle carries its own Python and Qt, so nothing from the host
+# environment should reach it. LD_LIBRARY_PATH and PYTHONHOME in particular would
+# make it load the host's libraries against the bundled interpreter.
+HERE="$(dirname "$(readlink -f "$0")")"
+unset PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LD_PRELOAD QT_PLUGIN_PATH QML2_IMPORT_PATH
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
+exec "${HERE}/usr/bin/docker-envs-gui" "$@"

@@ -274,3 +274,21 @@ sys.exit(23)
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IsaacCachePathTests(unittest.TestCase):
+    def test_isaaclab_compose_volumes_match_cache_list(self):
+        listed = {
+            line.split(":", 1)[1]
+            for line in (ROOT / "creator/common/isaac-cache-dirs.txt").read_text().splitlines()
+            if line.strip() and not line.startswith("#")
+        }
+        compose = yaml.safe_load((ROOT / "composer/isaaclab/compose.yml").read_text())
+        home = "/home/${CONTAINER_USER:-admin}/"
+        mounted = set()
+        for volume in compose["services"]["isaaclab"]["volumes"]:
+            if isinstance(volume, str) and volume.startswith("isaac-"):
+                target = volume.split(":", 1)[1]
+                if target.startswith(home):
+                    mounted.add(target[len(home) :])
+        self.assertEqual(mounted, listed)

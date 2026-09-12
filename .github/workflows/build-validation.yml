@@ -44,6 +44,7 @@ jobs:
           bash -n creator/scripts/container-banner.bash
           bash -n creator/scripts/bashrc
           bash -n creator/scripts/lib/stages.sh
+          bash -n creator/scripts/lib/query.sh
           bash -n creator/scripts/build_image.sh
           bash -n creator/scripts/build_pytorch_env.sh
           creator/scripts/run_env.sh -p -o 24.04 -v jazzy -u manipulation

@@ -9,3 +9,10 @@ ros2/src/
 **/parts/*
 **/prime/*
 **/stage/*
+
+# GUI build artefacts
+gui/build/
+gui/dist/
+gui/*.egg-info/
+AppDir/
+*.AppImage

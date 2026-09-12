@@ -139,6 +139,16 @@ if sys.argv[1:3] != ['buildx', 'version']:
                 call for call in calls if any(arg.endswith("Dockerfile.isaaclab") for arg in call)
             )
             self.assertIn("ISAACLAB_INSTALL=rl[rsl-rl],ov[ovphysx],visualizer[viser]", lab)
+            user = next(
+                call for call in calls if any(arg.endswith("Dockerfile.user") for arg in call)
+            )
+            label = user[user.index("--label") + 1]
+            self.assertTrue(
+                label.startswith("org.docker_envs.build-command=creator/scripts/run_env.sh -b ")
+            )
+            replay = shlex.split(label.split("=", 1)[1])
+            self.assertEqual(replay[replay.index("-L") + 1], "release/3.0.0")
+            self.assertEqual(replay[replay.index("-e") + 1], "rl[rsl-rl]")
 
     def test_v2_with_sim_remains_available(self):
         result = self.plan("-I", "5.1.0", "-L", "v2.3.2", "-e", "none")
@@ -185,7 +195,7 @@ if sys.argv[1:3] != ['buildx', 'version']:
             command = next(
                 line.strip()
                 for line in result.stdout.splitlines()
-                if line.strip().startswith("./run_env.sh")
+                if line.strip().startswith("creator/scripts/run_env.sh")
             )
             args = shlex.split(command)
             self.assertEqual(args[args.index("-e") + 1], answers[9])

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docker-envs-gui"
+description = "Desktop front end for the docker_envs staged image builder"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = ["PySide6>=6.6"]
+classifiers = [
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Software Development :: Build Tools",
+]
+
+[project.urls]
+Homepage = "https://github.com/ipa-vsp/docker_envs"
+
+[project.scripts]
+docker-envs-gui = "docker_envs_gui.app:main"
+
+[project.optional-dependencies]
+package = ["pyinstaller>=6.6"]
+
+[tool.setuptools]
+packages = ["docker_envs_gui", "docker_envs_gui.widgets"]
+
+[tool.setuptools.dynamic]
+version = { attr = "docker_envs_gui.__version__" }
+
+[tool.setuptools.package-data]
+docker_envs_gui = ["resources/*.svg"]
+
+[tool.black]
+line-length = 99

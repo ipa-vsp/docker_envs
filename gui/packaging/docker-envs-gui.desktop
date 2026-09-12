@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=docker_envs Image Builder
+GenericName=Container image builder
+Comment=Build layered ROS 2, CUDA, MuJoCo and NVIDIA Isaac development images
+Exec=docker-envs-gui
+Icon=docker-envs-gui
+Terminal=false
+Categories=Development;Building;
+Keywords=docker;ros;ros2;isaac;cuda;container;
+StartupNotify=true
+StartupWMClass=docker-envs-gui

@@ -16,6 +16,8 @@
 | `creator/scripts/run_env.sh -b ...` | build from flags |
 | `creator/scripts/run_env.sh -p ...` | print plan + replay command, no build |
 | `creator/scripts/run_env.sh -h` | full CLI reference |
+| `docker-envs-gui` | desktop front end over the same stages ([guide](../gui/README.md)) |
+| `creator/scripts/lib/query.sh` | the same answers as records, for tools ([protocol](../gui/README.md#how-it-talks-to-stagessh)) |
 
 ```bash
 creator/scripts/run_env.sh -b -o 24.04 -v jazzy -u manipulation
@@ -76,6 +78,7 @@ docker_envs:24.04-jazzy-moveit
 ### Replay a build
 
 - `-p`, `--dry-run` and every build print the pinned replay command
+- The GUI shows the same command and runs exactly it, so its images are identical
 - Final image stores it as label `org.docker_envs.build-command`
 
 ```bash
