@@ -58,6 +58,9 @@ with the derived image name, the layer plan and the equivalent `run_env.sh`
 command updating as you choose, and the build log streamed with per-layer
 progress. It runs the command it shows, so images are identical to CLI builds.
 Combinations `stages.sh` would reject are disabled with the reason attached.
+Two further tabs list the local images — marking the ones this tool built and
+showing their stored build command — and the containers, with stop, restart and
+remove.
 
 ```bash
 pip install ./gui && docker-envs-gui      # from a checkout

@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QCheckBox,
+    QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -57,7 +58,16 @@ def strip_ansi(text: str) -> str:
 
 
 class LogView(QWidget):
-    """Read-only console with live filtering and a save action."""
+    """Read-only console with live filtering, a save action and size controls.
+
+    A build log is the part of this window people actually stare at, and the
+    default third of a split pane is not enough for it. The two size controls are
+    requests rather than actions: the view does not know about the window it sits
+    in, so it asks and lets the window rearrange itself.
+    """
+
+    expand_toggled = Signal(bool)
+    popout_toggled = Signal(bool)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -92,6 +102,20 @@ class LogView(QWidget):
         self.clear_button.setObjectName("Icon")
         self.clear_button.clicked.connect(self.clear)
         toolbar.addWidget(self.clear_button)
+
+        self.expand_button = QPushButton("Expand")
+        self.expand_button.setObjectName("Icon")
+        self.expand_button.setCheckable(True)
+        self.expand_button.setToolTip("Give the log the whole window  (Ctrl+Shift+E)")
+        self.expand_button.toggled.connect(self._on_expand_toggled)
+        toolbar.addWidget(self.expand_button)
+
+        self.popout_button = QPushButton("Pop out")
+        self.popout_button.setObjectName("Icon")
+        self.popout_button.setCheckable(True)
+        self.popout_button.setToolTip("Open the log in its own window  (Ctrl+Shift+L)")
+        self.popout_button.toggled.connect(self.popout_toggled)
+        toolbar.addWidget(self.popout_button)
         layout.addLayout(toolbar)
 
         self.console = QTextEdit()
@@ -103,6 +127,34 @@ class LogView(QWidget):
 
         self._lines: list[str] = []
         self._pending = ""
+
+    # ----- size controls -------------------------------------------------------- #
+
+    def _on_expand_toggled(self, expanded: bool) -> None:
+        self.expand_button.setText("Restore" if expanded else "Expand")
+        self.expand_toggled.emit(expanded)
+
+    def set_detached(self, detached: bool) -> None:
+        """Reflect that the view now lives in (or has left) its own window."""
+        blocked = self.popout_button.blockSignals(True)
+        self.popout_button.setChecked(detached)
+        self.popout_button.blockSignals(blocked)
+        self.popout_button.setText("Dock" if detached else "Pop out")
+        self.popout_button.setToolTip(
+            "Put the log back in the main window  (Ctrl+Shift+L)"
+            if detached
+            else "Open the log in its own window  (Ctrl+Shift+L)"
+        )
+        # A detached log already owns its window; expanding is the main window's
+        # idea of more room and means nothing here.
+        self.expand_button.setVisible(not detached)
+
+    def set_expanded(self, expanded: bool) -> None:
+        """Set the expand state without asking the window to rearrange again."""
+        blocked = self.expand_button.blockSignals(True)
+        self.expand_button.setChecked(expanded)
+        self.expand_button.setText("Restore" if expanded else "Expand")
+        self.expand_button.blockSignals(blocked)
 
     # ----- content ------------------------------------------------------------ #
 
@@ -186,3 +238,29 @@ class LogView(QWidget):
         if path:
             with open(path, "w", encoding="utf-8") as handle:
                 handle.write(self.plain_text() + "\n")
+
+
+class LogWindow(QDialog):
+    """The build log in a window of its own.
+
+    Parentless on purpose: a popped-out log is usually wanted on a second screen
+    or behind the builder while something else is in front, which a window that is
+    forced to stay above its parent cannot do.
+    """
+
+    closed = Signal()
+
+    def __init__(self, view: LogView):
+        super().__init__(None)
+        self.setWindowTitle("Build log — docker_envs Image Builder")
+        self.setSizeGripEnabled(True)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(view)
+        self.resize(1080, 720)
+
+    def closeEvent(self, event) -> None:
+        # Closing the window is the same request as pressing Dock, so the main
+        # window hears about it either way and takes the view back.
+        self.closed.emit()
+        super().closeEvent(event)

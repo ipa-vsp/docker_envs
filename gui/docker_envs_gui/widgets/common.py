@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QModelIndex, QTimer, Qt, Signal
+from PySide6.QtGui import QGuiApplication, QPalette
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -17,11 +17,20 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QStyle,
+    QStyleOptionViewItem,
+    QStyledItemDelegate,
     QVBoxLayout,
     QWidget,
 )
 
 from ..theme import monospace_font
+
+# Where an entry's human annotation lives ("latest tag", "branch, moves with
+# upstream"). It is deliberately NOT part of the item's text: these combos are
+# editable, so the text is what lands in the edit box and is read back as the
+# value. Mixing the annotation in would put "(latest tag)" into a git ref.
+ANNOTATION_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
 class Badge(QLabel):
@@ -31,6 +40,40 @@ class Badge(QLabel):
         super().__init__(text, parent)
         self.setObjectName("Badge")
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+
+
+class AnnotationDelegate(QStyledItemDelegate):
+    """Draws an entry's annotation right-aligned and muted, in the popup only."""
+
+    MARGIN = 10
+
+    def paint(self, painter, option, index: QModelIndex) -> None:
+        super().paint(painter, option, index)
+        note = index.data(ANNOTATION_ROLE)
+        if not note:
+            return
+        painter.save()
+        if option.state & QStyle.StateFlag.State_Selected:
+            colour = option.palette.color(QPalette.ColorRole.HighlightedText)
+            colour.setAlpha(170)
+        else:
+            colour = option.palette.color(QPalette.ColorRole.PlaceholderText)
+        painter.setPen(colour)
+        painter.drawText(
+            option.rect.adjusted(0, 0, -self.MARGIN, 0),
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+            note,
+        )
+        painter.restore()
+
+    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex):
+        size = super().sizeHint(option, index)
+        note = index.data(ANNOTATION_ROLE)
+        if note:
+            size.setWidth(
+                size.width() + option.fontMetrics.horizontalAdvance(note) + 3 * self.MARGIN
+            )
+        return size
 
 
 class VersionCombo(QWidget):
@@ -52,6 +95,7 @@ class VersionCombo(QWidget):
         self.combo = QComboBox()
         self.combo.setEditable(True)
         self.combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.combo.setItemDelegate(AnnotationDelegate(self.combo))
         self.combo.currentTextChanged.connect(self.changed)
         # Only a deliberate pick or edit counts as a choice; until then a freshly
         # discovered list should jump to the newest release, as create_env.sh does.
@@ -74,20 +118,33 @@ class VersionCombo(QWidget):
             self.combo.addItem(fallback)
         self.status.setText("Looking up available versions…")
 
-    def set_versions(self, versions: list[str], labels: dict[str, str] | None = None) -> None:
-        """Populate the list, keeping whatever the user had typed or chosen."""
-        current = self.combo.currentText().strip() or self._fallback
+    def set_versions(self, versions: list[str], annotations: dict[str, str] | None = None) -> None:
+        """Populate the list, keeping whatever the user typed or chose.
+
+        *annotations* labels entries in the popup ("latest tag", "branch, moves
+        with upstream"); it never becomes part of a value.
+        """
+        # Compare against the value, not the displayed text: a refresh must not
+        # throw away a deliberate choice.
+        current = self.value() or self._fallback
         if not self._chosen and versions:
             current = versions[0]
+
         blocked = self.combo.blockSignals(True)
         self.combo.clear()
         if versions:
             for version in versions:
-                self.combo.addItem((labels or {}).get(version, version), version)
+                self.combo.addItem(version)
+                note = (annotations or {}).get(version, "")
+                if note:
+                    self.combo.setItemData(self.combo.count() - 1, note, ANNOTATION_ROLE)
+                    self.combo.setItemData(
+                        self.combo.count() - 1, note, Qt.ItemDataRole.ToolTipRole
+                    )
             self.status.setText(f"{len(versions)} versions found · newest first")
             self.status.setObjectName("FieldHint")
         else:
-            self.combo.addItem(self._fallback, self._fallback)
+            self.combo.addItem(self._fallback)
             self.status.setText(f"Offline — using the built-in default {self._fallback}")
             self.status.setObjectName("Warning")
         self.status.style().unpolish(self.status)
@@ -97,24 +154,16 @@ class VersionCombo(QWidget):
         self.changed.emit(self.value())
 
     def values(self) -> list[str]:
-        return [
-            self.combo.itemData(i) or self.combo.itemText(i) for i in range(self.combo.count())
-        ]
+        return [self.combo.itemText(i) for i in range(self.combo.count())]
 
     def value(self) -> str:
-        index = self.combo.currentIndex()
-        text = self.combo.currentText().strip()
-        # An edited combo reports index -1; the typed text is then the answer.
-        if index >= 0 and self.combo.itemText(index) == text:
-            return self.combo.itemData(index) or text
-        return text
+        """The version itself — the item text is the value, annotations aside."""
+        return self.combo.currentText().strip()
 
     def set_value(self, value: str) -> None:
-        for i in range(self.combo.count()):
-            if (self.combo.itemData(i) or self.combo.itemText(i)) == value:
-                self.combo.setCurrentIndex(i)
-                return
-        self.combo.setEditText(value)
+        # setCurrentText selects the matching entry when there is one and simply
+        # fills the edit box when there is not, which is what pinning by hand does.
+        self.combo.setCurrentText(value)
 
 
 class Card(QFrame):

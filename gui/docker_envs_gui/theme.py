@@ -107,6 +107,27 @@ def stylesheet(palette: Palette) -> str:
     QSplitter::handle:horizontal {{ width: 1px; }}
     QSplitter::handle:vertical {{ height: 1px; }}
 
+    QTabWidget::pane {{
+        border: none;
+        border-top: 1px solid {palette.border};
+    }}
+    QTabBar {{ background: transparent; }}
+    QTabBar::tab {{
+        background: transparent;
+        color: {palette.muted};
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 7px 16px;
+        margin-right: 2px;
+        font-size: 10pt;
+    }}
+    QTabBar::tab:hover {{ color: {palette.text}; }}
+    QTabBar::tab:selected {{
+        color: {palette.accent};
+        border-bottom-color: {palette.accent};
+        font-weight: 600;
+    }}
+
     QFrame#Card {{
         background: {palette.surface};
         border: 1px solid {palette.border};

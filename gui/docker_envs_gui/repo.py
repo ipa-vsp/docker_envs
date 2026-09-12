@@ -42,10 +42,34 @@ def _bundled_root() -> Path | None:
 
 
 def _checkout_root() -> Path | None:
-    """Walk up from this file looking for the checkout it was installed from."""
+    """Walk up from this file looking for the checkout it was installed from.
+
+    Finds it for an editable install and for a plain ``python -m docker_envs_gui``
+    inside the repository. A normal ``pip install ./gui`` copies the package into
+    site-packages, where this finds nothing — that is what :func:`_cwd_root`
+    covers.
+    """
     for parent in Path(__file__).resolve().parents:
         if is_repo_root(parent):
             return parent
+    return None
+
+
+def _cwd_root() -> Path | None:
+    """Walk up from the working directory, for a non-editable install.
+
+    ``pip install ./gui && docker-envs-gui`` is the documented way to run this,
+    and it leaves no path back to the repository from the installed package. Being
+    launched from inside a checkout is then the only signal of which one is meant,
+    and it is the one the user is most likely to intend.
+    """
+    try:
+        here = Path.cwd().resolve()
+    except OSError:  # the working directory was deleted underneath us
+        return None
+    for candidate in (here, *here.parents):
+        if is_repo_root(candidate):
+            return candidate
     return None
 
 
@@ -53,9 +77,13 @@ def resolve(explicit: str | os.PathLike[str] | None = None, saved: str | None = 
     """Resolve the active repository root.
 
     Order: explicit argument, ``DOCKER_ENVS_ROOT``, the value saved in settings,
-    the checkout this package lives in, then the bundled copy. The first
-    candidate that looks like a docker_envs root wins; an explicit one that does
-    not is an error rather than a silent fallback.
+    the checkout this package lives in, the checkout the process was launched
+    from, then the bundled copy. The first candidate that looks like a docker_envs
+    root wins; an explicit one that does not is an error rather than a silent
+    fallback.
+
+    The window header always names the winner, so an ambiguous case is visible
+    rather than silent.
     """
     if explicit is not None:
         path = Path(explicit).expanduser().resolve()
@@ -73,12 +101,13 @@ def resolve(explicit: str | os.PathLike[str] | None = None, saved: str | None = 
     for candidate in (
         Path(saved).expanduser().resolve() if saved else None,
         _checkout_root(),
+        _cwd_root(),
         _bundled_root(),
     ):
         if candidate is not None and is_repo_root(candidate):
             return candidate
 
     raise RepoError(
-        "No docker_envs checkout found. Pass --repo-root /path/to/docker_envs "
-        f"or set {ENV_VAR}."
+        "No docker_envs checkout found. Run this from inside a docker_envs "
+        f"checkout, pass --repo-root /path/to/docker_envs, or set {ENV_VAR}."
     )

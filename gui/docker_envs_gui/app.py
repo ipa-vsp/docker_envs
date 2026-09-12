@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSplitter,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -28,11 +29,13 @@ from PySide6.QtWidgets import (
 from . import APP_NAME, APP_TITLE, ORGANISATION, __version__
 from .bridge import Bridge, BridgeError, Defaults
 from .builder import BuildRunner
+from .docker_cli import DockerCli, DockerError
 from .model import Plan, overall_progress
 from .repo import ENV_VAR, RepoError, is_repo_root, resolve
 from .theme import active_palette, stylesheet
 from .widgets.common import Badge
-from .widgets.log_view import LogView
+from .widgets.docker_views import ContainersView, ImagesView
+from .widgets.log_view import LogView, LogWindow
 from .widgets.plan_view import PlanView
 from .widgets.stage_cards import StageForm
 
@@ -43,6 +46,8 @@ PLAN_DEBOUNCE_MS = 250
 # The bar spans the whole plan, so it needs finer resolution than one unit per
 # layer to show movement inside a layer that runs for minutes.
 PROGRESS_SCALE = 1000
+
+TAB_BUILD, TAB_IMAGES, TAB_CONTAINERS = 0, 1, 2
 
 SETTINGS_REPO = "repo_root"
 SETTINGS_GEOMETRY = "geometry"
@@ -93,6 +98,10 @@ class MainWindow(QMainWindow):
         self._build_started: float | None = None
         self._layer = (0, 0)
         self._layer_image = ""
+        self._log_window: LogWindow | None = None
+        self._saved_split: tuple[list[int], list[int]] | None = None
+        self.docker = DockerCli()
+        self._loaded_tabs: set[int] = set()
         self._cuda_os = ""
         self._isaaclab_ref = ""
 
@@ -110,9 +119,19 @@ class MainWindow(QMainWindow):
 
         self.plan_view = PlanView()
         self.log_view = LogView()
+        # The log lives inside a container rather than directly in the splitter,
+        # so popping it out swaps it for a placeholder without disturbing the
+        # splitter's children or the saved sizes.
+        self.log_container = QWidget()
+        self._log_layout = QVBoxLayout(self.log_container)
+        self._log_layout.setContentsMargins(0, 0, 0, 0)
+        self._log_layout.addWidget(self.log_view)
+        self._log_placeholder = self._build_log_placeholder()
+        self._log_layout.addWidget(self._log_placeholder)
+
         self.right_split = QSplitter(Qt.Orientation.Vertical)
         self.right_split.addWidget(self.plan_view)
-        self.right_split.addWidget(self.log_view)
+        self.right_split.addWidget(self.log_container)
         self.right_split.setStretchFactor(0, 3)
         self.right_split.setStretchFactor(1, 2)
 
@@ -121,7 +140,22 @@ class MainWindow(QMainWindow):
         self.main_split.addWidget(self.right_split)
         self.main_split.setStretchFactor(0, 5)
         self.main_split.setStretchFactor(1, 4)
-        root.addWidget(self.main_split, 1)
+
+        self.images_view = ImagesView()
+        self.images_view.refresh_requested.connect(self.refresh_images)
+        self.images_view.selection_changed.connect(self._fetch_build_command)
+        self.containers_view = ContainersView()
+        self.containers_view.refresh_requested.connect(self.refresh_containers)
+        self.containers_view.action_requested.connect(self._on_container_action)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.main_split, "Build")
+        self.tabs.addTab(self.images_view, "Images")
+        self.tabs.addTab(self.containers_view, "Containers")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+        root.addWidget(self.tabs, 1)
+        # The footer stays outside the tabs: a build keeps running while you look
+        # at images or containers, and it should stay visible and cancellable.
         root.addWidget(self._build_footer())
         self.setCentralWidget(central)
 
@@ -217,13 +251,220 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.build_button)
         return footer
 
+    def _build_log_placeholder(self) -> QWidget:
+        """Stands in for the log while it is open in its own window."""
+        placeholder = QWidget()
+        layout = QVBoxLayout(placeholder)
+        layout.addStretch(1)
+        message = QLabel("The build log is open in its own window.")
+        message.setObjectName("Placeholder")
+        message.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(message)
+        button = QPushButton("Bring it back")
+        button.setObjectName("Icon")
+        button.clicked.connect(lambda: self._on_log_popout(False))
+        row = QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(button)
+        row.addStretch(1)
+        layout.addLayout(row)
+        layout.addStretch(1)
+        placeholder.setVisible(False)
+        return placeholder
+
     def _install_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+B"), self, lambda: self._start_build(False))
         QShortcut(QKeySequence("Ctrl+D"), self, lambda: self._start_build(True))
         QShortcut(QKeySequence("Ctrl+R"), self, lambda: self.refresh_versions())
         QShortcut(QKeySequence(Qt.Key.Key_Escape), self, self.runner.cancel)
+        QShortcut(
+            QKeySequence("Ctrl+Shift+E"),
+            self,
+            lambda: self.log_view.expand_button.toggle(),
+        )
+        QShortcut(
+            QKeySequence("Ctrl+Shift+L"),
+            self,
+            lambda: self._on_log_popout(self._log_window is None),
+        )
+
+    # ----- images and containers --------------------------------------------------- #
+
+    def _on_tab_changed(self, index: int) -> None:
+        # Version discovery only concerns the build form.
+        self.refresh_button.setVisible(index == TAB_BUILD)
+        # Load a listing the first time its tab is opened, then leave it to the
+        # Refresh button: polling docker behind the user's back is not worth it.
+        if index == TAB_IMAGES and TAB_IMAGES not in self._loaded_tabs:
+            self.refresh_images()
+        elif index == TAB_CONTAINERS and TAB_CONTAINERS not in self._loaded_tabs:
+            self.refresh_containers()
+
+    def refresh_images(self) -> None:
+        self._loaded_tabs.add(TAB_IMAGES)
+        self.images_view.set_busy(True)
+
+        def apply(result: Any) -> None:
+            self.images_view.set_busy(False)
+            if isinstance(result, DockerError):
+                self.images_view.set_error(str(result))
+                return
+            self.images_view.set_images(result)
+            self._fetch_build_command(self.images_view.selected_reference())
+
+        self._submit(lambda: self._guarded(self.docker.images), apply)
+
+    def refresh_containers(self) -> None:
+        self._loaded_tabs.add(TAB_CONTAINERS)
+        self.containers_view.set_busy(True)
+
+        def apply(result: Any) -> None:
+            self.containers_view.set_busy(False)
+            if isinstance(result, DockerError):
+                self.containers_view.set_error(str(result))
+                return
+            self.containers_view.set_containers(result)
+
+        self._submit(lambda: self._guarded(self.docker.containers), apply)
+
+    def _fetch_build_command(self, reference: str) -> None:
+        """Read one image's replay label, off the UI thread."""
+        if not reference:
+            return
+        self._submit(
+            lambda: (reference, self.docker.build_command(reference)),
+            lambda payload: self.images_view.set_build_command(*payload),
+        )
+
+    @staticmethod
+    def _guarded(work: Callable[[], Any]) -> Any:
+        """Return a DockerError instead of raising, so the view can show it."""
+        try:
+            return work()
+        except DockerError as exc:
+            return exc
+
+    def _on_container_action(self, action: str, names: list[str]) -> None:
+        # Read the state from the whole listing rather than the selection: a
+        # refresh can land between the click and this queued signal, and a name
+        # that is no longer selected -- or no longer there -- must not be a crash.
+        known = {container.name: container for container in self.containers_view.containers()}
+        running = {name for name in names if name in known and known[name].running}
+        if action == "stop":
+            names = [name for name in names if name in running]
+        else:
+            names = [name for name in names if name in known]
+        if not names:
+            return
+        # Removal is the only one that cannot be undone, and a running container
+        # has to be killed for it, so say exactly what will happen.
+        force = {name: name in running for name in names}
+        if action == "remove" and not self._confirm_removal(names, force):
+            return
+
+        self.containers_view.set_busy(True)
+        targets = [(name, force[name]) for name in names]
+        self._submit(
+            lambda: self._apply_container_action(action, targets),
+            self._on_container_action_done,
+        )
+
+    def _confirm_removal(self, names: list[str], force: dict[str, bool]) -> bool:
+        running = [name for name in names if force[name]]
+        listed = "\n".join(f"  • {name}" for name in names)
+        question = QMessageBox(self)
+        question.setIcon(QMessageBox.Icon.Warning)
+        question.setWindowTitle("Remove containers")
+        question.setText(
+            f"Remove {len(names)} container{'s' if len(names) != 1 else ''}? "
+            "This cannot be undone."
+        )
+        detail = listed
+        if running:
+            detail += (
+                f"\n\n{len(running)} of them {'is' if len(running) == 1 else 'are'} running "
+                "and will be killed first."
+            )
+        detail += "\n\nBind-mounted workspaces on the host are not touched."
+        question.setInformativeText(detail)
+        question.setStandardButtons(
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Yes
+        )
+        question.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        return question.exec() == QMessageBox.StandardButton.Yes
+
+    def _apply_container_action(
+        self, action: str, targets: list[tuple[str, bool]]
+    ) -> tuple[str, int, list[str]]:
+        failures = []
+        for name, force in targets:
+            try:
+                if action == "stop":
+                    self.docker.stop(name)
+                elif action == "restart":
+                    self.docker.restart(name)
+                else:
+                    self.docker.remove(name, force=force)
+            except DockerError as exc:
+                failures.append(f"{name}: {exc}")
+        return action, len(targets), failures
+
+    def _on_container_action_done(self, payload: tuple[str, int, list[str]]) -> None:
+        action, attempted, failures = payload
+        self.containers_view.set_busy(False)
+        done = attempted - len(failures)
+        verb = {"stop": "stopped", "restart": "restarted", "remove": "removed"}[action]
+        if failures:
+            self.containers_view.set_error(
+                f"{done} of {attempted} {verb}. " + " | ".join(failures)
+            )
+            # Still re-read: some of them may have succeeded.
+            QTimer.singleShot(0, self.refresh_containers)
+        else:
+            self.status_label.setText(f"{done} container{'s' if done != 1 else ''} {verb}.")
+            self.refresh_containers()
+
+    # ----- log size and placement ------------------------------------------------ #
+
+    def _on_log_expand(self, expanded: bool) -> None:
+        """Collapse the form and the plan so the log has the whole window."""
+        if expanded:
+            self._saved_split = (self.main_split.sizes(), self.right_split.sizes())
+            self.main_split.setSizes([0, 1])
+            self.right_split.setSizes([0, 1])
+        elif self._saved_split is not None:
+            main, right = self._saved_split
+            self.main_split.setSizes(main)
+            self.right_split.setSizes(right)
+            self._saved_split = None
+
+    def _on_log_popout(self, detached: bool) -> None:
+        if detached and self._log_window is None:
+            # Expanding is about this window's split; it means nothing once the
+            # log has a window of its own, so undo it first.
+            self.log_view.set_expanded(False)
+            self._on_log_expand(False)
+            self._log_layout.removeWidget(self.log_view)
+            self._log_placeholder.setVisible(True)
+            self.log_view.set_detached(True)
+            self._log_window = LogWindow(self.log_view)
+            self._log_window.closed.connect(self._dock_log)
+            self._log_window.show()
+        elif not detached and self._log_window is not None:
+            self._log_window.close()  # closeEvent brings it back
+
+    def _dock_log(self) -> None:
+        if self._log_window is None:
+            return
+        window, self._log_window = self._log_window, None
+        self._log_layout.insertWidget(0, self.log_view)
+        self.log_view.set_detached(False)
+        self._log_placeholder.setVisible(False)
+        window.deleteLater()
 
     def _connect_runner(self) -> None:
+        self.log_view.expand_toggled.connect(self._on_log_expand)
+        self.log_view.popout_toggled.connect(self._on_log_popout)
         self.runner.output.connect(self.log_view.append)
         self.runner.started.connect(self._on_build_started)
         self.runner.layer_started.connect(self._on_layer)
@@ -310,19 +551,24 @@ class MainWindow(QMainWindow):
                 )
 
     def _isaaclab_choices(self) -> tuple[list[str], dict[str, str]]:
-        """Tags and branches in one list, the way create_env.sh offers them."""
+        """Tags and branches in one list, the way create_env.sh offers them.
+
+        The annotations are kept separate from the refs: each entry's text is the
+        ref exactly as it is passed to ``-L``, so picking one and editing one both
+        yield something git can resolve.
+        """
         tags = self.bridge.versions("isaaclab", limit=4)
         branches = self.bridge.branches(4)
-        labels: dict[str, str] = {}
-        for index, tag in enumerate(tags):
-            labels[tag] = f"{tag} (latest tag)" if index == 0 else f"{tag} (tag)"
+        annotations = {tag: "tag" for tag in tags}
+        if tags:
+            annotations[tags[0]] = "latest tag"
         for branch in branches:
-            labels[branch] = f"{branch} (branch, moves with upstream)"
-        return tags + branches, labels
+            annotations[branch] = "branch, moves with upstream"
+        return tags + branches, annotations
 
     def _apply_isaaclab_choices(self, payload: tuple[list[str], dict[str, str]]) -> None:
-        versions, labels = payload
-        self.form.version_combo("isaaclab").set_versions(versions, labels)
+        versions, annotations = payload
+        self.form.version_combo("isaaclab").set_versions(versions, annotations)
         self._lookup_done()
 
     def _apply_versions(self, payload: tuple[str, list[str]]) -> None:
@@ -417,6 +663,8 @@ class MainWindow(QMainWindow):
         self._repolish(self.status_label)
         self._build_started = None
         self._update_actions()
+        if success and TAB_IMAGES in self._loaded_tabs:
+            self.refresh_images()
 
     def _tick_elapsed(self) -> None:
         if self._build_started is not None:
@@ -490,6 +738,9 @@ class MainWindow(QMainWindow):
                 return
             self.runner.cancel()
             self.runner.wait()
+        self._on_log_popout(False)
+        self.log_view.set_expanded(False)
+        self._on_log_expand(False)
         self.settings.setValue(SETTINGS_GEOMETRY, self.saveGeometry())
         self.settings.setValue(SETTINGS_SPLIT_MAIN, self.main_split.saveState())
         self.settings.setValue(SETTINGS_SPLIT_RIGHT, self.right_split.saveState())

@@ -5,8 +5,10 @@ same job as the rest of the suite without PySide6 installed.
 """
 
 from pathlib import Path
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +23,7 @@ from docker_envs_gui.model import (  # noqa: E402  (path set up above)
     isaaclab_major,
     overall_progress,
 )
+from docker_envs_gui import repo  # noqa: E402
 from docker_envs_gui.repo import is_repo_root, resolve, RepoError  # noqa: E402
 
 
@@ -182,6 +185,21 @@ class PlanTests(unittest.TestCase):
 
 
 class RepoResolutionTests(unittest.TestCase):
+    def setUp(self):
+        self.cwd = Path.cwd()
+        self.addCleanup(os.chdir, self.cwd)
+
+    def installed_outside_the_checkout(self):
+        """Pretend the package was copied into site-packages.
+
+        ``pip install ./gui`` (without ``-e``) leaves no path from the installed
+        module back to the repository, so the walk up from ``__file__`` finds
+        nothing. Stubbing it is how that install shape is reproduced here.
+        """
+        original = repo._checkout_root
+        repo._checkout_root = lambda: None
+        self.addCleanup(setattr, repo, "_checkout_root", original)
+
     def test_the_checkout_is_recognised(self):
         self.assertTrue(is_repo_root(ROOT))
         self.assertFalse(is_repo_root(ROOT / "tests"))
@@ -192,6 +210,31 @@ class RepoResolutionTests(unittest.TestCase):
     def test_an_explicit_non_checkout_is_an_error_not_a_fallback(self):
         with self.assertRaises(RepoError):
             resolve(ROOT / "tests")
+
+    def test_a_non_editable_install_resolves_the_checkout_it_runs_in(self):
+        self.installed_outside_the_checkout()
+        for start in (ROOT, ROOT / "creator" / "scripts"):
+            with self.subTest(cwd=str(start)):
+                os.chdir(start)
+                self.assertEqual(resolve(), ROOT)
+
+    def test_a_non_editable_install_outside_a_checkout_says_what_to_do(self):
+        self.installed_outside_the_checkout()
+        with tempfile.TemporaryDirectory() as elsewhere:
+            os.chdir(elsewhere)
+            with self.assertRaises(RepoError) as raised:
+                resolve()
+        message = str(raised.exception)
+        self.assertIn("--repo-root", message)
+        self.assertIn("DOCKER_ENVS_ROOT", message)
+
+    def test_the_environment_variable_wins_over_the_working_directory(self):
+        self.installed_outside_the_checkout()
+        os.chdir(ROOT)
+        os.environ["DOCKER_ENVS_ROOT"] = str(ROOT / "tests")
+        self.addCleanup(os.environ.pop, "DOCKER_ENVS_ROOT", None)
+        with self.assertRaises(RepoError):
+            resolve()
 
 
 if __name__ == "__main__":
