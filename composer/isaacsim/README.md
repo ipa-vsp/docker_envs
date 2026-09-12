@@ -1,16 +1,19 @@
-# Isaac Sim with ROS 2 Jazzy
+# Isaac Sim 6.0.1 with ROS 2 Jazzy (fixed example)
 
-This fixed example installs Isaac Sim wheels on the published Jazzy development
-image and persists simulator caches in named volumes. For selectable versions
-and Isaac Lab, use the [creator builder](../../creator/README.md#isaac-sim-and-isaac-lab).
+- Status → fixed-version example, not the creator path
+- Selectable versions, Isaac Lab, launcher support → [creator builder](../../creator/README.md#isaac-sim-and-isaac-lab) + [composer/isaaclab](../isaaclab/README.md)
+- Base → published `ghcr.io/ipa-vsp/docker_envs:24.04-jazzy`
+- Isaac Sim wheels → venv at `/home/<user>/colcon_ws/.venv`, on `PATH`
+- Caches → named volumes
 
 ## Setup
 
-Run from this directory with a configured NVIDIA container runtime:
+- Run from this directory
+- NVIDIA container runtime configured
 
 ```bash
 cp .env.example .env
-# Edit HOST_WS in .env to an existing absolute workspace path.
+# Edit HOST_WS in .env → existing absolute workspace path
 export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
 mkdir -p /your/workspace/src
 docker compose build
@@ -18,40 +21,37 @@ docker compose up -d
 docker compose exec mp0700-6.0.1 bash
 ```
 
-The build context is the repository root so the shared account setup and
-entrypoint are available. The build applies your UID/GID to `CONTAINER_USER`
-(default `admin`) before creating its home, wheels, and cache directories. It
-rejects conflicting system UIDs. Changing IDs requires rebuilding; existing
-named volumes keep their previous ownership and need a deliberate migration.
-
-Only `HOST_WS/src` is mounted. A missing source path is an error instead of being
-created by Docker as root. Do not bind the whole workspace: it would hide the
-image's venv at `/home/<user>/colcon_ws/.venv`.
+- Build context → repository root (shared account setup + entrypoint)
+- Build → applies your UID/GID to `CONTAINER_USER` (default `admin`) before creating home, wheels, caches
+- Conflicting system UIDs → rejected
+- Changing IDs → rebuild; existing named volumes keep old ownership → migrate deliberately
+- Only `HOST_WS/src` mounted → missing path = error, never created as root
+- Never bind the whole workspace → it would hide the venv at `/home/<user>/colcon_ws/.venv`
 
 ## Run Isaac or ROS
 
-The venv is on PATH in this example:
+- Isaac (venv on `PATH`):
 
 ```bash
 isaacsim
 python -c "from isaacsim import SimulationApp"
 ```
 
-For ROS commands that require the distribution Python, open a separate shell:
+- ROS commands needing the distribution Python → separate shell:
 
 ```bash
 docker compose exec mp0700-6.0.1 bash -c 'export PATH=/usr/bin:$PATH; exec bash'
 ```
 
-The entrypoint sources ROS, but sourcing ROS does not change which Python the
-venv places on PATH. The creator's `/opt/isaac-venv` layout avoids this issue by
-requiring explicit activation.
+- Entrypoint sources ROS, but does not change which Python the venv puts first
+- Creator layout (`/opt/isaac-venv` + `isaac-activate`) → avoids this issue
 
-GUI use requires access to the host X server. The Compose file shares its socket
-read-only; configure a valid Xauthority cookie mount and `XAUTHORITY` for your
-desktop session. The example does not disable X server access controls. The
-wheel installation sets `OMNI_KIT_ACCEPT_EULA=YES`; use it under the applicable
-NVIDIA license.
+## GUI
+
+- X server socket → shared read-only
+- Cookie → add a valid Xauthority mount + `XAUTHORITY` for your session (or reuse [compose.x11.yml](../isaaclab/compose.x11.yml) pattern)
+- X server access controls → not disabled
+- `OMNI_KIT_ACCEPT_EULA=YES` → use under the applicable NVIDIA license
 
 ## Persistent storage
 
@@ -65,20 +65,21 @@ NVIDIA license.
 | `isaac-logs`, `isaac-config` | `.nvidia-omniverse/logs`, `.nvidia-omniverse/config` |
 | `isaac-data`, `isaac-docs` | `.local/share/ov/data`, `Documents` |
 
-The Dockerfile creates these paths as the development user so empty named
-volumes can inherit usable ownership on first start. They are wheel-installation
-paths; NGC binary-image mount paths are different. Test access with expansion
-inside the container:
+- Dockerfile pre-creates these as the development user → empty volumes inherit usable ownership
+- Wheel-installation paths; NGC binary-image paths differ
+- Access check:
 
 ```bash
 docker compose exec mp0700-6.0.1 sh -c 'id; touch "$HOME/.cache/ov/.probe"; rm "$HOME/.cache/ov/.probe"'
 ```
 
-`docker compose down` preserves volumes. `docker compose down -v` deletes all
-these volumes, including saved documents, configuration, and application data;
-use it only when that data is disposable or backed up.
+- `docker compose down` → keeps volumes
+- `docker compose down -v` → deletes all volumes incl. documents, config, data → only when disposable or backed up
 
-The fixed dependency set remains Torch `2.11.0` from `cu130`,
-`mujoco-usd-converter==0.2.0`, and `isaacsim[all,extscache]==6.0.1.0` with Python
-3.12. Validate those dependencies together before changing pins. The converter
-is installed from PyPI before NVIDIA's index participates in resolution.
+## Pinned dependencies
+
+- Python 3.12
+- Torch `2.11.0` from `cu130`
+- `mujoco-usd-converter==0.2.0` (installed from PyPI before NVIDIA's index participates)
+- `isaacsim[all,extscache]==6.0.1.0`
+- Validate these together before changing any pin

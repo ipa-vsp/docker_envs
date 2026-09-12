@@ -67,6 +67,29 @@ fi
 if [[ -n "${ISAAC_VENV:-}" && -f "$ISAAC_VENV/pyvenv.cfg" ]]; then
     own_isaac_tree "$ISAAC_VENV"
 fi
+# Pre-create every persistent Isaac path as the account. An empty named volume
+# copies the ownership of the image directory it covers; a missing directory
+# comes up root-owned and unwritable (same reason as IsaacLab's volume_mounts.py).
+isaac_dirs=()
+if [[ -n "${ISAACSIM_VERSION:-}" && -f "${ISAAC_CACHE_LIST:-}" ]]; then
+    while IFS= read -r entry; do
+        isaac_dirs+=("/home/$USERNAME/${entry#*:}")
+    done < <(grep -Ev '^[[:space:]]*(#|$)' "$ISAAC_CACHE_LIST")
+    [[ -n "${ISAACSIM_ROOT:-}" ]] && isaac_dirs+=("$ISAACSIM_ROOT/kit/cache")
+fi
+if [[ -n "${ISAACLAB_DIR:-}" && -d "$ISAACLAB_DIR/source/isaaclab" ]]; then
+    isaac_dirs+=("$ISAACLAB_DIR/logs" "$ISAACLAB_DIR/data_storage")
+fi
+for dir in "${isaac_dirs[@]}"; do
+    # install -d sets ownership only on the last component; parents under the
+    # home need it too.
+    install -d -o "$USER_UID" -g "$USER_GID" "$dir"
+    parent="$(dirname "$dir")"
+    while [[ "$parent" == "/home/$USERNAME/"* ]]; do
+        chown "$USER_UID:$USER_GID" "$parent"
+        parent="$(dirname "$parent")"
+    done
+done
 usermod -aG sudo,video "$USERNAME"
 printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$USERNAME" > "/etc/sudoers.d/$USERNAME"
 chmod 0440 "/etc/sudoers.d/$USERNAME"

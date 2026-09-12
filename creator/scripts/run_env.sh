@@ -11,12 +11,15 @@ source "${ROOT}/lib/stages.sh"
 
 function help() {
     cat <<'EOF'
-Usage: run_env.sh -b|-r [options]
+Usage: run_env.sh -b|-p|-r|-S|-E|-K [options]
 
-Modes:
+Modes (exactly one):
   -b                Build the image stack
-  -r                Run a container from the final image
   -p                Print the build plan and exit (dry run)
+  -r                Run a one-off interactive container (removed on exit)
+  -S                Start a persistent container in the background
+  -E                Enter the running container with a new shell
+  -K                Stop the running container (it is removed)
 
 Stages:
   -o <os>           Ubuntu version: 22.04 | 24.04 | 26.04            (default: 24.04)
@@ -47,25 +50,31 @@ Image / user:
   -U <uid>          UID for that user                                (default: current host UID)
   -G <gid>          GID for that user                                (default: current host GID)
 
-Run mode:
-  -w <path>         Workspace to bind-mount (required with -r)
+Container (-r, -S, -E, -K):
+  -w <path>         Workspace to bind-mount (required with -r and -S)
+  -C <name>         Container name (default: derived from the image name)
+  -H                Host network and IPC (ROS 2 discovery, shared memory)
   -g                Pass --gpus all to docker run
   -a <gid>          Add a supplementary numeric group (repeatable)
   -M <umask>        New-file permission mask (default: 0022; shared group: 0002)
   -d <device>       Pass a specific device to Docker (repeatable)
   -P                Enable privileged mode explicitly for hardware workloads
-  -X                Do not auto-configure Isaac Sim (skip GPU + cache mounts)
+  -X                Do not auto-configure Isaac (skip GPU, cache and output mounts)
   -h                Show this help
 
-Isaac Sim images are detected automatically in run mode: the GPU, the EULA
-variables and the persistent Omniverse cache directories under
-~/docker/isaac-sim are wired up for you. Override the cache location with
-STAGES_ISAAC_CACHE_ROOT.
+Isaac images are detected automatically in -r/-S mode:
+  - Isaac Sim: GPU, EULA variables, Omniverse caches under ~/docker/isaac-sim
+    (override with STAGES_ISAAC_CACHE_ROOT)
+  - Isaac Lab: logs/ and data_storage/ under ~/docker/isaac-lab
+    (override with STAGES_ISAACLAB_OUTPUT_ROOT)
 
 Examples:
   ./run_env.sh -b -o 24.04 -v jazzy -u manipulation -m latest
-  ./run_env.sh -b -o 22.04 -v humble -c 13.3.1 -I latest -L latest
+  ./run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 -L release/3.0.0
   ./run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w ~/colcon_ws
+  ./run_env.sh -S -H -i docker_envs:24.04-jazzy-moveit -w ~/colcon_ws
+  ./run_env.sh -E -i docker_envs:24.04-jazzy-moveit
+  ./run_env.sh -K -i docker_envs:24.04-jazzy-moveit
 EOF
     exit 1
 }
@@ -75,11 +84,17 @@ stages::init_selection
 BUILD=false
 RUN=false
 DRY_RUN=false
+START=false
+ENTER=false
+STOP=false
 WORKSPACE=""
+CONTAINER=""
+HOST_NETWORK=false
 USE_GPU=false
 NO_ISAAC_SETUP=false
 EXTRA_RUN_ARGS=()
 WORKSPACE_UMASK=0022
+ENTRYPOINT=/usr/local/bin/scripts/workspace-entrypoint.sh
 # Requested versions before "latest" is resolved online.
 CUDA_REQUEST=""
 MUJOCO_REQUEST=""
@@ -110,7 +125,7 @@ function optional_arg() {
     fi
 }
 
-while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:cmILzbsrpgPXh" opt; do
+while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:C:cmILzbsrpgPXSEKHh" opt; do
     case ${opt} in
         o) STAGES_OS="${OPTARG}" ;;
         v) STAGES_ROS="${OPTARG}" ;;
@@ -134,6 +149,11 @@ while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:cmILzbsrpgPXh" opt; do
         b) BUILD=true ;;
         r) RUN=true ;;
         p) DRY_RUN=true ;;
+        S) START=true ;;
+        E) ENTER=true ;;
+        K) STOP=true ;;
+        C) CONTAINER="${OPTARG}" ;;
+        H) HOST_NETWORK=true ;;
         g) USE_GPU=true ;;
         a)
             [[ "${OPTARG}" =~ ^[0-9]+$ ]] || { stages::error "Supplementary GID must be numeric"; exit 1; }
@@ -150,8 +170,12 @@ if [[ "${DRY_RUN}" == true ]]; then
     BUILD=true
 fi
 
-if [[ "${BUILD}" == false && "${RUN}" == false ]] || [[ "${BUILD}" == true && "${RUN}" == true ]]; then
-    stages::error "Specify exactly one of build (-b), run (-r) or dry run (-p)."
+MODES=0
+for mode in "${BUILD}" "${RUN}" "${START}" "${ENTER}" "${STOP}"; do
+    [[ "${mode}" == true ]] && MODES=$((MODES + 1))
+done
+if (( MODES != 1 )); then
+    stages::error "Specify exactly one mode: -b, -p, -r, -S, -E or -K."
     help
 fi
 
@@ -191,18 +215,51 @@ if [[ "${BUILD}" == true ]]; then
 fi
 
 # --------------------------------------------------------------------------- #
-# Run
+# Container modes: -r, -S, -E, -K
 # --------------------------------------------------------------------------- #
-if [[ "${RUN}" == true ]]; then
-    if [[ -z "${WORKSPACE}" ]]; then
-        stages::error "Workspace path (-w) is required in run mode."
-        help
-    fi
-    if [[ -z "${STAGES_FINAL_IMAGE}" ]]; then
-        stages::error "Image name (-i) is required in run mode."
-        help
-    fi
+if [[ -z "${STAGES_FINAL_IMAGE}" ]]; then
+    stages::error "Image name (-i) is required to run, start, enter or stop a container."
+    help
+fi
+CUSTOM_CONTAINER=false
+[[ -n "${CONTAINER}" ]] && CUSTOM_CONTAINER=true
+if [[ -z "${CONTAINER}" ]]; then
+    CONTAINER="$(echo "${STAGES_FINAL_IMAGE}" | tr ':/.' '___')_container"
+elif [[ ! "${CONTAINER}" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
+    stages::error "Invalid container name: ${CONTAINER}"
+    exit 1
+fi
+TARGET_WS="/home/${STAGES_USERNAME}/colcon_ws"
 
+container_running() {
+    [[ "$(docker container inspect -f '{{.State.Status}}' "${CONTAINER}" 2>/dev/null)" == running ]]
+}
+
+# X11: copy the current display cookie with the FamilyWild address (ffff) into a
+# per-user directory. A wildcard cookie also matches when the container hostname
+# differs from the host's (bridge network). The directory, not the file, is
+# mounted, so -E can refresh the cookie for a running container (a replaced
+# file would keep the old inode in a single-file mount). The X server's access
+# control is not modified. Same approach as IsaacLab's docker/utils/x11_utils.py.
+XAUTH_DIR="${XDG_RUNTIME_DIR:-/tmp}/docker-envs-xauth-$(id -u)"
+XAUTH_TARGET_DIR=/tmp/docker-envs-xauth
+x11_cookie() {
+    [[ -n "${DISPLAY:-}" ]] && command -v xauth >/dev/null 2>&1 || return 1
+    local cookies
+    cookies="$(xauth nlist "${DISPLAY}" 2>/dev/null)" || return 1
+    [[ -n "${cookies}" ]] || return 1
+    (umask 077 && mkdir -p "${XAUTH_DIR}") || return 1
+    rm -f "${XAUTH_DIR}/xauth.new"
+    sed -e 's/^..../ffff/' <<<"${cookies}" \
+        | xauth -q -f "${XAUTH_DIR}/xauth.new" nmerge - 2>/dev/null || return 1
+    mv -f "${XAUTH_DIR}/xauth.new" "${XAUTH_DIR}/xauth"
+}
+
+validate_run_inputs() {
+    if [[ -z "${WORKSPACE}" ]]; then
+        stages::error "Workspace path (-w) is required to run or start a container."
+        help
+    fi
     if [[ ! "${STAGES_USER_UID}" =~ ^[0-9]+$ || ! "${STAGES_USER_GID}" =~ ^[0-9]+$ ]]; then
         stages::error "UID and GID must be numeric."
         exit 1
@@ -220,9 +277,10 @@ if [[ "${RUN}" == true ]]; then
         stages::error "Workspace paths containing commas are not supported by this launcher."
         exit 1
     fi
+}
 
-    CONTAINER="$(echo "${STAGES_FINAL_IMAGE}" | tr ':/.' '___')_container"
-    TARGET_WS="/home/${STAGES_USERNAME}/colcon_ws"
+# Fill DOCKER_ARGS for `docker run`, shared by -r and -S.
+build_run_args() {
     DOCKER_ARGS=(
         -e "DISPLAY=${DISPLAY:-}"
         -e "HOME=/home/${STAGES_USERNAME}"
@@ -234,32 +292,90 @@ if [[ "${RUN}" == true ]]; then
         --rm
         "${EXTRA_RUN_ARGS[@]}"
     )
+    local host_path
     for host_path in /tmp/.X11-unix /etc/timezone /etc/localtime; do
         if [[ -e "${host_path}" ]]; then
             DOCKER_ARGS+=(--mount "type=bind,source=${host_path},target=${host_path},readonly")
         fi
     done
-    # Use the existing X11 cookie without changing the host X server ACL.
-    AUTHORITY="${XAUTHORITY:-${HOME}/.Xauthority}"
-    if [[ -f "${AUTHORITY}" ]]; then
-        DOCKER_ARGS+=(--mount "type=bind,source=${AUTHORITY},target=/tmp/docker-envs.Xauthority,readonly"
-                      -e XAUTHORITY=/tmp/docker-envs.Xauthority)
+    if x11_cookie; then
+        DOCKER_ARGS+=(--mount "type=bind,source=${XAUTH_DIR},target=${XAUTH_TARGET_DIR},readonly"
+                      -e "XAUTHORITY=${XAUTH_TARGET_DIR}/xauth")
+    else
+        # Fall back to the existing cookie file (no display or no xauth tool).
+        local authority="${XAUTHORITY:-${HOME}/.Xauthority}"
+        if [[ -f "${authority}" ]]; then
+            DOCKER_ARGS+=(--mount "type=bind,source=${authority},target=/tmp/docker-envs.Xauthority,readonly"
+                          -e XAUTHORITY=/tmp/docker-envs.Xauthority)
+        fi
+    fi
+    if [[ "${HOST_NETWORK}" == true ]]; then
+        DOCKER_ARGS+=(--network host --ipc host)
     fi
     # An Isaac Sim image needs the GPU and the persistent Omniverse caches, or it
     # recompiles every shader on each start. Detected from the image so this does
     # not depend on remembering a flag; it already includes --gpus all.
-    ISAAC_CONFIGURED=false
-    if [[ "${NO_ISAAC_SETUP}" != true ]] && stages::image_has_isaacsim "${STAGES_FINAL_IMAGE}"; then
-        stages::info "Isaac Sim image detected; mounting Omniverse caches from ${STAGES_ISAAC_CACHE_ROOT}"
-        stages::isaac_run_args "${STAGES_FINAL_IMAGE}" "/home/${STAGES_USERNAME}" || exit 1
-        DOCKER_ARGS+=("${STAGES_ISAAC_ARGS[@]}")
-        ISAAC_CONFIGURED=true
+    local isaac_configured=false
+    if [[ "${NO_ISAAC_SETUP}" != true ]]; then
+        if stages::image_has_isaacsim "${STAGES_FINAL_IMAGE}"; then
+            stages::info "Isaac Sim image detected; mounting Omniverse caches from ${STAGES_ISAAC_CACHE_ROOT}"
+            stages::isaac_run_args "${STAGES_FINAL_IMAGE}" "/home/${STAGES_USERNAME}" || return 1
+            DOCKER_ARGS+=("${STAGES_ISAAC_ARGS[@]}")
+            isaac_configured=true
+        fi
+        if stages::image_has_isaaclab "${STAGES_FINAL_IMAGE}"; then
+            stages::info "Isaac Lab image detected; persisting logs/ and data_storage/ under ${STAGES_ISAACLAB_OUTPUT_ROOT}"
+            stages::isaaclab_output_args "${STAGES_FINAL_IMAGE}" || return 1
+            DOCKER_ARGS+=("${STAGES_ISAACLAB_ARGS[@]}")
+        fi
     fi
-
     # Only add --gpus once: isaac_run_args already did when it ran.
-    if [[ "${USE_GPU}" == true && "${ISAAC_CONFIGURED}" == false ]]; then
+    if [[ "${USE_GPU}" == true && "${isaac_configured}" == false ]]; then
         DOCKER_ARGS+=(--gpus all)
     fi
+}
 
+if [[ "${RUN}" == true ]]; then
+    validate_run_inputs
+    build_run_args || exit 1
     docker run "${DOCKER_ARGS[@]}" -it "${STAGES_FINAL_IMAGE}" bash
+    exit $?
+fi
+
+if [[ "${START}" == true ]]; then
+    validate_run_inputs
+    if container_running; then
+        stages::info "Container ${CONTAINER} is already running; enter it with -E."
+        exit 0
+    fi
+    build_run_args || exit 1
+    # --init reaps processes and forwards signals, so -K stops at once.
+    docker run -d --init "${DOCKER_ARGS[@]}" "${STAGES_FINAL_IMAGE}" sleep infinity >/dev/null || exit $?
+    ENTER_CMD=("$0" -E -i "${STAGES_FINAL_IMAGE}" -n "${STAGES_USERNAME}")
+    [[ "${CUSTOM_CONTAINER}" == true ]] && ENTER_CMD+=(-C "${CONTAINER}")
+    stages::info "Started ${CONTAINER}. Open a shell with:"
+    printf '    %s\n' "${ENTER_CMD[*]}"
+    exit 0
+fi
+
+if [[ "${ENTER}" == true ]]; then
+    if ! container_running; then
+        stages::error "Container ${CONTAINER} is not running. Start it with -S."
+        exit 1
+    fi
+    # Refresh the cookie in the mounted directory for the current display.
+    x11_cookie || true
+    # The entrypoint applies WORKSPACE_UMASK and loads ROS for this shell too.
+    docker exec -it -e "DISPLAY=${DISPLAY:-}" --workdir "${TARGET_WS}" \
+        "${CONTAINER}" "${ENTRYPOINT}" bash
+    exit $?
+fi
+
+if [[ "${STOP}" == true ]]; then
+    if ! container_running; then
+        stages::info "Container ${CONTAINER} is not running."
+        exit 0
+    fi
+    docker stop "${CONTAINER}" >/dev/null || exit $?
+    stages::info "Stopped and removed ${CONTAINER}."
 fi

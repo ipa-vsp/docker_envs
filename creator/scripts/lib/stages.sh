@@ -571,11 +571,37 @@ stages::build_plan() {
     if [[ -z "${STAGES_FINAL_IMAGE}" ]]; then
         STAGES_FINAL_IMAGE="$(stages::final_image)"
     fi
+    # The replay command is stored on the image, so the exact pinned selection
+    # can be recovered later with `docker image inspect`.
     stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.user" "${base_image}" "${STAGES_FINAL_IMAGE}" \
         "--build-arg" "USERNAME=${STAGES_USERNAME}" \
         "--build-arg" "USER_UID=${STAGES_USER_UID}" \
         "--build-arg" "USER_GID=${STAGES_USER_GID}" \
-        "--build-arg" "ROS_DISTRO=${STAGES_ROS}"
+        "--build-arg" "ROS_DISTRO=${STAGES_ROS}" \
+        "--label" "${STAGES_BUILD_COMMAND_LABEL}=$(stages::equivalent_command)"
+}
+
+STAGES_BUILD_COMMAND_LABEL="org.docker_envs.build-command"
+
+# The run_env.sh invocation that reproduces the current selection, runnable
+# from the repository root. Call after stages::build_plan has resolved versions
+# and derived the tag; -i appears only when the final name was overridden.
+stages::equivalent_command() {
+    local -a cmd=(creator/scripts/run_env.sh -b -o "$STAGES_OS" -v "$STAGES_ROS" -N "$STAGES_NAMESPACE")
+    [[ "$STAGES_USE_CUDA" == true ]] && cmd+=(-c "$STAGES_CUDA_VERSION")
+    [[ "$STAGES_USAGE" != skip ]] && cmd+=(-u "$STAGES_USAGE")
+    [[ "$STAGES_MUJOCO" == true ]] && cmd+=(-m "$STAGES_MUJOCO_VERSION")
+    [[ "$STAGES_ISAACSIM" == true ]] && cmd+=(-I "$STAGES_ISAACSIM_VERSION")
+    [[ "$STAGES_ISAACLAB" == true ]] && cmd+=(-L "$STAGES_ISAACLAB_VERSION"
+        -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL"
+        -B "$STAGES_ISAACLAB_PHYSICS" -V "$STAGES_ISAACLAB_VISUALIZER")
+    [[ "$STAGES_ZENOH" == true ]] && cmd+=(-z)
+    [[ "$STAGES_SIMULATION" == true ]] && cmd+=(-s)
+    cmd+=(-n "$STAGES_USERNAME" -U "$STAGES_USER_UID" -G "$STAGES_USER_GID")
+    [[ "$STAGES_FINAL_IMAGE" != "$(stages::final_image)" ]] && cmd+=(-i "$STAGES_FINAL_IMAGE")
+    local quoted
+    quoted="$(printf '%q ' "${cmd[@]}")"
+    echo "${quoted% }"
 }
 
 stages::print_plan() {
@@ -593,6 +619,8 @@ stages::print_plan() {
     done
     echo
     stages::info "Final image: ${STAGES_FINAL_IMAGE}"
+    stages::info "Replay command (also stored as image label ${STAGES_BUILD_COMMAND_LABEL}):"
+    echo "    $(stages::equivalent_command)"
 }
 
 stages::run_plan() {
@@ -660,6 +688,38 @@ stages::image_env() {
         | sed -n "s/^$2=//p" | head -1
 }
 
+# True when the image carries the Isaac Lab layer (Dockerfile.isaaclab sets
+# ISAACLAB_DIR), with or without Isaac Sim.
+stages::image_has_isaaclab() {
+    [[ -n "$(stages::image_env "$1" ISAACLAB_DIR)" ]]
+}
+
+# The home-relative cache paths, shared with create_user.sh and
+# composer/isaaclab/compose.yml. Prints "<host subdir>:<home path>" lines.
+STAGES_ISAAC_CACHE_LIST="${CREATOR_DIR}/common/isaac-cache-dirs.txt"
+stages::isaac_cache_entries() {
+    grep -Ev '^[[:space:]]*(#|$)' "${STAGES_ISAAC_CACHE_LIST}"
+}
+
+# stages::bind_host_dir <host_dir> <target>
+# Creates <host_dir> as the calling user and sets STAGES_BIND_ARG to the
+# matching --mount value. Created here rather than left to docker: docker would
+# create it root-owned, and the container runs as the host user.
+stages::bind_host_dir() {
+    local host_dir="$1" target="$2"
+    mkdir -p "${host_dir}" || return 1
+    if [[ ! -w "${host_dir}" ]]; then
+        stages::error "Host directory is not writable: ${host_dir}"
+        return 1
+    fi
+    host_dir="$(cd -- "${host_dir}" && pwd -P)" || return 1
+    if [[ "${host_dir}" == *,* ]]; then
+        stages::error "Host paths containing commas are not supported: ${host_dir}"
+        return 1
+    fi
+    STAGES_BIND_ARG="type=bind,source=${host_dir},target=${target}"
+}
+
 # stages::isaac_run_args <image> <container_home>
 # Appends the Isaac Sim docker run arguments to STAGES_ISAAC_ARGS and creates the
 # host cache directories.
@@ -668,41 +728,29 @@ stages::isaac_run_args() {
     local root="${STAGES_ISAAC_CACHE_ROOT}"
     STAGES_ISAAC_ARGS=()
 
-    # host subdir : container path (relative to the container user's home)
-    local -a mounts=(
-        "cache/ov:${container_home}/.cache/ov"
-        "cache/pip:${container_home}/.cache/pip"
-        "cache/glcache:${container_home}/.cache/nvidia/GLCache"
-        "cache/computecache:${container_home}/.nv/ComputeCache"
-        "logs:${container_home}/.nvidia-omniverse/logs"
-        "config:${container_home}/.nvidia-omniverse/config"
-        "data:${container_home}/.local/share/ov/data"
-        "documents:${container_home}/Documents"
-    )
-
-    # The Kit SDK cache lives inside the venv; Dockerfile.isaacsim records where.
-    local isaac_root; isaac_root="$(stages::image_env "${image}" ISAACSIM_ROOT)"
-    if [[ -n "${isaac_root}" ]]; then
-        mounts+=("cache/kit:${isaac_root}/kit/cache")
+    local -a mounts=()
+    local entry
+    while IFS= read -r entry; do
+        mounts+=("${entry%%:*}:${container_home}/${entry#*:}")
+    done < <(stages::isaac_cache_entries)
+    if (( ${#mounts[@]} == 0 )); then
+        stages::error "No Isaac cache paths found in ${STAGES_ISAAC_CACHE_LIST}"
+        return 1
     fi
 
-    local entry host_dir target
+    # The Kit SDK cache lives inside the venv; Dockerfile.isaacsim records where.
+    # One host directory per Sim version, like IsaacLab's per-install volumes,
+    # so images with different Kit releases never share extension caches.
+    local isaac_root version
+    isaac_root="$(stages::image_env "${image}" ISAACSIM_ROOT)"
+    version="$(stages::image_env "${image}" ISAACSIM_VERSION)"
+    if [[ -n "${isaac_root}" ]]; then
+        mounts+=("cache/kit/${version:-unknown}:${isaac_root}/kit/cache")
+    fi
+
     for entry in "${mounts[@]}"; do
-        host_dir="${root}/${entry%%:*}"
-        target="${entry#*:}"
-        # Created here rather than left to docker: docker would create them
-        # root-owned, and the container runs as the host user.
-        mkdir -p "${host_dir}" || return 1
-        if [[ ! -w "${host_dir}" ]]; then
-            stages::error "Isaac cache directory is not writable: ${host_dir}"
-            return 1
-        fi
-        host_dir="$(cd -- "${host_dir}" && pwd -P)" || return 1
-        if [[ "${host_dir}" == *,* ]]; then
-            stages::error "Isaac cache paths containing commas are not supported."
-            return 1
-        fi
-        STAGES_ISAAC_ARGS+=(--mount "type=bind,source=${host_dir},target=${target}")
+        stages::bind_host_dir "${root}/${entry%%:*}" "${entry#*:}" || return 1
+        STAGES_ISAAC_ARGS+=(--mount "${STAGES_BIND_ARG}")
     done
 
     STAGES_ISAAC_ARGS+=(
@@ -715,4 +763,22 @@ stages::isaac_run_args() {
         -e ACCEPT_EULA=Y
         -e PRIVACY_CONSENT=Y
     )
+}
+
+# Host side of Isaac Lab's generated output. Isaac Lab writes logs/ and
+# data_storage/ inside its source tree (/opt/IsaacLab); in a --rm container they
+# would vanish on exit. IsaacLab's own compose file keeps them in volumes.
+STAGES_ISAACLAB_OUTPUT_ROOT="${STAGES_ISAACLAB_OUTPUT_ROOT:-${HOME}/docker/isaac-lab}"
+
+# stages::isaaclab_output_args <image>
+# Fills STAGES_ISAACLAB_ARGS with bind mounts for Isaac Lab's output folders.
+stages::isaaclab_output_args() {
+    local lab_dir sub
+    STAGES_ISAACLAB_ARGS=()
+    lab_dir="$(stages::image_env "$1" ISAACLAB_DIR)"
+    [[ -n "${lab_dir}" ]] || return 0
+    for sub in logs data_storage; do
+        stages::bind_host_dir "${STAGES_ISAACLAB_OUTPUT_ROOT}/${sub}" "${lab_dir}/${sub}" || return 1
+        STAGES_ISAACLAB_ARGS+=(--mount "${STAGES_BIND_ARG}")
+    done
 }

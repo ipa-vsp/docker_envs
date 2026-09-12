@@ -145,25 +145,10 @@ ask_version() {
     fi
 }
 
-# Print the ./run_env.sh invocation matching the answers just given, so an
+# Print the run_env.sh invocation matching the answers just given, so an
 # interactive session can be replayed non-interactively (scripts, CI, notes).
 equivalent_command() {
-    local -a cmd=(./run_env.sh -b -o "$STAGES_OS" -v "$STAGES_ROS" -N "$STAGES_NAMESPACE")
-    [[ "$STAGES_USE_CUDA" == true ]] && cmd+=(-c "$STAGES_CUDA_VERSION")
-    [[ "$STAGES_USAGE" != skip ]] && cmd+=(-u "$STAGES_USAGE")
-    [[ "$STAGES_MUJOCO" == true ]] && cmd+=(-m "$STAGES_MUJOCO_VERSION")
-    [[ "$STAGES_ISAACSIM" == true ]] && cmd+=(-I "$STAGES_ISAACSIM_VERSION")
-    [[ "$STAGES_ISAACLAB" == true ]] && cmd+=(-L "$STAGES_ISAACLAB_VERSION"
-        -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL"
-        -B "$STAGES_ISAACLAB_PHYSICS" -V "$STAGES_ISAACLAB_VISUALIZER")
-    [[ "$STAGES_ZENOH" == true ]] && cmd+=(-z)
-    [[ "$STAGES_SIMULATION" == true ]] && cmd+=(-s)
-    cmd+=(-n "$STAGES_USERNAME" -U "$STAGES_USER_UID" -G "$STAGES_USER_GID")
-    [[ "$STAGES_FINAL_IMAGE" != "$DERIVED_IMAGE" ]] && cmd+=(-i "$STAGES_FINAL_IMAGE")
-    printf '    '
-    printf '%q ' "${cmd[@]}"
-    printf '\n'
-
+    echo "    $(stages::equivalent_command)"
 }
 
 # --------------------------------------------------------------------------- #
@@ -367,12 +352,19 @@ fi
 stages::run_plan || exit 1
 
 echo
-stages::info "Run it with:"
+stages::info "One-off shell:"
 echo "    ${ROOT}/run_env.sh -r -i ${STAGES_FINAL_IMAGE} -n ${STAGES_USERNAME} -w <your_workspace>"
+stages::info "Persistent container (start once, enter from any terminal, stop when done):"
+echo "    ${ROOT}/run_env.sh -S -H -i ${STAGES_FINAL_IMAGE} -n ${STAGES_USERNAME} -w <your_workspace>"
+echo "    ${ROOT}/run_env.sh -E -i ${STAGES_FINAL_IMAGE} -n ${STAGES_USERNAME}"
+echo "    ${ROOT}/run_env.sh -K -i ${STAGES_FINAL_IMAGE}"
 if [[ "${STAGES_ISAACSIM}" == true ]]; then
-    stages::info "That run detects the Isaac Sim layer and adds --gpus all plus the"
+    stages::info "Runs detect the Isaac Sim layer and add --gpus all plus the"
     stages::info "persistent Omniverse caches under ${STAGES_ISAAC_CACHE_ROOT}."
     stages::info "Inside the container: 'isaac-activate' then 'isaacsim'."
+fi
+if [[ "${STAGES_ISAACLAB}" == true ]]; then
+    stages::info "Isaac Lab logs/ and data_storage/ persist under ${STAGES_ISAACLAB_OUTPUT_ROOT}."
 fi
 echo
 stages::info "Rebuild the same stack without the prompts:"

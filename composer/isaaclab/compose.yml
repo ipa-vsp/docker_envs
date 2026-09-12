@@ -1,0 +1,66 @@
+# Persistent Isaac Sim / Isaac Lab container for a creator image.
+# See README.md. Add compose.x11.yml for GUI access.
+services:
+  isaaclab:
+    image: ${IMAGE:?Set IMAGE to your final creator image}
+    pull_policy: never
+    container_name: ${CONTAINER_NAME:-isaaclab}
+    user: "${LOCAL_UID:?Export LOCAL_UID using id -u}:${LOCAL_GID:?Export LOCAL_GID using id -g}"
+    working_dir: /home/${CONTAINER_USER:-admin}/colcon_ws
+    entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
+    command: sleep infinity
+    init: true
+    stdin_open: true
+    tty: true
+    # ROS 2 discovery with the host and shared memory for multi-process training.
+    network_mode: host
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      HOME: /home/${CONTAINER_USER:-admin}
+      WORKSPACE_UMASK: "${WORKSPACE_UMASK:-0022}"
+      OMNI_KIT_ACCEPT_EULA: "YES"
+      ACCEPT_EULA: "Y"
+      PRIVACY_CONSENT: "Y"
+      NVIDIA_DRIVER_CAPABILITIES: all
+    volumes:
+      - type: bind
+        source: ${HOST_WS:?Set HOST_WS to an existing absolute workspace path}
+        target: /home/${CONTAINER_USER:-admin}/colcon_ws
+        bind:
+          create_host_path: false
+      - /etc/localtime:/etc/localtime:ro
+      # Paths from creator/common/isaac-cache-dirs.txt (kept in sync by a test).
+      # The image pre-creates them as the account, so new volumes are writable.
+      - isaac-cache-ov:/home/${CONTAINER_USER:-admin}/.cache/ov
+      - isaac-cache-pip:/home/${CONTAINER_USER:-admin}/.cache/pip
+      - isaac-cache-gl:/home/${CONTAINER_USER:-admin}/.cache/nvidia/GLCache
+      - isaac-cache-compute:/home/${CONTAINER_USER:-admin}/.nv/ComputeCache
+      - isaac-logs:/home/${CONTAINER_USER:-admin}/.nvidia-omniverse/logs
+      - isaac-config:/home/${CONTAINER_USER:-admin}/.nvidia-omniverse/config
+      - isaac-data:/home/${CONTAINER_USER:-admin}/.local/share/ov/data
+      - isaac-docs:/home/${CONTAINER_USER:-admin}/Documents
+      # Kit SDK cache inside the Isaac venv (Python 3.12 for Isaac Sim 6.x).
+      - isaac-cache-kit:${ISAACSIM_KIT_CACHE:-/opt/isaac-venv/lib/python3.12/site-packages/isaacsim/kit/cache}
+      # Isaac Lab output written inside /opt/IsaacLab.
+      - isaaclab-logs:${ISAACLAB_DIR:-/opt/IsaacLab}/logs
+      - isaaclab-data:${ISAACLAB_DIR:-/opt/IsaacLab}/data_storage
+
+volumes:
+  isaac-cache-ov:
+  isaac-cache-pip:
+  isaac-cache-gl:
+  isaac-cache-compute:
+  isaac-logs:
+  isaac-config:
+  isaac-data:
+  isaac-docs:
+  isaac-cache-kit:
+  isaaclab-logs:
+  isaaclab-data:

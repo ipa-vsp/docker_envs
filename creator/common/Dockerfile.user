@@ -14,7 +14,8 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 ARG ROS_DISTRO=""
 RUN --mount=type=bind,source=creator/common/create_user.sh,target=/tmp/create_user.sh \
-    bash /tmp/create_user.sh
+    --mount=type=bind,source=creator/common/isaac-cache-dirs.txt,target=/tmp/isaac-cache-dirs.txt \
+    ISAAC_CACHE_LIST=/tmp/isaac-cache-dirs.txt bash /tmp/create_user.sh
 
 ENV USERNAME=${USERNAME} USER_UID=${USER_UID} USER_GID=${USER_GID}
 ENV HOME=/home/${USERNAME} ROS_DISTRO=${ROS_DISTRO}

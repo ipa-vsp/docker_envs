@@ -1,0 +1,14 @@
+# Persistent Isaac Sim (pip distribution) paths, one per line:
+#   <host subdirectory under STAGES_ISAAC_CACHE_ROOT>:<path relative to the container home>
+# Single source for run_env.sh (host bind mounts), create_user.sh (pre-created
+# image directories) and composer/isaaclab/compose.yml (named volumes; a test
+# keeps that file in sync). The Kit cache is not listed: it lives inside the
+# venv at $ISAACSIM_ROOT/kit/cache and is handled separately.
+cache/ov:.cache/ov
+cache/pip:.cache/pip
+cache/glcache:.cache/nvidia/GLCache
+cache/computecache:.nv/ComputeCache
+logs:.nvidia-omniverse/logs
+config:.nvidia-omniverse/config
+data:.local/share/ov/data
+documents:Documents

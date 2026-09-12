@@ -1,36 +1,32 @@
 # Use a creator image with Compose
 
-Run Docker and Compose commands on the host. Run project commands such as
-`uv sync` inside the container as the development user.
+- Docker / Compose commands → on the host
+- Project commands (`uv sync`, `colcon build`) → inside the container, as the development user
+- GPU / Isaac → use [composer/isaaclab](../isaaclab/README.md) instead
 
-## Build the base image
+## 1. Build the base image
 
-From the `docker_envs` repository root, run the interactive image creator:
+- From the `docker_envs` root, interactive:
 
 ```bash
 creator/scripts/create_env.sh
 ```
 
-The image creator is named `create_env.sh` in this repository. Select your
-stack, keep `admin` as the account name, and use the values printed by the host's
-`id -u` and `id -g` for its IDs. Give the final image a convenient name such as
-`docker_envs:my-stack`. Run the builder as your normal host login.
-
-For example, the equivalent non-interactive ROS build is:
+- Keep account name `admin`
+- IDs → values of `id -u` / `id -g` on the host (defaults)
+- Final image name → short, e.g. `docker_envs:my-stack`
+- Run as your normal login, not `sudo`
+- Non-interactive equivalent:
 
 ```bash
 creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
   -n admin -U "$(id -u)" -G "$(id -g)" -i docker_envs:my-stack
 ```
 
-Select Isaac Lab in the creator if your project needs it; see the
-[Isaac build options](../../creator/README.md#isaac-sim-and-isaac-lab).
-Use the final image, which includes the development account, rather than an
-intermediate `/base`, `/ros`, or `/isaaclab` stage.
+- Isaac Lab → select it in the creator → [Isaac build options](../../creator/README.md#isaac-sim-and-isaac-lab)
+- Use the **final** image (has the account), never `/base`, `/ros`, `/isaaclab` intermediates
 
-## Write a Compose file
-
-Create the host workspace and export its path and your IDs:
+## 2. Prepare the host
 
 ```bash
 mkdir -p "$HOME/colcon_ws/src"
@@ -39,7 +35,9 @@ export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
 export IMAGE=docker_envs:my-stack
 ```
 
-Save this as `compose.yml` in a directory of your choice:
+## 3. Write `compose.yml`
+
+- Any directory of your choice:
 
 ```yaml
 services:
@@ -47,6 +45,7 @@ services:
     image: ${IMAGE:?Set IMAGE to your final creator image}
     user: "${LOCAL_UID:?Export LOCAL_UID}:${LOCAL_GID:?Export LOCAL_GID}"
     working_dir: /home/admin/colcon_ws
+    init: true
     stdin_open: true
     tty: true
     environment:
@@ -61,56 +60,44 @@ services:
     command: sleep infinity
 ```
 
-In that directory, start the service and open a shell:
+- Other account name → replace `/home/admin`
+- ROS 2 with host nodes → add `network_mode: host` and `ipc: host`
 
-```bash
-docker compose config --quiet
-docker compose up -d
-docker compose exec dev bash
-```
+## 4. Start, enter, stop
 
-Inside the container, check the identity and use your project:
+| Action | Command |
+|---|---|
+| Validate | `docker compose config --quiet` |
+| Start | `docker compose up -d` |
+| Shell | `docker compose exec dev bash` |
+| Stop + remove | `docker compose down` |
+
+- Workspace → stays on the host
+- Other container changes → lost on recreation unless in a volume or Dockerfile
+
+## 5. Work inside the container
 
 ```bash
 id
 cd ~/colcon_ws/src/my-project
-# For a uv project, using an image with uv installed:
+# uv project (image with uv installed):
 uv sync
 uv run python --version
 ```
 
-Clone or generate projects as this user. Use `sudo` only for operations that
-require it, such as installing system packages. `uv sync` updates the project's
-lockfile and environment; both must be writable. See
-[uv's syncing reference](https://docs.astral.sh/uv/concepts/projects/sync/) and
-[repairing an existing permission failure](../../creator/README.md#uv-sync-permission-denied).
+- Clone / generate projects as this user
+- `sudo` → only for system packages
+- `uv sync` → lockfile + environment must be writable → [uv syncing](https://docs.astral.sh/uv/concepts/projects/sync/)
+- Existing permission failure → [repair steps](../../creator/README.md#uv-sync-permission-denied)
+- Isaac images:
+  - `isaac-activate` + `uv run --active ...` → image Isaac env (may update its packages)
+  - plain `uv run ...` → project `.venv`
+  - Details → [environment choice](../../creator/README.md#uv-project-env-or-active-isaac-env)
 
-For an Isaac image, `isaac-activate` followed by `uv run --active ...` selects
-the image's Isaac environment and may update its installed packages. New creator
-builds make that environment writable by the development account. Plain
-`uv run ...` uses the project's `.venv` instead. See the
-[environment examples](../../creator/README.md#use-the-project-environment-or-the-active-isaac-environment).
+## 6. Extend the image (custom Dockerfile)
 
-Run `exit` to leave the shell and `docker compose down` on the host to remove
-the container. The bind-mounted workspace stays on the host. Changes elsewhere
-in the container require a volume or a Dockerfile to survive recreation.
-
-For a one-off shell using this repository's existing template (service `ros`):
-
-```bash
-docker compose -f composer/template/docker-compose.yml run --rm ros
-```
-
-If you chose a different account name, update `/home/admin` in your Compose
-file, or export `CONTAINER_USER` when using the repository template. Numeric
-runtime IDs must also match the built account for a writable home. A runtime
-`user:` setting does not recreate the image account.
-
-## Use a custom Dockerfile
-
-Save [Dockerfile.dev](Dockerfile.dev) next to your `compose.yml`. It extends the
-selected creator image with `tmux`, then restores the inherited development
-user. Add this configuration to the `dev` service above, replacing its `image:`:
+- Save [Dockerfile.dev](Dockerfile.dev) next to `compose.yml` → adds `tmux`, restores the account
+- Replace `image:` in the `dev` service with:
 
 ```yaml
     image: my-project:dev
@@ -122,7 +109,7 @@ user. Add this configuration to the `dev` service above, replacing its `image:`:
         BASE_IMAGE: ${BASE_IMAGE:?Set BASE_IMAGE to your final creator image}
 ```
 
-Build and recreate the service from that directory:
+- Build + recreate:
 
 ```bash
 export BASE_IMAGE=docker_envs:my-stack
@@ -131,13 +118,16 @@ docker compose up -d --force-recreate dev
 docker compose exec dev bash
 ```
 
-`BASE_IMAGE` is the existing creator image; `image:` names your custom result.
-`context` is relative to the Compose directory, and `dockerfile` is relative
-to that context. `pull_policy: never` uses the locally built result. Build it
-explicitly before starting. See the
-[Compose build reference](https://docs.docker.com/reference/compose-file/build/).
+| Key | Meaning |
+|---|---|
+| `BASE_IMAGE` | existing creator image |
+| `image:` | name of your custom result |
+| `context` | relative to the Compose directory |
+| `dockerfile` | relative to `context` |
+| `pull_policy: never` | use the local build; build before starting |
 
-The repository provides the same extension as an override. From its root:
+- Reference → [Compose build](https://docs.docker.com/reference/compose-file/build/)
+- Same extension as an override from the repository root:
 
 ```bash
 export BASE_IMAGE=docker_envs:my-stack
@@ -148,18 +138,20 @@ docker compose -f composer/template/docker-compose.yml \
   -f composer/template/compose.build.yml run --rm ros
 ```
 
-Keep project installation commands after `USER ${USERNAME}` in a custom
-Dockerfile. If copying source into an image, set its ownership explicitly, for
-example `COPY --chown=${USER_UID}:${USER_GID} my-project/ ./src/my-project/`.
-The source must be within the build context. Ordinary `COPY` creates root-owned
-files even after `USER`; see the
-[Dockerfile reference](https://docs.docker.com/reference/dockerfile/#copy---chown---chmod).
-A bind mount hides copied files and preserves host ownership, so image build
-instructions cannot repair an existing host lockfile or `.venv`.
+- Rules for a custom Dockerfile:
+  - Project installs → after `USER ${USERNAME}`
+  - Copied source → `COPY --chown=${USER_UID}:${USER_GID} my-project/ ./src/my-project/`
+  - Source → inside the build context
+  - Plain `COPY` → root-owned files even after `USER` → [COPY --chown](https://docs.docker.com/reference/dockerfile/#copy---chown---chmod)
+  - Bind mount → hides copied files; cannot repair host `uv.lock` / `.venv`
 
-## GPU workloads
+## One-off shell with the repository template
 
-The generic example above has no GPU or display configuration. For Isaac Sim,
-use the [Isaac Compose example](../isaacsim/README.md) for GPU access and cache
-volumes, or launch your creator image with `creator/scripts/run_env.sh -r`.
-The launcher detects the Isaac Sim layer and configures its GPU and caches.
+```bash
+docker compose -f composer/template/docker-compose.yml run --rm ros
+```
+
+- Service name → `ros`
+- Other account name → export `CONTAINER_USER`
+- Runtime IDs → must match the built account for a writable home
+- Runtime `user:` → does not recreate the image account
