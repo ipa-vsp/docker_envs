@@ -60,6 +60,12 @@ export IMAGE=docker_envs:24.04-jazzy-moveit
 docker compose -f composer/template/docker-compose.yml run --rm ros
 ```
 
+See the [Compose walkthrough](composer/template/README.md) to build with the
+interactive creator, write your own Compose file, extend the image with a custom
+Dockerfile, and run project commands inside the container. If `uv sync` reports
+`uv.lock: Permission denied`, follow the
+[existing-file repair instructions](creator/README.md#uv-sync-permission-denied).
+
 UID/GID determine ownership; umask determines initial permissions. For shared
 group access, use the launcher's `-a <gid> -M 0002`, or Compose `group_add` and
 `WORKSPACE_UMASK: "0002"`. Published accounts use `1000:1000`; rebuild the final

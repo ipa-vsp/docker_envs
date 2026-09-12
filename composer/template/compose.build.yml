@@ -1,0 +1,10 @@
+# Use together with docker-compose.yml; see README.md for commands.
+services:
+  ros:
+    image: ${DEV_IMAGE:-docker_envs:development}
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:?Set BASE_IMAGE to your final creator image}

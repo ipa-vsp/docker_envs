@@ -17,6 +17,8 @@ creator/scripts/run_env.sh -h             # complete CLI reference
 Both front ends share `scripts/lib/stages.sh`. Stages run in this order:
 base → ROS → MuJoCo → MoveIt/Nav2 → Isaac Sim → Isaac Lab → Zenoh → Gazebo → user.
 These are dependent development images; each retains its parent's tools.
+See the [Compose walkthrough](../composer/template/README.md)
+for using its final image directly or as the base of a custom Dockerfile.
 
 | Selection | Flags |
 |---|---|
@@ -181,6 +183,97 @@ filesystem permission semantics. Test ownership on your actual platform.
 If large workspaces exhaust inotify watches, inspect the limits on the host and
 adjust the host configuration deliberately. Container startup no longer writes
 host-wide kernel settings.
+
+### uv sync: Permission denied
+
+If `uv sync` cannot write `~/colcon_ws/src/roxfr3_isaaclab/uv.lock`, check the
+file itself as well as the workspace directory. A writable directory and a
+matching container UID do not make an existing root-owned file writable.
+The project's `.venv` must also be writable for dependency installation.
+
+Inside the container:
+
+```bash
+cd ~/colcon_ws/src/roxfr3_isaaclab
+id
+stat -c '%u:%g %a %n' . uv.lock .venv
+find .venv -xdev -uid 0 -gid 0 -print
+```
+
+For a personal project where these are confirmed accidental root-owned
+artifacts, repair only the lockfile and root-owned entries in its environment:
+
+```bash
+# Run as admin, whose IDs must match the host owner of this project.
+sudo chown --no-dereference --from=0:0 "$(id -u):$(id -g)" uv.lock
+sudo find .venv -xdev -uid 0 -gid 0 \
+  -exec chown --no-dereference "$(id -u):$(id -g)" {} +
+uv sync
+```
+
+Skip the `.venv` commands if it does not exist. For shared files or a different
+owner, establish the intended owner before changing permissions. These commands
+also affect the host files when the project is bind-mounted. They preserve file
+contents and do not change the ownership of the rest of the repository.
+
+Rebuilding an image or recreating its container cannot repair existing bind
+mount contents. Build with your host IDs, run project generation, cloning, and
+`uv sync` as the development account, and use `COPY --chown` for project files
+added by a custom Dockerfile. Do not run `sudo uv sync`: it creates more root-owned
+artifacts. Use the [custom Compose example](../composer/template/README.md#use-a-custom-dockerfile)
+to keep system package installation and project commands under their intended users.
+
+For Isaac Lab projects, editable dependencies also regenerate metadata under
+`$ISAACLAB_DIR` (normally `/opt/IsaacLab`). The final user layer assigns that
+source tree to the development account at build time, including existing
+`.egg-info` directories. The Isaac virtual environment (`$ISAAC_VENV`) is also
+owned by the development account so `uv run --active` can update its packages.
+The base Python installation and unrelated system paths keep their ownership.
+If an older image reports a permission error in Isaac source or installed packages, rerun your
+saved creator build command, rebuild any custom Compose image based on it, and
+recreate the service. Dependency stages can be reused from cache.
+The first rebuild of an older Isaac image can take several minutes and add a
+large image layer because Docker copies the prebuilt venv when changing its
+ownership. Subsequent builds with unchanged account settings reuse that layer.
+
+### Use the project environment or the active Isaac environment
+
+Without `--active`, uv uses the project's `.venv`. This keeps project dependency
+changes separate from the Isaac environment installed in the image:
+
+```bash
+cd ~/colcon_ws/src/roxfr3_isaaclab
+uv run python scripts/list_envs.py --show_presets
+```
+
+To use and update the image's Isaac environment instead:
+
+```bash
+isaac-activate
+uv run --active python scripts/list_envs.py --show_presets
+```
+
+`--active` tells uv to synchronize project dependencies into `$VIRTUAL_ENV`
+before running the command. This can replace package versions supplied by the
+image; it requires write access to the entire venv, including existing
+`*.dist-info` files. See the [uv run reference](https://docs.astral.sh/uv/reference/cli/#uv-run).
+Use `python scripts/list_envs.py --show_presets` after activation if dependencies
+are already installed and you only want to run the script.
+
+Changing a Compose `user:` setting or setting `HOME` does not transfer ownership
+of installed files. Keep runtime IDs aligned with the built account, and bind
+mount only the workspace rather than hiding the installation with a whole-home
+mount. Package changes made at runtime survive container restarts but are lost
+when the container is recreated; add persistent dependency changes to your
+custom Dockerfile under the development user.
+
+The directory name does not determine write access: a root-owned venv under
+`/home/admin` would fail in the same way. The creator retains the existing
+installation paths and assigns their ownership to the development account.
+If you customize the paths, install into the new location from the start and
+update project source references and cache mounts. Do not simply move an
+existing venv: its scripts can contain absolute interpreter paths. See
+[Python's venv documentation](https://docs.python.org/3/library/venv.html).
 
 ## Isaac Sim and Isaac Lab
 

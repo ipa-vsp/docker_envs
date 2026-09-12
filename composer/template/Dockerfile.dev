@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+# System packages need root; project commands use the account from the base image.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends tmux \
+    && rm -rf /var/lib/apt/lists/*
+
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}/colcon_ws
+# The base image supplies the workspace entrypoint and Bash command.

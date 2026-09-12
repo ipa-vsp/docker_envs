@@ -52,8 +52,10 @@ jobs:
           LOCAL_UID: '1000'
           LOCAL_GID: '1000'
           HOST_WS: /tmp/docker-envs-workspace
+          BASE_IMAGE: docker_envs:my-stack
         run: |
           docker compose -f composer/template/docker-compose.yml config --quiet
+          docker compose -f composer/template/docker-compose.yml -f composer/template/compose.build.yml config --quiet
           docker compose -f composer/isaacsim/compose.yml config --quiet
       - name: Build and test a nonstandard development account
         run: |

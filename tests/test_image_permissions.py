@@ -55,7 +55,7 @@ class ImagePermissionsTests(unittest.TestCase):
             IMAGE,
             "bash",
             "-c",
-            'claude --version && '
+            "claude --version && "
             'test -w "$HOME/.local/share/claude" && '
             'test -w "$HOME/colcon_ws/.claude" && '
             'git -C "$HOME/colcon_ws/.claude" remote get-url origin',
@@ -89,6 +89,41 @@ class ImagePermissionsTests(unittest.TestCase):
                     self.assertIn("UID 12345 · GID 23456", result.stdout)
                     self.assertIn("Running as a non-root user", result.stdout)
                     self.assertNotIn("WARNING", result.stdout)
+
+    def test_isaac_source_and_active_venv_are_writable_without_changing_system_paths(self):
+        self.docker(
+            "run",
+            "--rm",
+            "--network=none",
+            "--user",
+            "0:0",
+            "--entrypoint",
+            "bash",
+            "--mount",
+            f"type=bind,source={ROOT}/creator/common/create_user.sh,target=/tmp/create_user.sh,readonly",
+            "-e",
+            "ISAACLAB_DIR=/opt/test-isaaclab",
+            "-e",
+            "ISAAC_VENV=/opt/test-venv",
+            IMAGE,
+            "-ec",
+            'mkdir -p "$ISAACLAB_DIR/source/isaaclab/isaaclab.egg-info" '
+            '"$ISAAC_VENV/lib/python3.12/site-packages/packaging.dist-info" /opt/test-system; '
+            'touch "$ISAACLAB_DIR/source/isaaclab/isaaclab.egg-info/PKG-INFO" '
+            '"$ISAAC_VENV/pyvenv.cfg" '
+            '"$ISAAC_VENV/lib/python3.12/site-packages/packaging.dist-info/INSTALLER" '
+            "/opt/test-system/probe; "
+            'ln -s /opt/test-system "$ISAACLAB_DIR/system-link"; '
+            'ln -s /opt/test-system "$ISAAC_VENV/system-link"; '
+            "bash /tmp/create_user.sh; "
+            "runuser -u admin -- bash -ec ' "
+            'touch "$ISAACLAB_DIR/source/isaaclab/isaaclab.egg-info/PKG-INFO"; '
+            'mkdir "$ISAACLAB_DIR/source/isaaclab/build"; '
+            'rm "$ISAAC_VENV/lib/python3.12/site-packages/packaging.dist-info/INSTALLER"; '
+            'touch "$ISAAC_VENV/lib/python3.12/site-packages/packaging.dist-info/INSTALLER"; '
+            "test ! -w /opt/test-system/probe'; "
+            'test "$(stat -c %u:%g /opt/test-system/probe)" = 0:0',
+        )
 
     def test_conflicting_accounts_are_rejected(self):
         for name, uid, gid in (

@@ -50,6 +50,23 @@ if [[ -n "$previous_gid" && "$previous_gid" != "$USER_GID" ]]; then
 fi
 install -d -o "$USER_UID" -g "$USER_GID" \
     "/home/$USERNAME/colcon_ws" "/home/$USERNAME/colcon_ws/src" "/home/$USERNAME/workspace"
+# Editable Isaac Lab installs regenerate metadata in the source tree. Keep this
+# in the final account layer so expensive dependency layers remain shareable.
+# Do not follow source symlinks into other installation or system paths.
+own_isaac_tree() {
+    # Avoid needless Docker copy-up for files already owned by this account.
+    # Batch parallel metadata updates: Sim contains hundreds of thousands of files.
+    find "$1" -xdev \( ! -uid "$USER_UID" -o ! -gid "$USER_GID" \) -print0 \
+        | xargs -0 -r -n 256 -P 8 chown --no-dereference "$USER_UID:$USER_GID"
+}
+if [[ -n "${ISAACLAB_DIR:-}" && -d "$ISAACLAB_DIR/source/isaaclab" ]]; then
+    own_isaac_tree "$ISAACLAB_DIR"
+fi
+# isaac-activate selects a development environment: uv run --active must be
+# able to replace installed packages. Leave its base Python/system targets alone.
+if [[ -n "${ISAAC_VENV:-}" && -f "$ISAAC_VENV/pyvenv.cfg" ]]; then
+    own_isaac_tree "$ISAAC_VENV"
+fi
 usermod -aG sudo,video "$USERNAME"
 printf '%s ALL=(ALL) NOPASSWD:ALL\n' "$USERNAME" > "/etc/sudoers.d/$USERNAME"
 chmod 0440 "/etc/sudoers.d/$USERNAME"
