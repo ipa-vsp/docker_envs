@@ -1,0 +1,7 @@
+# Linux scripts are executed or sourced in Docker build contexts from Windows.
+*.sh text eol=lf
+*.bash text eol=lf
+creator/scripts/bashrc text eol=lf
+creator/common/isaac-cache-dirs.txt text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=lf

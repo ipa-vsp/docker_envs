@@ -10,7 +10,8 @@ Docker development environments for ROS 2, PyTorch, MuJoCo and NVIDIA Isaac Sim 
 ## Requirements
 
 - Docker Engine + Buildx plugin
-- Bash, Python 3 (tests: PyYAML, `jq`)
+- Linux scripts: Bash; Windows builder: PowerShell 5.1 or 7
+- Tests: Python 3 (Linux regression suite: PyYAML, `jq`)
 - GPU stacks → NVIDIA driver + NVIDIA Container Toolkit
 - GUI → X11 display + `xauth`
 
@@ -47,6 +48,7 @@ creator/scripts/run_env.sh -b -o 24.04 -v jazzy \
 | Goal | Command |
 |---|---|
 | Interactive stage selection | `creator/scripts/create_env.sh` |
+| Windows interactive stage selection | `creator\scripts\create_env.bat` or `./creator/scripts/create_env.ps1` ([Windows guide](creator/README.md#windows-image-builder)) |
 | Graphical stage selection | AppImage from a release, or `pip install ./gui && docker-envs-gui` |
 | Preview a build (no build) | replace `-b` with `-p` |
 | All flags | `creator/scripts/run_env.sh -h` |

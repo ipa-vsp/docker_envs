@@ -8,6 +8,7 @@ on:
       - 'composer/isaacsim/**'
       - '.github/workflows/**'
       - '.dockerignore'
+      - '.gitattributes'
       - 'tests/**'
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - 'composer/isaacsim/**'
       - '.github/workflows/**'
       - '.dockerignore'
+      - '.gitattributes'
       - 'tests/**'
   workflow_dispatch:
 
@@ -23,6 +25,17 @@ permissions:
   contents: read
 
 jobs:
+  windows-builder:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Check PowerShell 5.1 and 7 builders, batch launcher, and Bash parity
+        shell: pwsh
+        run: python -m unittest discover -s tests -p test_windows_builder.py -v
+
   regression:
     runs-on: ubuntu-latest
     steps:

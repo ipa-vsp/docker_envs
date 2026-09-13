@@ -88,11 +88,14 @@ services:
         stdin_open: true
         tty: true
         volumes:
-            - \\wsl.localhost\Ubuntu\mnt\wslg:/tmp
+            - /run/desktop/mnt/host/wslg:/tmp
             # - /etc/localtime:/etc/localtime:ro
             - ../../../mujoco_ros2_control:/home/admin/colcon_ws/src
         environment:
-                # - DISPLAY=$DISPLAY
+            - DISPLAY=:0
+            - WAYLAND_DISPLAY=wayland-0
+            - XDG_RUNTIME_DIR=/tmp/runtime-dir
+            - PULSE_SERVER=/tmp/PulseServer
             - ROS_DOMAIN_ID=73
         entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
         command: tail -f /dev/null # bash -c "top"

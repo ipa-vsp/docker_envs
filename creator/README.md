@@ -1,11 +1,73 @@
 # Creator: build and run development images
 
 - Run all commands from the repository root
-- Needs Docker Engine, Buildx, Bash, network access for uncached dependencies
+- Needs Docker Engine, Buildx, network access for uncached dependencies
+- Linux entry points use Bash; [Windows entry points](#windows-image-builder) use PowerShell
 - Local staged builds use the Docker driver → each intermediate image feeds the next stage
 - End-to-end Isaac guide → [docs/ISAAC_WORKFLOW.md](../docs/ISAAC_WORKFLOW.md)
 
 ## Build a stack
+
+### Windows image builder
+
+Use Docker Desktop running **Linux containers**, with a Buildx builder using the
+`docker` driver. The Windows entry points build the same Linux Dockerfiles and
+stage names as the Bash builder. They need Windows PowerShell 5.1 or PowerShell 7;
+host Bash, Git and Python are not required.
+
+From PowerShell, run these commands from the repository root:
+
+```powershell
+.\creator\scripts\create_env.ps1                  # interactive menus
+.\creator\scripts\create_env.ps1 -DryRun          # menus and plan; no Docker needed
+.\creator\scripts\create_env.ps1 -Help
+.\creator\scripts\create_env.ps1 -NonInteractive -OS 24.04 -Ros jazzy -Usage manipulation
+.\creator\scripts\create_env.ps1 -NonInteractive -Ros jazzy -IsaacLab release/3.0.0 -LabPackages 'rl[rsl-rl]' -LabPhysics ovphysx -LabVisualizer viser
+```
+
+From Command Prompt (or by double-clicking the batch file):
+
+```bat
+creator\scripts\create_env.bat
+creator\scripts\create_env.bat -DryRun
+creator\scripts\create_env.bat -NonInteractive -OS 24.04 -Ros jazzy -Usage manipulation
+```
+
+- All nine interactive stages, manual versions, online lookup and offline
+  fallback versions are available. Use `latest` as a version in unattended
+  builds, e.g. `-Cuda latest`. An offline lookup still requires network access
+  later for any uncached build dependencies.
+- Selection parameters require `-NonInteractive`, which builds immediately.
+  Add `-DryRun` to preview instead. Interactive builds ask for confirmation.
+- The default container account is `admin`, with Linux UID/GID `1000:1000`.
+  Change them in the prompts or with `-Username`, `-UserUid` and `-UserGid`.
+- The summary prints a pinned **PowerShell** replay command, also stored as
+  `org.docker_envs.build-command` on the final image. Run it from the repository
+  root. It preserves Gymnasium and Isaac Lab package/backend selections too.
+- The script can be launched from another directory using its full path;
+  Dockerfile paths and build context resolve relative to the script. Paths
+  containing spaces are supported.
+- Builds use Docker's default build network and load each intermediate image
+  locally. The first failed layer stops the build; completed layers stay cached.
+  If the selected builder uses another driver, select a `docker` driver entry
+  listed by `docker buildx ls` using `docker buildx use <name>`.
+- The batch launcher uses inbox Windows PowerShell and an execution-policy
+  override for that process only. If direct `.ps1` execution is blocked by local
+  policy, use the batch launcher; centrally enforced policies still apply.
+- Git attributes keep Linux scripts in LF format for Windows checkouts. For an
+  existing checkout, ensure the scripts copied into images have LF endings.
+- This builder creates images. Container lifecycle, GUI/display integration and
+  GPU runtime configuration are configured separately.
+
+Windows regression checks (Python is needed only for tests):
+
+```powershell
+python -m unittest discover -s tests -p test_windows_builder.py -v
+```
+
+These run against both installed PowerShell versions, compare plans with Bash
+when available, and use a mock Docker executable to check argument handling and
+failure behavior without building images.
 
 ### Front ends
 
