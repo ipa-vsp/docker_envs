@@ -171,6 +171,7 @@ USER admin
 - No package updates, rosdep updates, Git pulls or host sysctl changes at startup
 - Interactive Bash → banner with user, workspace, ROS distro; warning when root
 - Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) cloned at `~/colcon_ws/.claude`
+- Graphify → installed after Claude with `uv tool install graphifyy`; skill registered with `graphify install`
 - Mounted workspace hides that clone → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
 
 ## Validation

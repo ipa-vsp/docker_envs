@@ -228,6 +228,11 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
 - Final user stage installs Claude Code as the development user → [native installer](https://code.claude.com/docs/en/setup)
   - `curl -fsSL https://claude.ai/install.sh | bash`
   - `~/.local/bin` on `PATH`, also for non-interactive commands
+- After Claude, the build installs [Graphify](https://graphify.com/docs/install) as the development user:
+  - Installs `uv` if missing, then runs `uv tool install graphifyy` in an isolated tool environment
+  - Runs `graphify install` to register the Claude skill in the user's config
+  - `graphify` is already on `PATH`; no `uv tool update-shell` needed in these images
+  - In Claude, run `/graphify .` to build a graph for the current workspace
 - Build clones `https://github.com/ipa-vsp/.claude.git` → `~/colcon_ws/.claude`
 - Existing `.claude` directory → preserved when extending an image
 - Host workspace mounted at `~/colcon_ws` → hides the image clone → set it up once inside the container:

@@ -31,6 +31,15 @@ RUN claude --version && \
         git clone https://github.com/ipa-vsp/.claude.git .claude; \
     fi
 
+# Keep Graphify isolated from the image's ROS/Isaac Python environment.
+RUN if ! command -v uv >/dev/null 2>&1; then \
+        curl -LsSf https://astral.sh/uv/install.sh \
+            | env UV_UNMANAGED_INSTALL="$HOME/.local/bin" sh; \
+    fi && \
+    uv tool install graphifyy && \
+    graphify install && \
+    graphify --version
+
 # Append the interactive banner without replacing ROS/Isaac shell setup.
 USER root
 COPY --chmod=0644 creator/scripts/container-banner.bash /etc/docker-envs-banner.bash

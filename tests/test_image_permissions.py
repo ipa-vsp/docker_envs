@@ -56,6 +56,9 @@ class ImagePermissionsTests(unittest.TestCase):
             "bash",
             "-c",
             "claude --version && "
+            "graphify --version && "
+            'test -s "$HOME/.claude/skills/graphify/SKILL.md" && '
+            'test -w "$HOME/.claude/skills/graphify/SKILL.md" && '
             'test -w "$HOME/.local/share/claude" && '
             'test -w "$HOME/colcon_ws/.claude" && '
             'git -C "$HOME/colcon_ws/.claude" remote get-url origin',
