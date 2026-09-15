@@ -67,7 +67,7 @@ jobs:
         run: gui/packaging/build-appimage.sh
       - name: Report the result
         run: ls -lh gui/dist/*.AppImage*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: docker-envs-gui-appimage
           path: |
