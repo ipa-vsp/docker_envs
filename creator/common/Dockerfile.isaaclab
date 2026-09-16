@@ -9,20 +9,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl cmake git build-essential \
         libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev \
     && rm -rf /var/lib/apt/lists/* && apt-get clean
-RUN if ! command -v uv >/dev/null; then \
-        curl -LsSf https://astral.sh/uv/install.sh \
-          | env UV_INSTALL_DIR=/usr/local/bin UV_UNMANAGED_INSTALL=1 sh; \
-    fi && uv --version
 
 ARG ISAACLAB_VERSION=release/3.0.0
-# python-env reuses the Isaac Sim venv; legacy creates a Kit-less Python 3.12 venv.
+# Both installation methods reuse /opt/venv when an earlier layer created it.
 ARG ISAACLAB_METHOD=python-env
 ARG ISAACLAB_INSTALL=default
 ARG ISAACLAB_DIR=/opt/IsaacLab
-ARG ISAAC_VENV=/opt/isaac-venv
+ARG VENV_PATH=/opt/venv
 ENV ISAACLAB_DIR=${ISAACLAB_DIR} ISAACLAB_VERSION=${ISAACLAB_VERSION}
 ENV ISAACLAB_METHOD=${ISAACLAB_METHOD} ISAACLAB_INSTALL=${ISAACLAB_INSTALL}
-ENV ISAAC_VENV=${ISAAC_VENV} UV_PYTHON_INSTALL_DIR=/opt/uv/python
+ENV VIRTUAL_ENV=${VENV_PATH}
+ENV ISAAC_VENV=${VIRTUAL_ENV} UV_PYTHON_INSTALL_DIR=/opt/uv/python
 ENV OMNI_KIT_ACCEPT_EULA=YES
 
 RUN git clone --depth 1 --branch "${ISAACLAB_VERSION}" \
@@ -32,6 +29,8 @@ RUN --mount=type=cache,id=creator-isaaclab-pip,target=/root/.cache/pip,sharing=l
     --mount=type=bind,source=creator/common/install_isaaclab.sh,target=/tmp/install_isaaclab.sh \
     UV_CACHE_DIR=/root/.cache/uv bash /tmp/install_isaaclab.sh
 
-# Keep ROS on the distribution Python; activation selects the Isaac environment.
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Convenience aliases for interactive use.
 RUN printf '\nalias isaac-activate="source %s/bin/activate"\nalias isaaclab="%s/isaaclab.sh"\n' \
         "${ISAAC_VENV}" "${ISAACLAB_DIR}" >> /etc/bash.bashrc

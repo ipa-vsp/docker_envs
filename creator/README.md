@@ -256,7 +256,7 @@ git clone https://github.com/ipa-vsp/.claude.git
 | Method | Flag | Meaning | Docs |
 |---|---|---|---|
 | Python env with Isaac Sim | `-j python-env` (needs `-I`) | Lab installed into the Sim venv | [upstream](https://isaac-sim.github.io/IsaacLab/release/3.0.0/source/setup/installation/index.html#installation-method-python-env) |
-| Legacy / Kit-less | `-j legacy` (no `-I`) | Lab 3.x in its own Python 3.12 venv | [upstream](https://isaac-sim.github.io/IsaacLab/release/3.0.0/source/setup/installation/index.html#installation-legacy-installer) |
+| Legacy / Kit-less | `-j legacy` (no `-I`) | Lab 3.x in the shared Python 3.12 venv | [upstream](https://isaac-sim.github.io/IsaacLab/release/3.0.0/source/setup/installation/index.html#installation-legacy-installer) |
 | Auto (default) | `-j auto` | `python-env` with `-I`, else `legacy` | |
 
 ```bash
@@ -313,15 +313,19 @@ creator/scripts/run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 \
 
 ### Python environments
 
-- Kit-less builds → Python 3.12 venv at `/opt/isaac-venv`
-- Full builds → reuse the Sim venv; Lab 3.x requires Sim 6.x
+- Ubuntu and CUDA base images include `uv` and `uvx` in `/usr/local/bin` ([uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/))
+- MuJoCo, Isaac Sim and Isaac Lab share `/opt/venv`, exposed as `$VIRTUAL_ENV` and prepended to `PATH`
+- `$ISAAC_VENV` remains an alias for the shared path in Isaac images; `isaac-activate` activates it explicitly
+- MuJoCo-only builds use the distribution Python; combined builds select Isaac's Python before installing MuJoCo
+- Kit-less Lab builds use Python 3.12 and reuse any preceding MuJoCo environment
+- Full builds reuse the same environment throughout; Lab 3.x requires Sim 6.x
 - Sim install → NVIDIA extra index, `unsafe-best-match`, prereleases enabled
 - Torch 2.11.0 + TorchVision 0.26.0 → cu128 on amd64, cu130 on arm64
 - CUDA base version → does not select the wheel index
 - Fallbacks → Sim `6.1.0.0`, Lab `release/3.0.0`
 - Lab 2.x tags → still available with a compatible Sim layer and old selectors (`none`, `rsl_rl`, ...); Kit-less needs 3.x
 - Python installs → `/opt/uv/python` (readable by the non-root account)
-- Neither venv replaces ROS's distribution Python
+- ROS's distribution interpreter remains at `/usr/bin/python3`; ROS Python extensions require its matching Python version and may not import in an Isaac environment with a different version
 
 ```bash
 isaac-activate
@@ -466,7 +470,7 @@ uv sync
 - Isaac Lab projects:
   - Editable installs regenerate metadata under `$ISAACLAB_DIR` (`/opt/IsaacLab`)
   - Final user layer owns that tree, including existing `.egg-info`
-  - `$ISAAC_VENV` also owned by the account → `uv run --active` can update it
+  - The shared `$VIRTUAL_ENV` is also owned by the account → `uv run --active` can update it, including MuJoCo-only builds
   - Base Python + unrelated system paths keep their ownership
   - Older image with permission errors → rerun the saved build command, rebuild custom Compose images, recreate the service
   - First rebuild of an older Isaac image → several minutes + a large layer (venv copied on ownership change); later builds reuse it

@@ -465,11 +465,22 @@ stages::build_plan() {
 
     # --- MuJoCo -------------------------------------------------------------
     if [[ "${STAGES_MUJOCO}" == true ]]; then
+        local mujoco_python=/usr/bin/python3
+        if [[ "${STAGES_ISAACSIM}" == true ]]; then
+            mujoco_python="$(stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}")"
+        elif [[ "${STAGES_ISAACLAB}" == true ]]; then
+            mujoco_python=3.12
+        fi
         stages::tag_add "mujoco${STAGES_MUJOCO_VERSION}"
+        # Distinguish cached distro-Python and Isaac-compatible MuJoCo images.
+        if [[ "$mujoco_python" != /usr/bin/python3 ]]; then
+            stages::tag_add "py${mujoco_python}"
+        fi
         image="$(stages::layer_image mujoco)"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.mujoco" "${base_image}" "${image}" \
             "--build-arg" "MUJOCO_VERSION=${STAGES_MUJOCO_VERSION}" \
-            "--build-arg" "GYM_VERSION=${STAGES_GYM_VERSION}"
+            "--build-arg" "GYM_VERSION=${STAGES_GYM_VERSION}" \
+            "--build-arg" "PYTHON_VERSION=${mujoco_python}"
         base_image="${image}"
     fi
 

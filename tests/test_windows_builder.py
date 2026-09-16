@@ -90,6 +90,9 @@ class WindowsPlannerTests(unittest.TestCase):
             {"Usage": "both", "Zenoh": True, "Gazebo": True},
             {"Cuda": "12.8.1", "Mujoco": "3.4.0", "Gym": "1.2.0"},
             {"IsaacSim": "6.1.0.0", "IsaacLab": "release/3.0.0"},
+            {"Mujoco": "3.4.0", "IsaacSim": "6.1.0.0", "IsaacLab": "release/3.0.0"},
+            {"Mujoco": "3.4.0", "IsaacSim": "5.1.0"},
+            {"Mujoco": "3.4.0", "IsaacLab": "release/3.0.0"},
             {
                 "IsaacLab": "release/3.0.0",
                 "LabPackages": "rl[rsl-rl]",

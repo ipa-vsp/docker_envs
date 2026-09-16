@@ -2,6 +2,10 @@
 ARG BASE_IMAGE=24.04
 FROM ubuntu:${BASE_IMAGE}
 
+# Shared Python package manager for all downstream layers and accounts.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python
+
 # disable terminal interaction for apt
 ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=/bin/bash

@@ -12,6 +12,48 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PlanTests(unittest.TestCase):
+    def test_mujoco_python_matches_later_isaac_layers(self):
+        tags = []
+        for sim, lab, python in (
+            ("", "", "/usr/bin/python3"),
+            ("4.5.0", "", "3.10"),
+            ("5.1.0", "", "3.11"),
+            ("6.1.0.0", "release/3.0.0", "3.12"),
+            ("", "release/3.0.0", "3.12"),
+        ):
+            with self.subTest(sim=sim, lab=lab):
+                result = subprocess.run(
+                    [
+                        "bash",
+                        "-ec",
+                        """
+source "$1/creator/scripts/lib/stages.sh"
+stages::init_selection
+STAGES_MUJOCO=true
+if [[ -n "$2" ]]; then STAGES_ISAACSIM=true; STAGES_ISAACSIM_VERSION="$2"; fi
+if [[ -n "$3" ]]; then STAGES_ISAACLAB=true; STAGES_ISAACLAB_VERSION="$3"; fi
+stages::build_plan
+printf '%s\\n' "${STAGES_PLAN[@]}"
+""",
+                        "test-plan",
+                        str(ROOT),
+                        sim,
+                        lab,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                mujoco = next(
+                    row.split("|")
+                    for row in result.stdout.splitlines()
+                    if "Dockerfile.mujoco|" in row
+                )
+                self.assertIn(f"PYTHON_VERSION={python}", mujoco)
+                tags.append(mujoco[2])
+        self.assertEqual(len(set(tags[:4])), 4)
+        self.assertEqual(tags[3], tags[4])
+
     def plan(self, *args):
         return subprocess.run(
             [str(ROOT / "creator/scripts/run_env.sh"), "-p", "-o", "24.04", "-v", "jazzy", *args],
@@ -254,8 +296,21 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
         result = self.install("legacy")
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = [json.loads(line) for line in self.log.read_text().splitlines()]
-        self.assertIn(["uv", "venv", "--python", "3.12", "--seed", str(self.venv)], calls)
+        self.assertFalse(any(call[:2] == ["uv", "venv"] for call in calls))
         self.assertEqual(calls[-1], ["isaaclab.sh", "-i"])
+
+    def test_kitless_creates_environment_when_missing(self):
+        (self.venv / "bin/python").unlink()
+        # The uv stub records creation; supply Python for the following checks.
+        (self.temp / "python").write_text("#!/bin/sh\nexit 0\n")
+        (self.temp / "python").chmod(0o755)
+        result = self.install("legacy")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertIn(
+            ["uv", "venv", "--python", "3.12", "--system-site-packages", "--seed", str(self.venv)],
+            calls,
+        )
 
     def test_python_env_reuses_sim_and_preserves_selectors(self):
         selector = "newton,rl[rsl-rl],visualizer[newton]"
@@ -272,9 +327,7 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
 
     def test_sim_installs_platform_torch_and_nvidia_resolution_options(self):
         dockerfile = (ROOT / "creator/common/Dockerfile.isaacsim").read_text()
-        instruction = dockerfile.split("RUN --mount=type=cache", 1)[1].split("# Deliberately", 1)[
-            0
-        ]
+        instruction = dockerfile.split("RUN --mount=type=cache", 1)[1].split("\n\n", 1)[0]
         command = "\n".join(instruction.splitlines()[1:])
         for architecture, index in (("amd64", "cu128"), ("arm64", "cu130")):
             with self.subTest(architecture=architecture):
@@ -294,6 +347,7 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 calls = [json.loads(line) for line in self.log.read_text().splitlines()]
+                self.assertFalse(any(call[:2] == ["uv", "venv"] for call in calls))
                 sim = next(call for call in calls if "isaacsim[all,extscache]==6.1.0.0" in call)
                 self.assertIn("unsafe-best-match", sim)
                 self.assertIn("--prerelease=allow", sim)

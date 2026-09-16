@@ -2,9 +2,8 @@
 # NVIDIA Isaac Sim layer (pip distribution).
 #
 # Isaac Sim ships wheels on https://pypi.nvidia.com. They pin an exact CPython
-# version, so this layer builds a dedicated uv-managed virtualenv under
-# /opt/isaac-venv instead of reusing the distro interpreter (which differs
-# between Ubuntu 22.04/24.04/26.04) or the MuJoCo venv.
+# version, so the build plan selects that Python for the shared /opt/venv,
+# including the preceding MuJoCo layer when requested.
 #
 # ISAACSIM_VERSION is resolved from the NVIDIA package index by
 # creator/scripts/lib/stages.sh, so the newest release can be selected at build
@@ -20,7 +19,7 @@ ARG TORCHVISION_VERSION=0.26.0
 # Empty selects the documented platform index: amd64 cu128, arm64 cu130.
 ARG TORCH_INDEX_URL=""
 ARG TARGETARCH
-ARG ISAAC_VENV=/opt/isaac-venv
+ARG VENV_PATH=/opt/venv
 
 # This layer pulls ~8 GB of wheels (isaacsim-extscache-kit alone is 5.5 GiB).
 # uv's stock 30s per-request timeout is easily exceeded when 50 downloads share
@@ -42,12 +41,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# uv provides the pinned CPython that the Isaac Sim wheels require.
-RUN curl -LsSf https://astral.sh/uv/install.sh \
-        | env UV_INSTALL_DIR=/usr/local/bin UV_UNMANAGED_INSTALL=1 sh \
-    && uv --version
-
-ENV ISAAC_VENV=${ISAAC_VENV}
+ENV VIRTUAL_ENV=${VENV_PATH}
+# Keep the Isaac-specific name available for existing scripts.
+ENV ISAAC_VENV=${VIRTUAL_ENV}
 ENV ISAACSIM_VERSION=${ISAACSIM_VERSION}
 # Where the wheels unpack the Kit SDK. run_env.sh reads this back off the image
 # to bind-mount ${ISAACSIM_ROOT}/kit/cache, the shader cache that otherwise gets
@@ -61,7 +57,10 @@ ENV OMNI_KIT_ACCEPT_EULA=YES
 # attempt -- a failed RUN layer is discarded, but the cache mount persists.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     export UV_CACHE_DIR=/root/.cache/uv \
-    && uv venv --python "${PYTHON_VERSION}" --seed "${ISAAC_VENV}" \
+    && if [ ! -x "${ISAAC_VENV}/bin/python" ]; then \
+        uv venv --python "${PYTHON_VERSION}" --system-site-packages --seed "${ISAAC_VENV}"; \
+    fi \
+    && "${ISAAC_VENV}/bin/python" -c 'import sys; assert "%s.%s" % sys.version_info[:2] == sys.argv[1], "Shared venv has incompatible Python; rebuild MuJoCo with PYTHON_VERSION=" + sys.argv[1]' "${PYTHON_VERSION}" \
     && source "${ISAAC_VENV}/bin/activate" \
     && uv pip install --upgrade pip \
     && uv pip install "isaacsim[${ISAACSIM_EXTRAS}]==${ISAACSIM_VERSION}" \
@@ -77,10 +76,10 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     && uv pip install --upgrade "torch==${TORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}" \
         --index-url "${TORCH_INDEX_URL}"
 
-# Deliberately NOT prepended to PATH: the Isaac interpreter is a different
-# CPython than the one ROS 2 was built against, so prepending it would break
-# `ros2`/`colcon`. Activate it explicitly instead:
-#     source /opt/isaac-venv/bin/activate
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
+# Explicit activation is also available in interactive shells:
+#     source /opt/venv/bin/activate
 # /etc/bash.bashrc (not /etc/profile.d) is what `docker exec -it ... bash`
 # reads, so the helper has to live there to be available interactively.
 RUN printf '\nalias isaac-activate="source %s/bin/activate"\n' "${ISAAC_VENV}" \

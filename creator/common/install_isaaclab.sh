@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Invoked at build time after cloning the selected Isaac Lab ref.
 set -euo pipefail
-: "${ISAACLAB_DIR:=/opt/IsaacLab}" "${ISAAC_VENV:=/opt/isaac-venv}"
+: "${ISAACLAB_DIR:=/opt/IsaacLab}" "${ISAAC_VENV:=/opt/venv}"
 : "${ISAACLAB_METHOD:=python-env}" "${ISAACLAB_INSTALL:=default}"
 
 if [[ ",$ISAACLAB_INSTALL," == *,isaacsim,* ]]; then
@@ -16,7 +16,9 @@ case "$ISAACLAB_METHOD" in
             echo "Kit-less installation requires Isaac Lab 3.x; use python-env with Isaac Sim for 2.x." >&2
             exit 1
         fi
-        uv venv --python 3.12 --seed "$ISAAC_VENV"
+        if [[ ! -x "$ISAAC_VENV/bin/python" ]]; then
+            uv venv --python 3.12 --system-site-packages --seed "$ISAAC_VENV"
+        fi
         ;;
     python-env)
         if [[ ! -x "$ISAAC_VENV/bin/python" ]]; then

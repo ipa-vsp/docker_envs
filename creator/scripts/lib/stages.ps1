@@ -126,11 +126,18 @@ function New-StagePlan([hashtable]$Selection) {
         & $add 'base' 'common/Dockerfile.cuda' "cuda$($s.Cuda)" @()
     } else { & $add 'base' 'common/Dockerfile.base' '' @() }
     & $add 'ros' "ros2/Dockerfile.$($s.Ros)" $s.Ros @()
-    if ($s.Mujoco) { & $add 'mujoco' 'common/Dockerfile.mujoco' "mujoco$($s.Mujoco)" @('--build-arg', "MUJOCO_VERSION=$($s.Mujoco)", '--build-arg', "GYM_VERSION=$($s.Gym)") }
+    $python = '/usr/bin/python3'
+    if ($s.IsaacSim) {
+        $python = switch ($s.IsaacSim.Split('.')[0]) { '6' { '3.12' }; '4' { '3.10' }; default { '3.11' } }
+    } elseif ($s.IsaacLab) { $python = '3.12' }
+    if ($s.Mujoco) {
+        $component = "mujoco$($s.Mujoco)"
+        if ($python -ne '/usr/bin/python3') { $component += "-py$python" }
+        & $add 'mujoco' 'common/Dockerfile.mujoco' $component @('--build-arg', "MUJOCO_VERSION=$($s.Mujoco)", '--build-arg', "GYM_VERSION=$($s.Gym)", '--build-arg', "PYTHON_VERSION=$python")
+    }
     if ($s.Usage -in 'manipulation', 'both') { & $add 'moveit' 'usage/Dockerfile.moveit' 'moveit' @('--build-arg', "ROS_DISTRO=$($s.Ros)") }
     if ($s.Usage -in 'navigation', 'both') { & $add 'nav2' 'usage/Dockerfile.nav2' 'nav2' @('--build-arg', "ROS_DISTRO=$($s.Ros)") }
     if ($s.IsaacSim) {
-        $python = switch ($s.IsaacSim.Split('.')[0]) { '6' { '3.12' }; '4' { '3.10' }; default { '3.11' } }
         & $add 'isaacsim' 'common/Dockerfile.isaacsim' "isaacsim$($s.IsaacSim)" @('--build-arg', "ISAACSIM_VERSION=$($s.IsaacSim)", '--build-arg', "PYTHON_VERSION=$python", '--build-arg', "TORCH_VERSION=$($script:StageDefaults.Torch)", '--build-arg', "TORCHVISION_VERSION=$($script:StageDefaults.TorchVision)")
     }
     if ($s.IsaacLab) {

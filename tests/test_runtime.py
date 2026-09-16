@@ -26,7 +26,7 @@ import json, os, sys
 if sys.argv[1:3] == ['image', 'inspect']:
     if os.environ.get('TEST_ISAAC'):
         print('ISAACSIM_VERSION=test')
-        print('ISAACSIM_ROOT=/opt/isaac-venv/lib/python3.12/site-packages/isaacsim')
+        print('ISAACSIM_ROOT=/opt/venv/lib/python3.12/site-packages/isaacsim')
     if os.environ.get('TEST_ISAACLAB'):
         print('ISAACLAB_DIR=/opt/IsaacLab')
     sys.exit(0)
@@ -137,7 +137,7 @@ sys.exit(int(os.environ.get('TEST_DOCKER_EXIT', '0')))
         # The Kit cache is scoped by the image's Isaac Sim version.
         self.assertTrue((self.temp / "isaac cache/cache/kit/test").is_dir())
         self.assertIn(
-            "target=/opt/isaac-venv/lib/python3.12/site-packages/isaacsim/kit/cache",
+            "target=/opt/venv/lib/python3.12/site-packages/isaacsim/kit/cache",
             " ".join(args),
         )
         self.assertNotIn("--privileged", args)

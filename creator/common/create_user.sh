@@ -67,6 +67,10 @@ fi
 if [[ -n "${ISAAC_VENV:-}" && -f "$ISAAC_VENV/pyvenv.cfg" ]]; then
     own_isaac_tree "$ISAAC_VENV"
 fi
+# MuJoCo-only builds use the same writable development environment.
+if [[ -n "${VIRTUAL_ENV:-}" && "$VIRTUAL_ENV" != "${ISAAC_VENV:-}" && -f "$VIRTUAL_ENV/pyvenv.cfg" ]]; then
+    own_isaac_tree "$VIRTUAL_ENV"
+fi
 # Pre-create every persistent Isaac path as the account. An empty named volume
 # copies the ownership of the image directory it covers; a missing directory
 # comes up root-owned and unwritable (same reason as IsaacLab's volume_mounts.py).
