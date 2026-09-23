@@ -1,0 +1,56 @@
+--- a/canopen_tests/launch_tests/test_proxy_driver_namespaced.py
++++ b/canopen_tests/launch_tests/test_proxy_driver_namespaced.py
+@@ -39,7 +39,7 @@
+         PythonLaunchDescriptionSource(
+             [
+                 os.path.join(get_package_share_directory("canopen_tests"), "launch"),
+-                "/proxy_setup.launch.py",
++                "/proxy_setup_namespaced.launch.py",
+             ]
+         )
+     )
+--- a/canopen_tests/launch_tests/test_cia402_driver.py
++++ b/canopen_tests/launch_tests/test_cia402_driver.py
+@@ -81,7 +81,7 @@
+         res.success = True
+         res.data = 0xFFFF0192
+
+-        self.node.call_service("cia402_device_1/sdo_read", CORead, req, res)
++        self.node.call_service("/test1/cia402_device_1/sdo_read", CORead, req, res)
+
+     def test_init(self):
+         req = Trigger.Request()
+@@ -89,7 +89,7 @@
+         res = Trigger.Response()
+         res.success = True
+
+-        self.node.call_service("cia402_device_1/init", Trigger, req, res)
++        self.node.call_service("/test1/cia402_device_1/init", Trigger, req, res)
+
+     def test_position_mode(self):
+         req = Trigger.Request()
+@@ -97,12 +97,12 @@
+         res = Trigger.Response()
+         res.success = True
+
+-        self.node.call_service("cia402_device_1/init", Trigger, req, res)
+-        self.node.call_service("cia402_device_1/position_mode", Trigger, req, res)
++        self.node.call_service("/test1/cia402_device_1/init", Trigger, req, res)
++        self.node.call_service("/test1/cia402_device_1/position_mode", Trigger, req, res)
+
+         target_req = COTargetDouble.Request()
+         target_req.target = 1.0
+         target_res = COTargetDouble.Response()
+         target_res.success = True
+
+-        self.node.call_service("cia402_device_1/target", COTargetDouble, target_req, target_res)
++        self.node.call_service("/test1/cia402_device_1/target", COTargetDouble, target_req, target_res)
+--- a/canopen_tests/launch_tests/test_robot_control.py
++++ b/canopen_tests/launch_tests/test_robot_control.py
+@@ -88,5 +88,5 @@
+         message = Float64MultiArray()
+         message.data = [1.0, 0.0]
+
+-        self.node.publish_message("forward_position_controller", Float64MultiArray, message)
++        self.node.publish_message("/forward_position_controller/commands", Float64MultiArray, message)
+         time.sleep(1.0)

@@ -1,0 +1,16 @@
+--- a/canopen_core/CMakeLists.txt
++++ b/canopen_core/CMakeLists.txt
+@@ -50,5 +50,5 @@
+   yaml-cpp
+ )
+-target_link_libraries(node_canopen_driver
++target_link_libraries(node_canopen_driver PUBLIC
+   yaml-cpp::yaml-cpp
+ )
+@@ -74,5 +74,5 @@
+   yaml-cpp
+ )
+-target_link_libraries(node_canopen_master
++target_link_libraries(node_canopen_master PUBLIC
+   yaml-cpp::yaml-cpp
+ )

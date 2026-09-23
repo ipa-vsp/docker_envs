@@ -1,101 +1,57 @@
-version: '3.9'
+name: canopen
+x-runtime: &runtime
+  init: true
+  user: admin
+  cap_add: [NET_ADMIN]
+  working_dir: /home/admin/colcon_ws
+  stdin_open: true
+  tty: true
+  environment:
+    ROS_DOMAIN_ID: "73"
+    ROS_LOCALHOST_ONLY: "1"
+    ROS_AUTOMATIC_DISCOVERY_RANGE: LOCALHOST
+  network_mode: bridge
+  # Each container gets its own network namespace, including its own vcan0.
+  pull_policy: never
 
 services:
-
-    nobel_rolling_canopen_test:
-        image: ghcr.io/ipa-vsp/docker_envs:rolling
-        # user: admin:1000
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=$DISPLAY
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-        command: tail -f /dev/null # bash -c "top"
-
-    rhel9_rolling_canopen_test:
-        build:
-            context: .
-            dockerfile: Dockerfile.rhel9
-        image: ghcr.io/ipa-vsp/docker_envs:rhel9-rolling
-        user: admin:1000
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=$DISPLAY
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-        command: tail -f /dev/null # bash -c "top"
-
-    jammy_humble_canopen_test:
-        image: ghcr.io/ipa-vsp/docker_envs:humble
-        user: admin:1000
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_can_ws/src:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=$DISPLAY
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-        command: tail -f /dev/null # bash -c "top"
-
-    jammy_humble_moveit_test:
-        image: ghcr.io/ipa-vsp/docker_envs:humble
-        user: admin:1000
-        stdin_open: true
-        privileged: true
-        tty: true
-        network_mode: "host"
-        volumes:
-            - /tmp/.X11-unix:/tmp/.X11-unix:ro
-            - /etc/localtime:/etc/localtime:ro
-            - ../../../colcon_moveit_ws/src:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=$DISPLAY
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-        command: tail -f /dev/null # bash -c "top"
-
-    jazzy-windows:
-        image: ghcr.io/ipa-vsp/docker_envs:jazzy
-        # container_name: isaac-sim
-        runtime: nvidia
-        deploy:
-            resources:
-                reservations:
-                    devices:
-                        - driver: nvidia
-                          count: all
-                          capabilities: [gpu]
-        network_mode: host
-        stdin_open: true
-        tty: true
-        volumes:
-            - /run/desktop/mnt/host/wslg:/tmp
-            # - /etc/localtime:/etc/localtime:ro
-            - ../../../mujoco_ros2_control:/home/admin/colcon_ws/src
-        environment:
-            - DISPLAY=:0
-            - WAYLAND_DISPLAY=wayland-0
-            - XDG_RUNTIME_DIR=/tmp/runtime-dir
-            - PULSE_SERVER=/tmp/PulseServer
-            - ROS_DOMAIN_ID=73
-        entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-        command: tail -f /dev/null # bash -c "top"
+  rolling:
+    <<: *runtime
+    image: docker_envs/canopen:rolling
+    build:
+      context: .
+      args:
+        BASE_IMAGE: docker_envs:26.04-rolling
+        CANOPEN_BRANCH: master
+        CANOPEN_REV: ${CANOPEN_MASTER_REV:-}
+        BUILD_JOBS: ${BUILD_JOBS:-4}
+  lyrical:
+    <<: *runtime
+    image: docker_envs/canopen:lyrical
+    build:
+      context: .
+      args:
+        BASE_IMAGE: docker_envs:26.04-lyrical
+        CANOPEN_BRANCH: master
+        CANOPEN_REV: ${CANOPEN_MASTER_REV:-}
+        BUILD_JOBS: ${BUILD_JOBS:-4}
+  jazzy:
+    <<: *runtime
+    image: docker_envs/canopen:jazzy
+    build:
+      context: .
+      args:
+        BASE_IMAGE: docker_envs:24.04-jazzy
+        CANOPEN_BRANCH: master
+        CANOPEN_REV: ${CANOPEN_MASTER_REV:-}
+        BUILD_JOBS: ${BUILD_JOBS:-4}
+  humble:
+    <<: *runtime
+    image: docker_envs/canopen:humble
+    build:
+      context: .
+      args:
+        BASE_IMAGE: docker_envs:22.04-humble
+        CANOPEN_BRANCH: humble
+        CANOPEN_REV: ${CANOPEN_HUMBLE_REV:-}
+        BUILD_JOBS: ${BUILD_JOBS:-4}
