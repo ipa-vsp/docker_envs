@@ -12,16 +12,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PlanTests(unittest.TestCase):
-    def test_mujoco_python_matches_later_isaac_layers(self):
+    def test_one_venv_layer_uses_the_python_later_layers_need(self):
         tags = []
-        for sim, lab, python in (
-            ("", "", "/usr/bin/python3"),
-            ("4.5.0", "", "3.10"),
-            ("5.1.0", "", "3.11"),
-            ("6.1.0.0", "release/3.0.0", "3.12"),
-            ("", "release/3.0.0", "3.12"),
+        for sim, lab, curobo, python in (
+            ("", "", "", "system"),
+            ("4.5.0", "", "", "3.10"),
+            ("5.1.0", "", "", "3.11"),
+            ("6.1.0.0", "release/3.0.0", "", "3.12"),
+            ("", "release/3.0.0", "", "3.12"),
+            ("", "", "main", "3.12"),
         ):
-            with self.subTest(sim=sim, lab=lab):
+            with self.subTest(sim=sim, lab=lab, curobo=curobo):
                 result = subprocess.run(
                     [
                         "bash",
@@ -32,6 +33,7 @@ stages::init_selection
 STAGES_MUJOCO=true
 if [[ -n "$2" ]]; then STAGES_ISAACSIM=true; STAGES_ISAACSIM_VERSION="$2"; fi
 if [[ -n "$3" ]]; then STAGES_ISAACLAB=true; STAGES_ISAACLAB_VERSION="$3"; fi
+if [[ -n "$4" ]]; then STAGES_CUROBO=true; STAGES_CUROBO_VERSION="$4"; fi
 stages::build_plan
 printf '%s\\n' "${STAGES_PLAN[@]}"
 """,
@@ -39,20 +41,25 @@ printf '%s\\n' "${STAGES_PLAN[@]}"
                         str(ROOT),
                         sim,
                         lab,
+                        curobo,
                     ],
                     capture_output=True,
                     text=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                mujoco = next(
-                    row.split("|")
-                    for row in result.stdout.splitlines()
-                    if "Dockerfile.mujoco|" in row
-                )
-                self.assertIn(f"PYTHON_VERSION={python}", mujoco)
-                tags.append(mujoco[2])
+                rows = [row.split("|") for row in result.stdout.splitlines()]
+                files = [Path(row[0]).name for row in rows]
+                # Created exactly once, straight after ROS; nothing else pins Python.
+                self.assertEqual(files.count("Dockerfile.venv"), 1)
+                self.assertEqual(files.index("Dockerfile.venv"), files.index("Dockerfile.rolling") + 1)
+                venv = rows[files.index("Dockerfile.venv")]
+                self.assertIn(f"PYTHON_VERSION={python}", venv)
+                mujoco = rows[files.index("Dockerfile.mujoco")]
+                self.assertFalse(any(arg.startswith("PYTHON_VERSION=") for arg in mujoco))
+                tags.append(venv[2])
         self.assertEqual(len(set(tags[:4])), 4)
         self.assertEqual(tags[3], tags[4])
+        self.assertEqual(tags[4], tags[5])
 
     def plan(self, *args):
         return subprocess.run(
@@ -220,6 +227,7 @@ if sys.argv[1:3] != ['buildx', 'version']:
                 "4",  # Viser
                 "n",
                 "n",
+                "n",
                 "admin",
                 "12345",
                 "23456",
@@ -299,18 +307,12 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
         self.assertFalse(any(call[:2] == ["uv", "venv"] for call in calls))
         self.assertEqual(calls[-1], ["isaaclab.sh", "-i"])
 
-    def test_kitless_creates_environment_when_missing(self):
+    def test_kitless_never_creates_a_second_environment(self):
         (self.venv / "bin/python").unlink()
-        # The uv stub records creation; supply Python for the following checks.
-        (self.temp / "python").write_text("#!/bin/sh\nexit 0\n")
-        (self.temp / "python").chmod(0o755)
         result = self.install("legacy")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        calls = [json.loads(line) for line in self.log.read_text().splitlines()]
-        self.assertIn(
-            ["uv", "venv", "--python", "3.12", "--system-site-packages", "--seed", str(self.venv)],
-            calls,
-        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("build the venv layer first", result.stderr)
+        self.assertFalse(self.log.exists())
 
     def test_python_env_reuses_sim_and_preserves_selectors(self):
         selector = "newton,rl[rsl-rl],visualizer[newton]"

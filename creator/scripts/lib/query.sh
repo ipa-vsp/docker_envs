@@ -51,6 +51,7 @@ QUERY_FIELDS=(
     ISAACSIM ISAACSIM_VERSION
     ISAACLAB ISAACLAB_VERSION ISAACLAB_METHOD ISAACLAB_INSTALL
     ISAACLAB_PHYSICS ISAACLAB_VISUALIZER
+    CUROBO CUROBO_VERSION
     USERNAME USER_UID USER_GID NAMESPACE FINAL_IMAGE
 )
 
@@ -108,7 +109,7 @@ query::isaaclab_selectors() {
 query::defaults() {
     stages::init_selection
     local name
-    for name in CUDA MUJOCO GYM ISAACSIM ISAACLAB TORCH TORCHVISION; do
+    for name in CUDA MUJOCO GYM ISAACSIM ISAACLAB TORCH TORCHVISION CUROBO; do
         local var="STAGES_DEFAULT_${name}"
         printf 'DEFAULT%s%s%s%s\n' "${US}" "${name}" "${US}" "${!var}"
     done
@@ -129,6 +130,7 @@ query::plan() {
     local valid=true
     stages::validate_selection || valid=false
     stages::validate_isaaclab  || valid=false
+    stages::validate_curobo    || valid=false
     if [[ "${valid}" != true ]]; then
         return 0
     fi

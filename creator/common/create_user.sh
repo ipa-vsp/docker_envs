@@ -62,14 +62,14 @@ own_isaac_tree() {
 if [[ -n "${ISAACLAB_DIR:-}" && -d "$ISAACLAB_DIR/source/isaaclab" ]]; then
     own_isaac_tree "$ISAACLAB_DIR"
 fi
-# isaac-activate selects a development environment: uv run --active must be
-# able to replace installed packages. Leave its base Python/system targets alone.
-if [[ -n "${ISAAC_VENV:-}" && -f "$ISAAC_VENV/pyvenv.cfg" ]]; then
-    own_isaac_tree "$ISAAC_VENV"
-fi
-# MuJoCo-only builds use the same writable development environment.
-if [[ -n "${VIRTUAL_ENV:-}" && "$VIRTUAL_ENV" != "${ISAAC_VENV:-}" && -f "$VIRTUAL_ENV/pyvenv.cfg" ]]; then
+# The shared environment (/opt/venv) belongs to the account, so pip, uv pip and
+# uv run --active install into it without sudo. Leave its base Python/system
+# targets alone. ISAAC_VENV is an alias kept for older images.
+if [[ -n "${VIRTUAL_ENV:-}" && -f "$VIRTUAL_ENV/pyvenv.cfg" ]]; then
     own_isaac_tree "$VIRTUAL_ENV"
+fi
+if [[ -n "${ISAAC_VENV:-}" && "$ISAAC_VENV" != "${VIRTUAL_ENV:-}" && -f "$ISAAC_VENV/pyvenv.cfg" ]]; then
+    own_isaac_tree "$ISAAC_VENV"
 fi
 # Pre-create every persistent Isaac path as the account. An empty named volume
 # copies the ownership of the image directory it covers; a missing directory

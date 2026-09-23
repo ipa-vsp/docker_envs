@@ -171,7 +171,8 @@ USER admin
 - No package updates, rosdep updates, Git pulls or host sysctl changes at startup
 - Interactive Bash → banner with user, workspace, ROS distro; warning when root
 - Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) cloned at `~/colcon_ws/.claude`
-- Graphify → installed after Claude with `uv tool install graphifyy`; skill registered with `graphify install`
+- Python → one shared environment, `/opt/venv`: active by default (`(venv)` prompt), writable by the user, visible to ROS 2 → see [Python environment](creator/README.md#python-environment-optvenv)
+- Graphify → installed into `/opt/venv` after Claude; skill registered with `graphify install`
 - Mounted workspace hides that clone → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
 
 ## Validation

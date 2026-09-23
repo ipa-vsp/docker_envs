@@ -26,6 +26,7 @@ param(
     [string]$LabPackages = 'default',
     [string]$LabPhysics = 'default',
     [string]$LabVisualizer = 'default',
+    [string]$Curobo = '',
     [switch]$Zenoh,
     [switch]$Gazebo,
     [string]$Username = 'admin',
@@ -171,6 +172,9 @@ function Read-BuilderSelection([hashtable]$Selection) {
         } else { Write-Host 'Isaac Lab 2.x uses Isaac Sim physics and Kit visualization.' }
     }
     Write-Host "`n== Stage 8/9 - Extra layers ==" -ForegroundColor Cyan
+    if (Read-BuilderYesNo 'Add NVIDIA cuRobo (GPU motion generation, Python 3.12)?') {
+        $s.Curobo = Read-BuilderValue 'cuRobo branch or tag' $script:StageDefaults.Curobo
+    }
     $s.Zenoh = Read-BuilderYesNo 'Add Zenoh middleware (rmw_zenoh_cpp)?'
     $s.Gazebo = Read-BuilderYesNo 'Add Gazebo simulation?'
     Write-Host "`n== Stage 9/9 - Container user and image name ==" -ForegroundColor Cyan
@@ -205,6 +209,7 @@ Selection parameters require -NonInteractive; omitted parameters use defaults.
   -LabPackages <selectors>  default, core, or custom selectors (default)
   -LabPhysics default|newton|ovphysx|both|isaacsim|all
   -LabVisualizer default|newton|rerun|viser|kit|all
+  -Curobo <ref|latest>      Enable cuRobo (Python 3.12); latest = main
   -Zenoh -Gazebo            Enable optional middleware/simulation layers
   -Username <name>          Container user (admin)
   -UserUid <id> -UserGid <id>  Linux container IDs (1000:1000)

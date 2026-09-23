@@ -2,8 +2,8 @@
 # NVIDIA Isaac Sim layer (pip distribution).
 #
 # Isaac Sim ships wheels on https://pypi.nvidia.com. They pin an exact CPython
-# version, so the build plan selects that Python for the shared /opt/venv,
-# including the preceding MuJoCo layer when requested.
+# version, so the build plan creates the shared /opt/venv (Dockerfile.venv)
+# with that Python; this layer only installs into it.
 #
 # ISAACSIM_VERSION is resolved from the NVIDIA package index by
 # creator/scripts/lib/stages.sh, so the newest release can be selected at build
@@ -19,7 +19,6 @@ ARG TORCHVISION_VERSION=0.26.0
 # Empty selects the documented platform index: amd64 cu128, arm64 cu130.
 ARG TORCH_INDEX_URL=""
 ARG TARGETARCH
-ARG VENV_PATH=/opt/venv
 
 # This layer pulls ~8 GB of wheels (isaacsim-extscache-kit alone is 5.5 GiB).
 # uv's stock 30s per-request timeout is easily exceeded when 50 downloads share
@@ -41,7 +40,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-ENV VIRTUAL_ENV=${VENV_PATH}
 # Keep the Isaac-specific name available for existing scripts.
 ENV ISAAC_VENV=${VIRTUAL_ENV}
 ENV ISAACSIM_VERSION=${ISAACSIM_VERSION}
@@ -57,10 +55,7 @@ ENV OMNI_KIT_ACCEPT_EULA=YES
 # attempt -- a failed RUN layer is discarded, but the cache mount persists.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     export UV_CACHE_DIR=/root/.cache/uv \
-    && if [ ! -x "${ISAAC_VENV}/bin/python" ]; then \
-        uv venv --python "${PYTHON_VERSION}" --system-site-packages --seed "${ISAAC_VENV}"; \
-    fi \
-    && "${ISAAC_VENV}/bin/python" -c 'import sys; assert "%s.%s" % sys.version_info[:2] == sys.argv[1], "Shared venv has incompatible Python; rebuild MuJoCo with PYTHON_VERSION=" + sys.argv[1]' "${PYTHON_VERSION}" \
+    && "${ISAAC_VENV}/bin/python" -c 'import sys; assert "%s.%s" % sys.version_info[:2] == sys.argv[1], "Shared venv has incompatible Python; rebuild the venv layer with PYTHON_VERSION=" + sys.argv[1]' "${PYTHON_VERSION}" \
     && source "${ISAAC_VENV}/bin/activate" \
     && uv pip install --upgrade pip \
     && uv pip install "isaacsim[${ISAACSIM_EXTRAS}]==${ISAACSIM_VERSION}" \
@@ -75,8 +70,6 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
     fi \
     && uv pip install --upgrade "torch==${TORCH_VERSION}" "torchvision==${TORCHVISION_VERSION}" \
         --index-url "${TORCH_INDEX_URL}"
-
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Explicit activation is also available in interactive shells:
 #     source /opt/venv/bin/activate

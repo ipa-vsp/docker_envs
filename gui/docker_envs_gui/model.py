@@ -110,6 +110,8 @@ class Selection:
     isaaclab_install: str = "default"
     isaaclab_physics: str = "default"
     isaaclab_visualizer: str = "default"
+    curobo: bool = False
+    curobo_version: str = ""
     zenoh: bool = False
     simulation: bool = False
     username: str = "admin"

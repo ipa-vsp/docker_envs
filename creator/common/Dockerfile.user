@@ -9,6 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl git libstdc++6 sudo && \
     rm -rf /var/lib/apt/lists/* && apt-get clean
 
+# Every image has exactly one Python environment. The local build plan creates
+# it in Dockerfile.venv; stacks without that layer (CI) get it here, before the
+# account takes ownership of it.
+ENV VIRTUAL_ENV=/opt/venv UV_PYTHON_INSTALL_DIR=/opt/uv/python
+RUN --mount=type=bind,source=creator/common/setup_venv.sh,target=/tmp/setup_venv.sh \
+    bash /tmp/setup_venv.sh
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+
 ARG USERNAME=admin
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -31,12 +39,12 @@ RUN claude --version && \
         git clone https://github.com/ipa-vsp/.claude.git .claude; \
     fi
 
-# Keep Graphify isolated from the image's ROS/Isaac Python environment.
+# Graphify lives in the shared environment too (owned by the account by now).
 RUN if ! command -v uv >/dev/null 2>&1; then \
         curl -LsSf https://astral.sh/uv/install.sh \
             | env UV_UNMANAGED_INSTALL="$HOME/.local/bin" sh; \
     fi && \
-    uv tool install graphifyy && \
+    uv pip install --python "${VIRTUAL_ENV}/bin/python" graphifyy && \
     graphify install && \
     graphify --version
 

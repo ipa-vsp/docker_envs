@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+# The shared Python environment (/opt/venv).
+#
+# Built once, directly on top of ROS, so every later layer installs into the
+# same environment. PYTHON_VERSION is chosen by creator/scripts/lib/stages.sh:
+# "system" unless Isaac Sim, Isaac Lab or cuRobo pins a specific version.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG PYTHON_VERSION=system
+ARG VENV_PATH=/opt/venv
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV VIRTUAL_ENV=${VENV_PATH} UV_PYTHON_INSTALL_DIR=/opt/uv/python
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    --mount=type=bind,source=creator/common/setup_venv.sh,target=/tmp/setup_venv.sh \
+    PYTHON_VERSION="${PYTHON_VERSION}" bash /tmp/setup_venv.sh
+
+# Active for every process: python, pip and uv target the environment, and the
+# prompt shows "(venv)" (see creator/scripts/bashrc).
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"

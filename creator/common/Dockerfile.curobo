@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# NVIDIA cuRobo layer (GPU motion generation).
+#
+# Follows https://nvlabs.github.io/curobo/latest/getting-started/installation.html
+# with the shared /opt/venv in place of the per-checkout .venv. cuRobo compiles
+# its CUDA kernels at run time through cuda.core, so neither nvcc nor a GPU is
+# needed to build this layer, but an NVIDIA GPU (driver >= 580) is needed to use it.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/* && apt-get clean
+
+# Branch or tag; the uv extras installer below exists on main (cuRobo 2).
+ARG CUROBO_VERSION=main
+# CUDA major for the cuRobo extra when no PyTorch is installed yet. The build
+# plan derives it from the CUDA base; a PyTorch already in the environment
+# (Isaac Sim) decides on its own.
+ARG CUROBO_CUDA=12
+ARG CUROBO_DIR=/opt/curobo
+ENV CUROBO_DIR=${CUROBO_DIR} CUROBO_VERSION=${CUROBO_VERSION}
+
+RUN git clone --depth 1 --branch "${CUROBO_VERSION}" \
+        https://github.com/NVlabs/curobo.git "${CUROBO_DIR}"
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
+    --mount=type=bind,source=creator/common/install_curobo.sh,target=/tmp/install_curobo.sh \
+    UV_CACHE_DIR=/root/.cache/uv CUROBO_CUDA="${CUROBO_CUDA}" bash /tmp/install_curobo.sh

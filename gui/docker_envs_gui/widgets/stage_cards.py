@@ -259,7 +259,24 @@ class StageForm(QScrollArea):
     # ----- stage 8: extras --------------------------------------------------- #
 
     def _build_extras(self) -> None:
-        card = Card("Stage 8 of 9", "Extra layers", "Optional middleware and simulation.")
+        card = Card(
+            "Stage 8 of 9",
+            "Extra layers",
+            "Optional motion generation, middleware and simulation. Every Python package "
+            "shares one environment, /opt/venv.",
+        )
+        self.curobo = QCheckBox("NVIDIA cuRobo (GPU motion generation, Python 3.12)")
+        self.curobo.toggled.connect(self._on_changed)
+        card.add_full_row(self.curobo)
+        self.curobo_version = QLineEdit(self.defaults.fallbacks.get("CUROBO", "main"))
+        self.curobo_version.setToolTip("cuRobo branch or tag to build from.")
+        self.curobo_version.textChanged.connect(self._on_changed)
+        card.add_row("cuRobo branch or tag", self.curobo_version)
+        self.curobo_note = QLabel()
+        self.curobo_note.setObjectName("Warning")
+        self.curobo_note.setWordWrap(True)
+        self.curobo_note.setVisible(False)
+        card.add_full_row(self.curobo_note)
         self.zenoh = QCheckBox("Zenoh middleware (rmw_zenoh_cpp)")
         self.zenoh.toggled.connect(self._on_changed)
         card.add_full_row(self.zenoh)
@@ -387,6 +404,8 @@ class StageForm(QScrollArea):
             isaaclab_install=packages or "default",
             isaaclab_physics=self.isaaclab_physics.currentData() or "default",
             isaaclab_visualizer=self.isaaclab_visualizer.currentData() or "default",
+            curobo=self.curobo.isChecked(),
+            curobo_version=self.curobo_version.text().strip(),
             zenoh=self.zenoh.isChecked(),
             simulation=self.gazebo.isChecked(),
             username=self.username.text().strip() or "admin",
@@ -493,6 +512,16 @@ class StageForm(QScrollArea):
         self.isaaclab_note.setObjectName(style)
         self.isaaclab_note.style().unpolish(self.isaaclab_note)
         self.isaaclab_note.style().polish(self.isaaclab_note)
+
+        # Stage 8: cuRobo installs for Python 3.12 only.
+        self.curobo_version.setEnabled(selection.curobo)
+        curobo_note = ""
+        if selection.curobo and has_sim and not selection.isaacsim_version.startswith("6"):
+            curobo_note = "cuRobo needs Python 3.12; this Isaac Sim pins another Python. Use Isaac Sim 6.x."
+        elif selection.curobo and selection.os == "22.04":
+            curobo_note = "ROS on Ubuntu 22.04 uses Python 3.10, so ROS nodes cannot import cuRobo."
+        self.curobo_note.setText(curobo_note)
+        self.curobo_note.setVisible(bool(curobo_note))
 
         self.reset_name.setEnabled(bool(self.final_image.text().strip()))
 

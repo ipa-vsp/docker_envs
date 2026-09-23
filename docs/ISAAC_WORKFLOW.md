@@ -31,7 +31,7 @@ creator/scripts/create_env.sh --dry-run
 
 - Recommended Isaac stack:
   - Ubuntu 24.04 + ROS 2 Jazzy + Isaac Sim 6.x → one Python version (3.12) for ROS and Isaac
-  - `python-env` method → Isaac Lab installed into the Isaac Sim venv
+  - `python-env` method → Isaac Lab installed next to Isaac Sim in the shared `/opt/venv`
   - Short `-i` name → easy run commands
 
 ```bash
@@ -103,7 +103,7 @@ docker image inspect -f '{{index .Config.Labels "org.docker_envs.build-command"}
 ## 6. Inside the container: Isaac Lab
 
 ```bash
-isaac-activate                                   # Isaac venv (ROS keeps system Python)
+isaac-activate                                   # shared /opt/venv (already active by default)
 cd /opt/IsaacLab
 isaaclab -p scripts/environments/list_envs.py    # discover task names
 isaaclab -p scripts/tutorials/00_sim/create_empty.py --headless

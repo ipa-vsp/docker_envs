@@ -88,7 +88,8 @@ creator/scripts/run_env.sh -p -o 24.04 -v jazzy -c -I -L
 
 ### Stage order
 
-- base → ROS → MuJoCo → MoveIt/Nav2 → Isaac Sim → Isaac Lab → Zenoh → Gazebo → user
+- base → ROS → venv → MuJoCo → MoveIt/Nav2 → Isaac Sim → Isaac Lab → cuRobo → Zenoh → Gazebo → user
+- `venv` is always built: it creates the one shared Python environment, `/opt/venv`
 - Each stage builds on its parent and keeps its tools
 - Both front ends share `scripts/lib/stages.sh` → identical names and layers
 
@@ -103,6 +104,7 @@ creator/scripts/run_env.sh -p -o 24.04 -v jazzy -c -I -L
 | Isaac Sim / Isaac Lab | `-I [version]`, `-L [tag-or-branch]` |
 | Isaac Lab installation | `-j auto\|python-env\|legacy`, `-e <selectors>` |
 | Lab physics / visualization | `-B <physics>`, `-V <visualizer>` |
+| cuRobo (Python 3.12) | `-R [branch-or-tag]`; default `main` |
 | Zenoh / Gazebo | `-z`, `-s` |
 | Account | `-n <name>`, `-U <uid>`, `-G <gid>`; defaults `admin`, host UID/GID |
 | Naming | `-N <namespace>`, `-i <final-image>`; default namespace `docker_envs` |
@@ -229,9 +231,9 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
   - `curl -fsSL https://claude.ai/install.sh | bash`
   - `~/.local/bin` on `PATH`, also for non-interactive commands
 - After Claude, the build installs [Graphify](https://graphify.com/docs/install) as the development user:
-  - Installs `uv` if missing, then runs `uv tool install graphifyy` in an isolated tool environment
+  - Installs `graphifyy` into the shared `/opt/venv` (no separate tool environment)
   - Runs `graphify install` to register the Claude skill in the user's config
-  - `graphify` is already on `PATH`; no `uv tool update-shell` needed in these images
+  - `graphify` is on `PATH` through `/opt/venv/bin`
   - In Claude, run `/graphify .` to build a graph for the current workspace
 - Build clones `https://github.com/ipa-vsp/.claude.git` → `~/colcon_ws/.claude`
 - Existing `.claude` directory → preserved when extending an image
@@ -311,14 +313,28 @@ creator/scripts/run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 \
 - These options install support only → choose physics/display at task launch (e.g. `physics=ovphysx`, `--viz viser`)
 - GPU and display requirements still apply
 
-### Python environments
+### Python environment (`/opt/venv`)
 
-- Ubuntu and CUDA base images include `uv` and `uvx` in `/usr/local/bin` ([uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/))
-- MuJoCo, Isaac Sim and Isaac Lab share `/opt/venv`, exposed as `$VIRTUAL_ENV` and prepended to `PATH`
+- Every image has exactly one Python environment, `/opt/venv`; no layer creates another one
+  - Created once by `common/Dockerfile.venv` (script: `common/setup_venv.sh`), right after ROS
+  - MuJoCo, Isaac Sim, Isaac Lab, cuRobo and Graphify all install into it
+  - CI images (no venv layer) get the same environment from `Dockerfile.user`
+- Always active: `$VIRTUAL_ENV=/opt/venv`, `/opt/venv/bin` first on `PATH`, prompt shows `(venv)`
+  - `python`, `pip`, `uv pip` → `/opt/venv`; `--system-site-packages` keeps apt's `python3-*` visible
+- Owned by the container user → `pip install <pkg>` / `uv pip install <pkg>` work without `sudo`
+- Interpreter: distribution Python (ROS's) unless a layer pins one
+  - Isaac Sim → its wheels' Python (6.x: 3.12, 5.x: 3.11, 4.x: 3.10); Isaac Lab 3.x and cuRobo → 3.12
+  - A pinned version is part of the tag (`...-jazzy-py3.12-...`)
+- ROS 2 sees the environment: when its Python matches the system Python, `zz-opt-venv.pth` in
+  `/usr/lib/python3.X/dist-packages` puts `/opt/venv/.../site-packages` on the system `sys.path`
+  - Works for `ros2 run`, `ros2 launch` and colcon-built nodes after `source /opt/ros/<distro>/setup.bash`
+    and `source install/setup.bash` — no extra sourcing
+  - Lowest precedence: apt packages ROS was built against (e.g. `numpy`) win for `/usr/bin/python3`;
+    the environment only adds what apt does not provide. `python` inside the venv prefers its own copies
+  - Different Python (e.g. Ubuntu 22.04 + cuRobo/Isaac Lab, or Isaac Sim 5.x) → no `.pth`; ROS nodes cannot
+    import those packages, and the build prints a warning
 - `$ISAAC_VENV` remains an alias for the shared path in Isaac images; `isaac-activate` activates it explicitly
-- MuJoCo-only builds use the distribution Python; combined builds select Isaac's Python before installing MuJoCo
-- Kit-less Lab builds use Python 3.12 and reuse any preceding MuJoCo environment
-- Full builds reuse the same environment throughout; Lab 3.x requires Sim 6.x
+- Lab 3.x requires Sim 6.x
 - Sim install → NVIDIA extra index, `unsafe-best-match`, prereleases enabled
 - Torch 2.11.0 + TorchVision 0.26.0 → cu128 on amd64, cu130 on arm64
 - CUDA base version → does not select the wheel index
@@ -334,6 +350,20 @@ cd /opt/IsaacLab
 isaaclab -p scripts/tutorials/00_sim/create_empty.py --viz kit
 # Return to the ROS interpreter:
 deactivate
+```
+
+### cuRobo (`-R`)
+
+- [NVIDIA cuRobo](https://nvlabs.github.io/curobo/latest/getting-started/installation.html) → cloned to `/opt/curobo`, installed into `/opt/venv`
+- Python 3.12 only: rejected with Isaac Sim 5.x/4.x; on Ubuntu 22.04 ROS (3.10) cannot import it
+- Extra: an installed PyTorch (Isaac Sim) decides `cu12`/`cu13`; otherwise `cu<N>-torch` with N = CUDA base major, or 12 without `-c`
+- Kernels compile at run time (`cuda.core`) → no GPU needed to build, NVIDIA GPU + driver ≥ 580 needed to run (`-g`)
+- Refs: `main` (default) or a cuRobo 2 release; 0.7.x tags lack the `cu12`/`cu13` extras and fail early
+
+```bash
+creator/scripts/run_env.sh -b -o 24.04 -v jazzy -c -u manipulation -R
+# Inside the container:
+python -c "import curobo; print(curobo.__version__)"
 ```
 
 ### Persistent Isaac data (automatic in `-r`/`-S`)

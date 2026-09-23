@@ -9,6 +9,11 @@ if [[ ",$ISAACLAB_INSTALL," == *,isaacsim,* ]]; then
     exit 1
 fi
 
+# The shared environment comes from Dockerfile.venv; never create another one.
+if [[ ! -x "$ISAAC_VENV/bin/python" ]]; then
+    echo "No Python environment at $ISAAC_VENV; build the venv layer first." >&2
+    exit 1
+fi
 case "$ISAACLAB_METHOD" in
     legacy)
         # The Kit-less path is supported by the 3.x Python installer.
@@ -16,15 +21,8 @@ case "$ISAACLAB_METHOD" in
             echo "Kit-less installation requires Isaac Lab 3.x; use python-env with Isaac Sim for 2.x." >&2
             exit 1
         fi
-        if [[ ! -x "$ISAAC_VENV/bin/python" ]]; then
-            uv venv --python 3.12 --system-site-packages --seed "$ISAAC_VENV"
-        fi
         ;;
     python-env)
-        if [[ ! -x "$ISAAC_VENV/bin/python" ]]; then
-            echo "python-env requires the Isaac Sim layer at $ISAAC_VENV." >&2
-            exit 1
-        fi
         "$ISAAC_VENV/bin/python" -c 'from importlib.metadata import version; print("Isaac Sim:", version("isaacsim"))'
         ;;
     *) echo "Unknown Isaac Lab method: $ISAACLAB_METHOD" >&2; exit 1 ;;

@@ -3,13 +3,13 @@
 Set-StrictMode -Version 2.0
 $script:CreatorRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $script:RepositoryRoot = [IO.Path]::GetFullPath((Join-Path $script:CreatorRoot '..'))
-$script:StageDefaults = @{ Cuda = '13.3.1'; Mujoco = '3.12.0'; Gym = '1.3.0'; IsaacSim = '6.1.0.0'; IsaacLab = 'release/3.0.0'; Torch = '2.11.0'; TorchVision = '0.26.0' }
+$script:StageDefaults = @{ Cuda = '13.3.1'; Mujoco = '3.12.0'; Gym = '1.3.0'; IsaacSim = '6.1.0.0'; IsaacLab = 'release/3.0.0'; Torch = '2.11.0'; TorchVision = '0.26.0'; Curobo = 'main' }
 
 function New-StageSelection {
     @{
         OS = '24.04'; Ros = 'rolling'; Usage = 'skip'; Cuda = ''; Mujoco = ''
         Gym = $script:StageDefaults.Gym; IsaacSim = ''; IsaacLab = ''; LabMethod = 'auto'
-        LabPackages = 'default'; LabPhysics = 'default'; LabVisualizer = 'default'
+        LabPackages = 'default'; LabPhysics = 'default'; LabVisualizer = 'default'; Curobo = ''
         Zenoh = $false; Gazebo = $false; Username = 'admin'; UserUid = '1000'; UserGid = '1000'
         Namespace = 'docker_envs'; Image = ''
     }
@@ -91,15 +91,32 @@ function Assert-StageSelection([hashtable]$Selection) {
         if ($s.LabPackages -cnotmatch '^[a-z0-9_-]+(\[[a-z0-9_,-]+\])?(,[a-z0-9_-]+(\[[a-z0-9_,-]+\])?)*$') { throw 'Invalid Isaac Lab package selectors.' }
         if (("," + $s.LabPackages + ',') -match ',isaacsim,') { throw 'Select Isaac Sim through -IsaacSim, not the isaacsim package selector.' }
     }
+    if ($s.Curobo) {
+        # cuRobo is installed for Python 3.12 only (mirrors stages::validate_curobo).
+        if ($s.Curobo -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._/-]*$') { throw 'Invalid cuRobo tag or branch.' }
+        if ($s.IsaacSim -and (Get-VenvPython $s) -ne '3.12') { throw "cuRobo needs Python 3.12; Isaac Sim $($s.IsaacSim) pins Python $(Get-VenvPython $s). Use Isaac Sim 6.x." }
+        if ($s.Cuda -and $s.Cuda.Split('.')[0] -notin '12', '13') { throw "cuRobo supports CUDA 12 and 13, not $($s.Cuda)." }
+        if ($s.OS -eq '22.04') { Write-Warning 'cuRobo uses Python 3.12; ROS on Ubuntu 22.04 uses 3.10, so ROS nodes cannot import it.' }
+    }
     if ($s.OS -eq '24.04' -and $s.Ros -eq 'rolling') { Write-Warning 'ROS Rolling has migrated to Ubuntu 26.04; 24.04 no longer receives updated Rolling packages.' }
     if ("$($s.OS):$($s.Ros)" -notin @('24.04:rolling', '24.04:kilted', '24.04:jazzy', '22.04:humble', '26.04:lyrical')) { Write-Warning 'This Ubuntu/ROS combination is not built in CI; upstream packages may be missing.' }
     if ($s.Ros -eq 'lyrical' -and $s.Usage -ne 'skip') { Write-Warning 'MoveIt/Nav2 packages are not published for lyrical; that layer will be a no-op.' }
     if ($s.IsaacSim -and !$s.Cuda) { Write-Warning 'Isaac Sim without a CUDA base needs a CUDA-capable runtime at run time.' }
 }
 
+# The one /opt/venv interpreter (mirrors stages::venv_python).
+function Get-VenvPython([hashtable]$Selection) {
+    if ($Selection.IsaacSim) {
+        $python = switch ($Selection.IsaacSim.Split('.')[0]) { '6' { '3.12' }; '5' { '3.11' }; '4' { '3.10' }; default { '3.11' } }
+        return $python
+    }
+    if ($Selection.IsaacLab -or $Selection.Curobo) { return '3.12' }
+    return 'system'
+}
+
 function Get-StageReplay([hashtable]$Selection) {
     $parts = @('& ./creator/scripts/create_env.ps1 -NonInteractive')
-    foreach ($key in 'OS', 'Ros', 'Usage', 'Cuda', 'Mujoco', 'Gym', 'IsaacSim', 'IsaacLab', 'LabMethod', 'LabPackages', 'LabPhysics', 'LabVisualizer', 'Username', 'UserUid', 'UserGid', 'Namespace', 'Image') {
+    foreach ($key in 'OS', 'Ros', 'Usage', 'Cuda', 'Mujoco', 'Gym', 'IsaacSim', 'IsaacLab', 'LabMethod', 'LabPackages', 'LabPhysics', 'LabVisualizer', 'Curobo', 'Username', 'UserUid', 'UserGid', 'Namespace', 'Image') {
         $value = [string]$Selection[$key]
         if ($key -eq 'LabMethod' -and $Selection.IsaacLab) { $value = Get-LabMethod $Selection }
         if ($value) { $parts += "-$key '" + $value.Replace("'", "''") + "'" }
@@ -126,14 +143,13 @@ function New-StagePlan([hashtable]$Selection) {
         & $add 'base' 'common/Dockerfile.cuda' "cuda$($s.Cuda)" @()
     } else { & $add 'base' 'common/Dockerfile.base' '' @() }
     & $add 'ros' "ros2/Dockerfile.$($s.Ros)" $s.Ros @()
-    $python = '/usr/bin/python3'
-    if ($s.IsaacSim) {
-        $python = switch ($s.IsaacSim.Split('.')[0]) { '6' { '3.12' }; '4' { '3.10' }; default { '3.11' } }
-    } elseif ($s.IsaacLab) { $python = '3.12' }
+    # The shared /opt/venv is created once, straight after ROS.
+    $python = Get-VenvPython $s
+    $component = ''
+    if ($python -ne 'system') { $component = "py$python" }
+    & $add 'venv' 'common/Dockerfile.venv' $component @('--build-arg', "PYTHON_VERSION=$python")
     if ($s.Mujoco) {
-        $component = "mujoco$($s.Mujoco)"
-        if ($python -ne '/usr/bin/python3') { $component += "-py$python" }
-        & $add 'mujoco' 'common/Dockerfile.mujoco' $component @('--build-arg', "MUJOCO_VERSION=$($s.Mujoco)", '--build-arg', "GYM_VERSION=$($s.Gym)", '--build-arg', "PYTHON_VERSION=$python")
+        & $add 'mujoco' 'common/Dockerfile.mujoco' "mujoco$($s.Mujoco)" @('--build-arg', "MUJOCO_VERSION=$($s.Mujoco)", '--build-arg', "GYM_VERSION=$($s.Gym)")
     }
     if ($s.Usage -in 'manipulation', 'both') { & $add 'moveit' 'usage/Dockerfile.moveit' 'moveit' @('--build-arg', "ROS_DISTRO=$($s.Ros)") }
     if ($s.Usage -in 'navigation', 'both') { & $add 'nav2' 'usage/Dockerfile.nav2' 'nav2' @('--build-arg', "ROS_DISTRO=$($s.Ros)") }
@@ -151,6 +167,12 @@ function New-StagePlan([hashtable]$Selection) {
             $component += '-packages' + $hash.Substring(0, 8)
         }
         & $add 'isaaclab' 'common/Dockerfile.isaaclab' $component @('--build-arg', "ISAACLAB_VERSION=$($s.IsaacLab)", '--build-arg', "ISAACLAB_METHOD=$method", '--build-arg', "ISAACLAB_INSTALL=$packages")
+    }
+    if ($s.Curobo) {
+        $cuda = '12'
+        if ($s.Cuda) { $cuda = $s.Cuda.Split('.')[0] }
+        $ref = ($s.Curobo -creplace '^v', '') -creplace '[^A-Za-z0-9._-]', '-'
+        & $add 'curobo' 'common/Dockerfile.curobo' "curobo$ref" @('--build-arg', "CUROBO_VERSION=$($s.Curobo)", '--build-arg', "CUROBO_CUDA=$cuda")
     }
     if ($s.Zenoh) { & $add 'zenoh' 'usage/Dockerfile.zenoh' 'zenoh' @() }
     if ($s.Gazebo) { & $add 'gazebo' 'usage/Dockerfile.gazebo' 'gazebo' @() }
@@ -207,6 +229,8 @@ function Get-StageVersions([string]$Kind, [string]$OS = '24.04', [int]$Limit = 8
 }
 
 function Resolve-StageVersions([hashtable]$Selection) {
+    # cuRobo is built from a branch; "latest" means its main line.
+    if ($Selection.Curobo -eq 'latest') { $Selection.Curobo = $script:StageDefaults.Curobo }
     foreach ($key in 'Cuda', 'Mujoco', 'IsaacSim', 'IsaacLab') {
         if ($Selection[$key] -eq 'latest') {
             $found = @(Get-StageVersions $key $Selection.OS 1)

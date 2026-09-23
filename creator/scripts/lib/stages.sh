@@ -148,6 +148,7 @@ STAGES_DEFAULT_ISAACSIM="6.1.0.0"
 STAGES_DEFAULT_ISAACLAB="release/3.0.0"
 STAGES_DEFAULT_TORCH="2.11.0"
 STAGES_DEFAULT_TORCHVISION="0.26.0"
+STAGES_DEFAULT_CUROBO="main"
 
 # stages::resolve_version <kind> <requested> [os]
 # Turns "latest" (or an empty value) into the newest version discovered online,
@@ -186,6 +187,29 @@ stages::isaacsim_python() {
         4) echo "3.10" ;;
         *) echo "3.11" ;;
     esac
+}
+
+# The one /opt/venv interpreter for the selection: Isaac Sim pins its wheels'
+# CPython, Isaac Lab 3.x and cuRobo need 3.12, anything else uses the
+# distribution Python that ROS is built for ("system").
+stages::venv_python() {
+    if [[ "${STAGES_ISAACSIM}" == true ]]; then
+        stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}"
+    elif [[ "${STAGES_ISAACLAB}" == true || "${STAGES_CUROBO}" == true ]]; then
+        echo 3.12
+    else
+        echo system
+    fi
+}
+
+# CUDA major for cuRobo's cuXX-torch extra: the CUDA base when there is one,
+# otherwise 12, which matches PyTorch's default wheels.
+stages::curobo_cuda() {
+    if [[ "${STAGES_USE_CUDA}" == true ]]; then
+        echo "${STAGES_CUDA_VERSION%%.*}"
+    else
+        echo 12
+    fi
 }
 
 # Versioned refs are unambiguous; current development branches use 3.x.
@@ -280,6 +304,8 @@ stages::init_selection() {
     STAGES_ISAACLAB_INSTALL="default"
     STAGES_ISAACLAB_PHYSICS="default"
     STAGES_ISAACLAB_VISUALIZER="default"
+    STAGES_CUROBO=false
+    STAGES_CUROBO_VERSION="${STAGES_DEFAULT_CUROBO}"
     STAGES_USERNAME="admin"
     STAGES_USER_UID="$(id -u)"
     STAGES_USER_GID="$(id -g)"
@@ -433,11 +459,36 @@ stages::validate_isaaclab() {
     fi
 }
 
+# cuRobo is installed for Python 3.12 only. Runs after version resolution
+# (from build_plan), like validate_isaaclab, so a pinned Isaac Sim is checked.
+stages::validate_curobo() {
+    [[ "${STAGES_CUROBO}" == true ]] || return 0
+    local sim_python
+    sim_python="$(stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}")"
+    if [[ "${STAGES_ISAACSIM}" == true && "${sim_python}" != 3.12 ]]; then
+        stages::error "cuRobo needs Python 3.12; Isaac Sim ${STAGES_ISAACSIM_VERSION} pins Python ${sim_python}. Use Isaac Sim 6.x."
+        return 1
+    fi
+    if [[ ! "${STAGES_CUROBO_VERSION}" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+        stages::error "Invalid cuRobo tag or branch: ${STAGES_CUROBO_VERSION}"
+        return 1
+    fi
+    if [[ "${STAGES_USE_CUDA}" == true && ! "$(stages::curobo_cuda)" =~ ^1[23]$ ]]; then
+        stages::error "cuRobo supports CUDA 12 and 13, not ${STAGES_CUDA_VERSION}."
+        return 1
+    fi
+    if [[ "${STAGES_OS}" == 22.04 ]]; then
+        stages::warn "cuRobo uses Python 3.12; ROS on Ubuntu 22.04 uses 3.10, so ROS nodes cannot import it."
+    fi
+}
+
 # Turn the selection into an ordered build plan and derive the image names.
-# Layer order matches ros2-staged.yml: base -> ros -> mujoco -> usage -> extras
-# -> user.
+# Layer order matches ros2-staged.yml: base -> ros -> venv -> mujoco -> usage
+# -> extras -> user. ros2-staged.yml has no venv layer; Dockerfile.user creates
+# the same environment there.
 stages::build_plan() {
     stages::validate_isaaclab || return 1
+    stages::validate_curobo || return 1
     STAGES_PLAN=()
     stages::tag_reset
     stages::tag_add "${STAGES_OS}"
@@ -463,24 +514,24 @@ stages::build_plan() {
     stages::_plan_add "${CREATOR_DIR}/ros2/Dockerfile.${STAGES_ROS}" "${base_image}" "${image}"
     base_image="${image}"
 
+    # --- shared Python environment (/opt/venv) -----------------------------
+    # The only place the environment is created; every later Python layer
+    # installs into it. A pinned interpreter is part of the tag so distro-Python
+    # and Isaac-compatible environments are cached side by side.
+    local venv_python; venv_python="$(stages::venv_python)"
+    [[ "${venv_python}" != system ]] && stages::tag_add "py${venv_python}"
+    image="$(stages::layer_image venv)"
+    stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.venv" "${base_image}" "${image}" \
+        "--build-arg" "PYTHON_VERSION=${venv_python}"
+    base_image="${image}"
+
     # --- MuJoCo -------------------------------------------------------------
     if [[ "${STAGES_MUJOCO}" == true ]]; then
-        local mujoco_python=/usr/bin/python3
-        if [[ "${STAGES_ISAACSIM}" == true ]]; then
-            mujoco_python="$(stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}")"
-        elif [[ "${STAGES_ISAACLAB}" == true ]]; then
-            mujoco_python=3.12
-        fi
         stages::tag_add "mujoco${STAGES_MUJOCO_VERSION}"
-        # Distinguish cached distro-Python and Isaac-compatible MuJoCo images.
-        if [[ "$mujoco_python" != /usr/bin/python3 ]]; then
-            stages::tag_add "py${mujoco_python}"
-        fi
         image="$(stages::layer_image mujoco)"
         stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.mujoco" "${base_image}" "${image}" \
             "--build-arg" "MUJOCO_VERSION=${STAGES_MUJOCO_VERSION}" \
-            "--build-arg" "GYM_VERSION=${STAGES_GYM_VERSION}" \
-            "--build-arg" "PYTHON_VERSION=${mujoco_python}"
+            "--build-arg" "GYM_VERSION=${STAGES_GYM_VERSION}"
         base_image="${image}"
     fi
 
@@ -552,6 +603,17 @@ stages::build_plan() {
         base_image="${image}"
     fi
 
+    # --- cuRobo -------------------------------------------------------------
+    # After Isaac Sim so an installed PyTorch is reused rather than replaced.
+    if [[ "${STAGES_CUROBO}" == true ]]; then
+        stages::tag_add "curobo$(stages::tag_slug "${STAGES_CUROBO_VERSION#v}")"
+        image="$(stages::layer_image curobo)"
+        stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.curobo" "${base_image}" "${image}" \
+            "--build-arg" "CUROBO_VERSION=${STAGES_CUROBO_VERSION}" \
+            "--build-arg" "CUROBO_CUDA=$(stages::curobo_cuda)"
+        base_image="${image}"
+    fi
+
     # --- Zenoh --------------------------------------------------------------
     if [[ "${STAGES_ZENOH}" == true ]]; then
         stages::tag_add "zenoh"
@@ -606,6 +668,7 @@ stages::equivalent_command() {
     [[ "$STAGES_ISAACLAB" == true ]] && cmd+=(-L "$STAGES_ISAACLAB_VERSION"
         -j "$(stages::isaaclab_method)" -e "$STAGES_ISAACLAB_INSTALL"
         -B "$STAGES_ISAACLAB_PHYSICS" -V "$STAGES_ISAACLAB_VISUALIZER")
+    [[ "$STAGES_CUROBO" == true ]] && cmd+=(-R "$STAGES_CUROBO_VERSION")
     [[ "$STAGES_ZENOH" == true ]] && cmd+=(-z)
     [[ "$STAGES_SIMULATION" == true ]] && cmd+=(-s)
     cmd+=(-n "$STAGES_USERNAME" -U "$STAGES_USER_UID" -G "$STAGES_USER_GID")

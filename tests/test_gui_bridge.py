@@ -45,7 +45,12 @@ class PlanRecordTests(unittest.TestCase):
         self.assertEqual(first("IMAGE", records), "docker_envs:24.04-jazzy")
         self.assertEqual(
             [record[1] for record in records_of("LAYER", records)],
-            ["common/Dockerfile.base", "ros2/Dockerfile.jazzy", "common/Dockerfile.user"],
+            [
+                "common/Dockerfile.base",
+                "ros2/Dockerfile.jazzy",
+                "common/Dockerfile.venv",
+                "common/Dockerfile.user",
+            ],
         )
 
     def test_layer_records_carry_build_arguments(self):
@@ -261,7 +266,7 @@ class LookupTests(unittest.TestCase):
         fallbacks = {record[0]: record[1] for record in records_of("DEFAULT", records)}
         self.assertEqual(
             set(fallbacks),
-            {"CUDA", "MUJOCO", "GYM", "ISAACSIM", "ISAACLAB", "TORCH", "TORCHVISION"},
+            {"CUDA", "MUJOCO", "GYM", "ISAACSIM", "ISAACLAB", "TORCH", "TORCHVISION", "CUROBO"},
         )
         selection = {record[0]: record[1] for record in records_of("SELECTION", records)}
         self.assertEqual(selection["OS"], "24.04")

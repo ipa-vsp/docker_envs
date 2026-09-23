@@ -20,6 +20,7 @@ RUN rosdep update
 # Only the installed workspace survives this instruction. Deleting build inputs
 # in a later RUN would leave their bytes in historical layers.
 # Upstream's default branch tracks Rolling and may require newer ROS APIs.
+# CMake would otherwise pick the /opt/venv interpreter from VIRTUAL_ENV.
 ARG ZENOH_REF=${ROS_DISTRO}
 RUN --mount=type=cache,id=creator-zenoh-cargo-registry,target=/root/.cargo/registry,sharing=locked \
     --mount=type=cache,id=creator-zenoh-cargo-git,target=/root/.cargo/git,sharing=locked \
@@ -28,6 +29,6 @@ RUN --mount=type=cache,id=creator-zenoh-cargo-registry,target=/root/.cargo/regis
     && cd /home/ws_rmw_zenoh \
     && apt-get update -qq \
     && rosdep install --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} -y \
-    && /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release" \
+    && /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE=/usr/bin/python3" \
     && rm -rf src build log /var/lib/apt/lists/* \
     && apt-get clean

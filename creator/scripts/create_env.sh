@@ -287,6 +287,11 @@ fi
 
 # --- Stage 8: extras -------------------------------------------------------
 stages::heading "Stage 8/9 - Extra layers"
+if ask_yes_no "Add NVIDIA cuRobo (GPU motion generation, Python 3.12)?" "no"; then
+    STAGES_CUROBO=true
+    ask_value "cuRobo branch or tag" "${STAGES_DEFAULT_CUROBO}"
+    STAGES_CUROBO_VERSION="${VALUE}"
+fi
 ask_yes_no "Add the Zenoh middleware (rmw_zenoh_cpp) layer?" "no" && STAGES_ZENOH=true
 ask_yes_no "Add the Gazebo simulation layer?" "no" && STAGES_SIMULATION=true
 
@@ -330,6 +335,8 @@ if [[ "${STAGES_ISAACLAB}" == true ]]; then
     printf '  %-16s %s\n' "Lab visualization:" "${STAGES_ISAACLAB_VISUALIZER}"
     printf '  %-16s %s\n' "Lab selectors:" "$(stages::isaaclab_effective_install)"
 fi
+printf '  %-16s %s\n' "cuRobo:"    "$([[ ${STAGES_CUROBO} == true ]] && echo "${STAGES_CUROBO_VERSION}" || echo "-")"
+printf '  %-16s %s\n' "Python env:" "/opt/venv ($(stages::venv_python))"
 printf '  %-16s %s\n' "Zenoh:"     "$([[ ${STAGES_ZENOH} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "Gazebo:"    "$([[ ${STAGES_SIMULATION} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "User:"      "${STAGES_USERNAME} (${STAGES_USER_UID}:${STAGES_USER_GID})"

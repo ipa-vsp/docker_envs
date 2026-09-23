@@ -39,6 +39,7 @@ Stages:
   -V <visualizer>  Lab visualization: default | newton | rerun | viser | kit | all
                     kit requires -I; all adds Newton, Rerun and Viser.
                     -B/-V add to -e; use -e core for only the selected extras.
+  -R [<ref>]        cuRobo layer (Python 3.12); branch or tag        (default: main)
   -z                Add the Zenoh RMW layer
   -s                Add the Gazebo simulation layer
 
@@ -62,6 +63,10 @@ Container (-r, -S, -E, -K):
   -X                Do not auto-configure Isaac (skip GPU, cache and output mounts)
   -h                Show this help
 
+Every image has one Python environment, /opt/venv: active by default,
+owned by the container user, and visible to ROS 2 (system Python) when its
+Python matches the distribution's.
+
 Isaac images are detected automatically in -r/-S mode:
   - Isaac Sim: GPU, EULA variables, Omniverse caches under ~/docker/isaac-sim
     (override with STAGES_ISAAC_CACHE_ROOT)
@@ -71,6 +76,7 @@ Isaac images are detected automatically in -r/-S mode:
 Examples:
   ./run_env.sh -b -o 24.04 -v jazzy -u manipulation -m latest
   ./run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 -L release/3.0.0
+  ./run_env.sh -b -o 24.04 -v jazzy -c -u manipulation -R
   ./run_env.sh -r -i docker_envs:24.04-jazzy-moveit -w ~/colcon_ws
   ./run_env.sh -S -H -i docker_envs:24.04-jazzy-moveit -w ~/colcon_ws
   ./run_env.sh -E -i docker_envs:24.04-jazzy-moveit
@@ -100,8 +106,9 @@ CUDA_REQUEST=""
 MUJOCO_REQUEST=""
 ISAACSIM_REQUEST=""
 ISAACLAB_REQUEST=""
+CUROBO_REQUEST=""
 
-# -c, -m, -I and -L take an optional argument: `-m` alone means "latest".
+# -c, -m, -I, -L and -R take an optional argument: `-m` alone means "latest".
 # getopts cannot express that, so grab the next word only when it does not look
 # like another flag.
 #
@@ -125,7 +132,7 @@ function optional_arg() {
     fi
 }
 
-while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:C:cmILzbsrpgPXSEKHh" opt; do
+while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:C:cmILRzbsrpgPXSEKHh" opt; do
     case ${opt} in
         o) STAGES_OS="${OPTARG}" ;;
         v) STAGES_ROS="${OPTARG}" ;;
@@ -144,6 +151,7 @@ while getopts "o:v:u:i:N:w:n:U:G:a:M:d:j:e:B:V:C:cmILzbsrpgPXSEKHh" opt; do
         j) STAGES_ISAACLAB_METHOD="${OPTARG}" ;;
         e) STAGES_ISAACLAB_INSTALL="${OPTARG}" ;;
         L) STAGES_ISAACLAB=true;  optional_arg; ISAACLAB_REQUEST="${OPT_VALUE}" ;;
+        R) STAGES_CUROBO=true;    optional_arg; CUROBO_REQUEST="${OPT_VALUE}" ;;
         z) STAGES_ZENOH=true ;;
         s) STAGES_SIMULATION=true ;;
         b) BUILD=true ;;
@@ -198,6 +206,12 @@ if [[ "${BUILD}" == true ]]; then
     fi
     if [[ "${STAGES_ISAACLAB}" == true ]]; then
         STAGES_ISAACLAB_VERSION="$(stages::resolve_version isaaclab "${ISAACLAB_REQUEST}")"
+    fi
+
+    if [[ "${STAGES_CUROBO}" == true ]]; then
+        # cuRobo is built from a branch or tag; "latest" means its main line.
+        [[ "${CUROBO_REQUEST}" == latest ]] && CUROBO_REQUEST="${STAGES_DEFAULT_CUROBO}"
+        STAGES_CUROBO_VERSION="${CUROBO_REQUEST:-${STAGES_DEFAULT_CUROBO}}"
     fi
 
     if ! stages::build_plan; then

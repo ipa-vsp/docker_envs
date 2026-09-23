@@ -11,9 +11,6 @@ FROM ${BASE_IMAGE}
 ARG MUJOCO_VERSION=3.12.0
 ARG GYM_VERSION=1.3.0
 ARG CPU_ARCH=x86_64
-ARG VENV_PATH=/opt/venv
-# The build plan selects Isaac's Python when those layers are requested.
-ARG PYTHON_VERSION=/usr/bin/python3
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -33,13 +30,9 @@ RUN mkdir -p "$(dirname "${MUJOCO_DIR}")" \
 
 ENV LD_LIBRARY_PATH="${MUJOCO_DIR}/lib:${LD_LIBRARY_PATH:-}"
 
-# Python bindings share a venv with subsequent Isaac layers. System packages
-# remain available when using the distribution Python.
-ENV VIRTUAL_ENV=${VENV_PATH}
+# Python bindings go into the shared environment created by Dockerfile.venv.
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
-    uv venv --python "${PYTHON_VERSION}" --system-site-packages --seed "${VIRTUAL_ENV}" \
+    test -x "${VIRTUAL_ENV:-}/bin/python" \
     && uv pip install --python "${VIRTUAL_ENV}/bin/python" \
         "mujoco==${MUJOCO_VERSION}" \
         "gymnasium==${GYM_VERSION}"
-
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"

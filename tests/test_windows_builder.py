@@ -69,6 +69,7 @@ class WindowsPlannerTests(unittest.TestCase):
             "LabPackages": "ISAACLAB_INSTALL",
             "LabPhysics": "ISAACLAB_PHYSICS",
             "LabVisualizer": "ISAACLAB_VISUALIZER",
+            "Curobo": "CUROBO_VERSION",
             "Zenoh": "ZENOH",
             "Gazebo": "SIMULATION",
             "Namespace": "NAMESPACE",
@@ -82,6 +83,7 @@ class WindowsPlannerTests(unittest.TestCase):
             "Mujoco": "MUJOCO",
             "IsaacSim": "ISAACSIM",
             "IsaacLab": "ISAACLAB",
+            "Curobo": "CUROBO",
         }
         cases = [
             {},
@@ -106,6 +108,8 @@ class WindowsPlannerTests(unittest.TestCase):
                 "LabVisualizer": "all",
             },
             {"IsaacSim": "5.1.0", "IsaacLab": "v2.3.0", "LabPackages": "rsl_rl"},
+            {"Curobo": "main"},
+            {"Cuda": "13.3.1", "Mujoco": "3.4.0", "IsaacSim": "6.1.0.0", "Curobo": "main"},
             {
                 "OS": "26.04",
                 "Ros": "lyrical",
@@ -370,6 +374,7 @@ class WindowsLauncherTests(unittest.TestCase):
             "3",
             "5",
             "6",
+            "n",
             "y",
             "y",
             "developer",
@@ -385,7 +390,7 @@ class WindowsLauncherTests(unittest.TestCase):
                 shell, code, input="\n".join(answers) + "\n", cwd=self.work, env=self.env
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("Build plan (10 layers)", result.stdout)
+            self.assertIn("Build plan (11 layers)", result.stdout)
             self.assertIn("Effective Lab selectors: rl[rsl-rl],visualizer[kit]", result.stdout)
             self.assertIn("-Gym '1.2.3'", result.stdout)
             self.assertIn("Final image: test:full", result.stdout)
