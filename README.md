@@ -119,19 +119,21 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
 | `composer/isaac/` | legacy NGC Isaac Sim 4.5 reference |
 | `composer/<other>/` | application examples → review hardware, network, paths first |
 | `creator/_deprecated/` | historical references |
-| `docs/` | workflow guides |
+| `docs/` | Sphinx documentation site (`make -C docs html`), workflow guides |
 | `tests/` | regression tests (no Docker needed) |
 
 ## Documentation map
 
 | Topic | Guide |
 |---|---|
+| Full documentation site (all guides, Compose examples, Zed, development) | [docs/](docs/) → `pip install -r docs/requirements.txt && make -C docs html` |
 | Isaac Sim + Lab end-to-end workflow | [docs/ISAAC_WORKFLOW.md](docs/ISAAC_WORKFLOW.md) |
 | Build flags, run flags, Isaac options, permissions, caching | [creator/README.md](creator/README.md) |
 | Graphical builder, its bridge to `stages.sh`, AppImage packaging | [gui/README.md](gui/README.md) |
 | Compose with a creator image, custom Dockerfile | [composer/template/README.md](composer/template/README.md) |
 | Isaac Compose service | [composer/isaaclab/README.md](composer/isaaclab/README.md) |
 | Fixed Isaac Sim example | [composer/isaacsim/README.md](composer/isaacsim/README.md) |
+| Zed editor over SSH (Windows, macOS, Linux) | [docs/usage/zed.rst](docs/usage/zed.rst) |
 | `uv sync: Permission denied` | [creator/README.md#uv-sync-permission-denied](creator/README.md#uv-sync-permission-denied) |
 
 ## Compose in one minute
