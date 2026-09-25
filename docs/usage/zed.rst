@@ -8,16 +8,38 @@ UI runs on your machine; the language servers, terminal and builds run inside
 the container.
 
 The ``wbcc-zed-windows`` service in ``composer/windows/docker-compose.yaml`` is
-set up for this. It is the same as ``wbcc-windows`` plus:
+set up for this. It is the same as ``wbcc-windows`` with two additions:
 
-* ``openssh-server`` is installed when the container starts (if the image does
-  not already have it).
-* ``sshd`` listens on port ``2222`` (change it with ``ZED_SSH_PORT``).
-* Your public key is mounted and installed as ``admin``'s
-  ``authorized_keys``. Password and root logins are disabled.
-* The container environment (``ROS_DISTRO``, ``DISPLAY``, ``PATH``, …) is written
-  to ``/etc/environment`` so SSH sessions see the same variables as
-  ``docker exec``.
+* **Build time** (``composer/windows/Dockerfile.zed``): installs
+  ``openssh-server``, creates the host keys and disables password logins, root
+  logins and ``StrictModes``. ``StrictModes`` is off because keys mounted from
+  Windows show loose permissions. It works on top of any creator image passed
+  as ``BASE_IMAGE``.
+* **Run time** (the service): mounts your public key as ``admin``'s
+  ``~/.ssh/authorized_keys`` and starts ``sshd`` on port ``2222`` (change it
+  with ``ZED_SSH_PORT``). Before that, it writes the container environment
+  (``ROS_DISTRO``, ``DISPLAY``, ``ROS_DOMAIN_ID``, ``PATH``, …) to
+  ``/etc/environment``. SSH logins start with an empty environment, so this
+  gives the Zed terminal the same variables as ``docker exec``.
+
+.. code-block:: yaml
+
+   wbcc-zed-windows:
+     image: docker_envs:wbcc-zed
+     build:
+       context: .
+       dockerfile: Dockerfile.zed
+       args:
+         BASE_IMAGE: docker_envs:24.04-cuda13.3.1-jazzy-...
+     user: root              # sshd starts as root; logins are admin
+     volumes:
+       - ${ZED_SSH_PUBKEY:-${USERPROFILE}/.ssh/id_ed25519.pub}:/home/admin/.ssh/authorized_keys:ro
+     command: >-
+       sh -c "env | grep -vE '^(HOME|HOSTNAME|PWD|SHLVL|USER|_)=' > /etc/environment
+       && exec /usr/sbin/sshd -D -e -p ${ZED_SSH_PORT:-2222}"
+
+``HOME`` and ``USER`` are filtered out because the command runs as root;
+passing them on would give ``admin`` root's home directory.
 
 .. note::
 
@@ -101,8 +123,8 @@ Skip this step if you already have ``~/.ssh/id_ed25519.pub``.
 .. warning::
 
    The key file must exist **before** starting the container. If it is
-   missing, Docker creates an empty directory in its place and the container
-   exits with an ``install`` error.
+   missing, Docker creates an empty directory in its place, and every login
+   fails with ``Permission denied (publickey)``.
 
 
 3. Start the container
@@ -111,6 +133,10 @@ Skip this step if you already have ``~/.ssh/id_ed25519.pub``.
 By default the service mounts ``%USERPROFILE%\.ssh\id_ed25519.pub``. Set
 ``ZED_SSH_PUBKEY`` to use a different key, and ``ZED_SSH_PORT`` to use a
 different port.
+
+The first ``up`` builds ``docker_envs:wbcc-zed`` from ``Dockerfile.zed``
+(about a minute). Later starts reuse it. Rebuild with ``--build`` after the
+base image changes.
 
 .. tab-set::
 
@@ -121,7 +147,7 @@ different port.
 
          cd composer\windows
          docker compose up -d wbcc-zed-windows
-         docker compose logs wbcc-zed-windows   # expect: sshd listening on port 2222
+         docker compose logs wbcc-zed-windows   # expect: Server listening on 0.0.0.0 port 2222
 
       Different key or port:
 
@@ -140,7 +166,7 @@ different port.
 
          cd composer/windows
          ZED_SSH_PUBKEY=~/.ssh/id_ed25519.pub docker compose up -d wbcc-zed-windows
-         docker compose logs wbcc-zed-windows   # expect: sshd listening on port 2222
+         docker compose logs wbcc-zed-windows   # expect: Server listening on 0.0.0.0 port 2222
 
    .. tab-item:: Linux
       :sync: linux
@@ -151,9 +177,7 @@ different port.
 
          cd composer/windows
          ZED_SSH_PUBKEY=~/.ssh/id_ed25519.pub docker compose up -d wbcc-zed-windows
-         docker compose logs wbcc-zed-windows   # expect: sshd listening on port 2222
-
-The first start takes a little longer while ``openssh-server`` is installed.
+         docker compose logs wbcc-zed-windows   # expect: Server listening on 0.0.0.0 port 2222
 
 
 4. Add an SSH host entry
@@ -274,6 +298,127 @@ The server is saved in Zed's ``settings.json`` under ``ssh_connections``, so
 later you can reopen it from ``projects: open remote``.
 
 
+6. Zed settings (optional)
+--------------------------
+
+Save the connection
+~~~~~~~~~~~~~~~~~~~
+
+Adding the connection to your **user** settings gives it a name and pins the
+project, so it appears in ``projects: open remote`` with one click. Open the
+file with ``zed: open settings`` in the command palette, or edit it directly:
+
+.. tab-set::
+
+   .. tab-item:: Windows
+      :sync: windows
+
+      ``%APPDATA%\Zed\settings.json``
+
+   .. tab-item:: macOS
+      :sync: macos
+
+      ``~/.config/zed/settings.json``
+
+   .. tab-item:: Linux
+      :sync: linux
+
+      ``~/.config/zed/settings.json``
+
+.. code-block:: json
+
+   {
+     "ssh_connections": [
+       {
+         "host": "wbcc",
+         "nickname": "wbcc (FR3 demo)",
+         "args": ["-o", "ServerAliveInterval=30"],
+         "projects": [{ "paths": ["/home/admin/colcon_ws"] }]
+       },
+       {
+         "host": "rsi",
+         "nickname": "rsi",
+         "projects": [{ "paths": ["/home/admin/colcon_ws"] }]
+       }
+     ]
+   }
+
+* ``host`` is the alias from step 4. Port, user and key come from your SSH
+  config, so they are not repeated here.
+* ``args`` are extra ``ssh`` arguments. ``ServerAliveInterval`` keeps the
+  connection open while the container is idle.
+* Add ``"upload_binary_over_ssh": true`` when the container has no internet
+  access. Zed then downloads its remote server on your machine and copies it
+  over SSH.
+
+Project settings for a colcon workspace
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Settings in ``.zed/settings.json`` inside the workspace apply only to that
+project and run on the container side.
+
+``/home/admin/colcon_ws/.zed/settings.json``:
+
+.. code-block:: json
+
+   {
+     "file_scan_exclusions": ["**/.git", "build", "install", "log"],
+     "terminal": { "detect_venv": "off" },
+     "lsp": {
+       "clangd": {
+         "binary": {
+           "arguments": [
+             "--compile-commands-dir=build",
+             "--background-index",
+             "--header-insertion=never"
+           ]
+         }
+       }
+     }
+   }
+
+* ``file_scan_exclusions`` hides colcon's ``build``, ``install`` and ``log``
+  folders from search and the project panel. It replaces Zed's default list,
+  so ``**/.git`` is repeated.
+* ``detect_venv: off`` stops Zed from activating a ``.venv`` in the terminal.
+  The image already activates ``/opt/venv``.
+* ``clangd`` reads ``build/compile_commands.json``. colcon writes one file per
+  package, so build with compile commands on and merge them:
+
+  .. code-block:: bash
+
+     colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+     python3 - <<'PY'
+     import glob, json
+     cmds = []
+     for f in glob.glob("build/*/compile_commands.json"):
+         cmds += json.load(open(f))
+     json.dump(cmds, open("build/compile_commands.json", "w"), indent=1)
+     PY
+
+For Python, put a ``pyrightconfig.json`` next to it. Zed's Python language
+server reads it, so imports from ``/opt/venv``, ROS and your built packages
+resolve:
+
+.. code-block:: json
+
+   {
+     "venvPath": "/opt",
+     "venv": "venv",
+     "extraPaths": ["/opt/ros/jazzy/lib/python3.12/site-packages"]
+   }
+
+With ``--symlink-install``, your own Python packages resolve to their sources
+in ``src/``.
+
+.. note::
+
+   ``wbcc-zed-windows`` mounts only ``src/`` from the host. Files created at
+   the workspace root (``.zed/``, ``pyrightconfig.json``, ``build/``) are lost
+   when the container is recreated. Keep a copy in your repository and copy it
+   in, or mount the whole workspace instead of ``src/``.
+
+
 .. _zed-proxycommand:
 
 Alternative: connect without host networking
@@ -366,8 +511,8 @@ Give each container its own port and its own host entry:
 
 ``ZED_SSH_PORT`` applies to the whole ``docker compose`` command, so start each
 service separately with its own port. A second service needs the same SSH setup
-as ``wbcc-zed-windows`` (the ``user: root``, key mount, ``ZED_SSH_PORT`` and
-``command:`` lines).
+as ``wbcc-zed-windows``: the ``build:`` (with its own ``BASE_IMAGE`` and
+``image:`` name), ``user: root``, the key mount and the ``command:`` line.
 
 .. code-block:: bash
 
@@ -403,12 +548,14 @@ Troubleshooting
    right ``ZED_SSH_PUBKEY``.
 
 ``REMOTE HOST IDENTIFICATION HAS CHANGED``
-   Recreating the container generates new host keys. Remove the old entry:
-   ``ssh-keygen -R "[localhost]:2222"``.
+   Host keys are created when the image is built, so rebuilding it gives new
+   keys. Remove the old entry: ``ssh-keygen -R "[localhost]:2222"``. With
+   :ref:`zed-proxycommand`, remove the ``wbcc`` entry instead.
 
-Container exits with ``install: ... authorized_key.pub: Is a directory``
-   The key file did not exist when the container started. Create the key
-   (step 2), run ``docker compose down wbcc-zed-windows``, and start it again.
+``authorized_keys`` is a directory
+   The key file did not exist when the container started, so Docker created a
+   directory. Create the key (step 2), run ``docker compose rm -sf
+   wbcc-zed-windows``, and start it again.
 
 ROS or Python environment missing in the Zed terminal
    The variables come from ``/etc/environment``, written when the container

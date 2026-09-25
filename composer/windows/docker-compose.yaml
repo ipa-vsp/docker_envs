@@ -85,7 +85,12 @@ services:
   # Same as wbcc-windows, plus an SSH server so Zed (or any SSH client) can
   # open the workspace remotely. See docs/usage/zed.rst.
   wbcc-zed-windows:
-    image: docker_envs:24.04-cuda13.3.1-jazzy-mujoco3.13.0-isaaclabrelease-3.0.0-legacy
+    image: docker_envs:wbcc-zed
+    build:
+      context: .
+      dockerfile: Dockerfile.zed
+      args:
+        BASE_IMAGE: docker_envs:24.04-cuda13.3.1-jazzy-mujoco3.13.0-isaaclabrelease-3.0.0-legacy
     runtime: nvidia
     deploy:
       resources:
@@ -103,32 +108,16 @@ services:
       - /run/desktop/mnt/host/wslg:/tmp
       - ../../../rox_fr3_demo:/home/admin/colcon_ws/src
       # Public key allowed to log in as admin. Override with ZED_SSH_PUBKEY.
-      - ${ZED_SSH_PUBKEY:-${USERPROFILE}/.ssh/id_ed25519.pub}:/run/zed/authorized_key.pub:ro
+      - ${ZED_SSH_PUBKEY:-${USERPROFILE}/.ssh/id_ed25519.pub}:/home/admin/.ssh/authorized_keys:ro
     environment:
       - DISPLAY=:0
       - WAYLAND_DISPLAY=wayland-0
       - XDG_RUNTIME_DIR=/tmp/runtime-dir
       - PULSE_SERVER=/tmp/PulseServer
       - ROS_DOMAIN_ID=73
-      - ZED_SSH_PORT=${ZED_SSH_PORT:-2222}
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        if ! command -v sshd >/dev/null; then
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends openssh-server
-        fi
-        mkdir -p /run/sshd
-        ssh-keygen -A
-        install -d -m 700 -o admin -g admin /home/admin/.ssh
-        install -m 600 -o admin -g admin /run/zed/authorized_key.pub /home/admin/.ssh/authorized_keys
-        # SSH sessions do not inherit the container env; expose it via pam_env.
-        [ -f /etc/environment.orig ] || cp /etc/environment /etc/environment.orig
-        cp /etc/environment.orig /etc/environment
-        env | grep -vE '^(HOME|HOSTNAME|PWD|OLDPWD|SHLVL|_|TERM|USER|LOGNAME|SHELL|MAIL)=' >> /etc/environment
-        echo "sshd listening on port $${ZED_SSH_PORT} (user: admin)"
-        exec /usr/sbin/sshd -D -e -p "$${ZED_SSH_PORT}" \
-          -o PasswordAuthentication=no -o PermitRootLogin=no
+    # SSH logins start with an empty environment, so hand this container's
+    # (DISPLAY, ROS_DOMAIN_ID, PATH, ...) to them via /etc/environment.
+    command: >-
+      sh -c "env | grep -vE '^(HOME|HOSTNAME|PWD|SHLVL|USER|_)=' > /etc/environment
+      && exec /usr/sbin/sshd -D -e -p ${ZED_SSH_PORT:-2222}"

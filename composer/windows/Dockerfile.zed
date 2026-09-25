@@ -1,0 +1,14 @@
+# Adds an SSH server to any creator image so Zed can open it remotely.
+# Used by the wbcc-zed-windows service; see docs/usage/zed.rst.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+# StrictModes is off because keys mounted from Windows show loose permissions.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssh-server \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /run/sshd \
+    && ssh-keygen -A \
+    && install -d -m 700 -o admin -g admin /home/admin/.ssh \
+    && printf 'PasswordAuthentication no\nPermitRootLogin no\nStrictModes no\n' \
+        > /etc/ssh/sshd_config.d/zed.conf
