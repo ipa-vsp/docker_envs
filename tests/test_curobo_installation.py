@@ -25,7 +25,7 @@ class CuroboPlanTests(unittest.TestCase):
                 "bash",
                 "-ec",
                 'source "$1/creator/scripts/lib/stages.sh"; stages::init_selection; '
-                "STAGES_CUROBO=true; eval \"$2\"; stages::build_plan; "
+                'STAGES_CUROBO=true; eval "$2"; stages::build_plan; '
                 'printf "%s\\n" "${STAGES_PLAN[@]}"',
                 "test-plan",
                 str(ROOT),
@@ -50,9 +50,17 @@ class CuroboPlanTests(unittest.TestCase):
         result = plan("-I", "6.1.0.0", "-L", "release/3.0.0", "-R", "main")
         self.assertEqual(result.returncode, 0, result.stderr)
         lines = result.stdout.splitlines()
-        order = [n for n in ("Dockerfile.venv", "Dockerfile.isaacsim", "Dockerfile.isaaclab",
-                             "Dockerfile.curobo", "Dockerfile.user")
-                 if any(n in line for line in lines)]
+        order = [
+            n
+            for n in (
+                "Dockerfile.venv",
+                "Dockerfile.isaacsim",
+                "Dockerfile.isaaclab",
+                "Dockerfile.curobo",
+                "Dockerfile.user",
+            )
+            if any(n in line for line in lines)
+        ]
         self.assertEqual(len(order), 5)
         positions = [next(i for i, l in enumerate(lines) if n in l) for n in order]
         self.assertEqual(positions, sorted(positions))

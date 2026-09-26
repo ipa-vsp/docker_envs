@@ -11,7 +11,7 @@ __docker_envs_banner() {
         reset=$'\e[0m'
     fi
 
-    printf '\n%s  • • •%s\n' "$red" "$reset" 
+    printf '\n%s  • • •%s\n' "$red" "$reset"
     printf '%s  • • •%s\n' "$red" "$reset"
     printf '%s  • • •%s\n\n' "$red" "$reset"
     printf '  %sUser%s       %s (UID %s · GID %s)\n' \

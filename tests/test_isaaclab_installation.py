@@ -51,7 +51,9 @@ printf '%s\\n' "${STAGES_PLAN[@]}"
                 files = [Path(row[0]).name for row in rows]
                 # Created exactly once, straight after ROS; nothing else pins Python.
                 self.assertEqual(files.count("Dockerfile.venv"), 1)
-                self.assertEqual(files.index("Dockerfile.venv"), files.index("Dockerfile.rolling") + 1)
+                self.assertEqual(
+                    files.index("Dockerfile.venv"), files.index("Dockerfile.rolling") + 1
+                )
                 venv = rows[files.index("Dockerfile.venv")]
                 self.assertIn(f"PYTHON_VERSION={python}", venv)
                 mujoco = rows[files.index("Dockerfile.mujoco")]
