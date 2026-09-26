@@ -76,6 +76,9 @@ Continuous integration
      - Builds and publishes the PyTorch image from ``creator/pytorch``.
    * - ``gui-appimage.yml``
      - GUI tests and the AppImage release build (on ``v*`` tags).
+   * - ``docs.yml``
+     - Builds this site with warnings as errors and, on ``main``, deploys it to
+       GitHub Pages. See *Publishing* below.
    * - ``format.yml``
      - Runs the pre-commit hooks.
    * - ``docker.yml``
@@ -132,3 +135,23 @@ How the pages are assembled:
   (``index.rst``, ``composer/``, ``usage/``, ``development/``).
 * To publish a new guide, add it to ``GUIDES`` in ``docs/conf.py`` and to a
   ``toctree``.
+
+Publishing
+^^^^^^^^^^
+
+``.github/workflows/docs.yml`` builds the site on every pull request and push
+that touches ``docs/``, any ``README.md`` or the workflow itself.
+
+* It runs ``make -C docs clean strict``, so a broken cross-reference, a page
+  left out of every ``toctree`` or a guide ``conf.py`` cannot read fails the
+  job rather than shipping a broken page. Reproduce a CI failure locally with
+  the same command.
+* Every run uploads the rendered site as the ``docs-html`` artifact, so a
+  reviewer can download and open a pull request's docs.
+* Pushes to ``main`` (and manual runs) deploy to GitHub Pages through
+  ``actions/deploy-pages``; the run summary links the published URL. Pull
+  requests from forks never deploy.
+
+The deployment needs *Settings → Pages → Build and deployment → Source:
+**GitHub Actions*** once per repository. Until that is set, the ``build`` job
+passes and the ``deploy`` job fails with a missing-Pages-site error.
