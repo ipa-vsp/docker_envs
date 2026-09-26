@@ -31,8 +31,9 @@ Maintained setups
      - Services for Windows hosts (Docker Desktop + WSL 2 + WSLg), including
        ``wbcc-zed-windows`` for :doc:`editing with Zed <../usage/zed>`.
    * - ``macos-2``
-     - Single Jazzy service for a macOS host with GUI applications on the Mac
-       desktop through XQuartz over TCP; see
+     - Jazzy services for a macOS host: ``canopen_ws`` draws plain-Qt tools on
+       the Mac desktop through XQuartz, and ``canopen_ws_vnc`` runs an X server
+       in the container for ``rviz2`` and other OpenGL applications. See
        :ref:`GUI apps on macOS <gui-macos>`.
    * - :doc:`canopen <../_generated/composer-canopen>`
      - CANopen build and validation images for Rolling, Lyrical and Jazzy,
