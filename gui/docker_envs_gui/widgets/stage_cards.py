@@ -517,9 +517,13 @@ class StageForm(QScrollArea):
         self.curobo_version.setEnabled(selection.curobo)
         curobo_note = ""
         if selection.curobo and has_sim and not selection.isaacsim_version.startswith("6"):
-            curobo_note = "cuRobo needs Python 3.12; this Isaac Sim pins another Python. Use Isaac Sim 6.x."
+            curobo_note = (
+                "cuRobo needs Python 3.12; this Isaac Sim pins another Python. Use Isaac Sim 6.x."
+            )
         elif selection.curobo and selection.os == "22.04":
-            curobo_note = "ROS on Ubuntu 22.04 uses Python 3.10, so ROS nodes cannot import cuRobo."
+            curobo_note = (
+                "ROS on Ubuntu 22.04 uses Python 3.10, so ROS nodes cannot import cuRobo."
+            )
         self.curobo_note.setText(curobo_note)
         self.curobo_note.setVisible(bool(curobo_note))
 

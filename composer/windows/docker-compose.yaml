@@ -54,7 +54,7 @@ services:
       - ROS_DOMAIN_ID=73
     entrypoint: /usr/local/bin/scripts/workspace-entrypoint.sh
     command: tail -f /dev/null # bash -c "top"
-  
+
   rsi-windows:
     image: docker_envs:24.04-cuda13.3.1-jazzy-mujoco3.13.0-isaaclabrelease-3.0.0-legacy
     # container_name: isaac-sim
