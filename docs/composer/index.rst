@@ -30,6 +30,10 @@ Maintained setups
    * - :doc:`windows <windows>`
      - Services for Windows hosts (Docker Desktop + WSL 2 + WSLg), including
        ``wbcc-zed-windows`` for :doc:`editing with Zed <../usage/zed>`.
+   * - ``macos-2``
+     - Single Jazzy service for a macOS host with GUI applications on the Mac
+       desktop through XQuartz over TCP; see
+       :ref:`GUI apps on macOS <gui-macos>`.
    * - :doc:`canopen <../_generated/composer-canopen>`
      - CANopen build and validation images for Rolling, Lyrical and Jazzy,
        with ``vcan`` checks and patches
@@ -54,7 +58,9 @@ or networks and may need edits before they run elsewhere.
      - Humble and Humble + MoveIt demo services from the published images.
    * - ``macos``
      - Rolling and Humble services for a macOS host, a fixed bridge subnet and
-       an OPC UA PLC simulator from a private registry.
+       an OPC UA PLC simulator from a private registry. Its X11 settings are
+       the Linux ones; for GUI apps follow
+       :ref:`GUI apps on macOS <gui-macos>` or use ``macos-2``.
    * - ``mujoco``
      - Jazzy + MuJoCo image built from the local ``Dockerfile`` (PyTorch,
        Gymnasium, Stable-Baselines3, MuJoCo), with Linux and Windows services.
@@ -96,6 +102,9 @@ Most services follow the same pattern as the images they run:
 * ``network_mode: host`` makes ROS 2 discovery work without extra
   configuration. Containers with the same ``ROS_DOMAIN_ID`` see each other's
   topics.
+* ``/tmp/.X11-unix`` is bind-mounted for GUI applications. That path only
+  exists on Linux hosts — on Windows and macOS the display is wired up
+  differently; see :doc:`graphical applications <../usage/gui>`.
 * The workspace is bind-mounted at ``/home/admin/colcon_ws``. Ownership is
   never changed; see *Permissions and storage* in the
   :doc:`creator guide <../_generated/creator>`.

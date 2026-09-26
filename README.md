@@ -13,7 +13,7 @@ Docker development environments for ROS 2, PyTorch, MuJoCo and NVIDIA Isaac Sim 
 - Linux scripts: Bash; Windows builder: PowerShell 5.1 or 7
 - Tests: Python 3 (Linux regression suite: PyYAML, `jq`)
 - GPU stacks → NVIDIA driver + NVIDIA Container Toolkit
-- GUI → X11 display + `xauth`
+- GUI → X11 display + `xauth` on Linux; WSLg on Windows; XQuartz on macOS → [GUI guide](docs/usage/gui.rst)
 
 ## Quick start
 
@@ -134,6 +134,7 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
 | Isaac Compose service | [composer/isaaclab/README.md](composer/isaaclab/README.md) |
 | Fixed Isaac Sim example | [composer/isaacsim/README.md](composer/isaacsim/README.md) |
 | Zed editor over SSH (Windows, macOS, Linux) | [docs/usage/zed.rst](docs/usage/zed.rst) |
+| GUI apps (rviz2, rqt, Gazebo) on Linux, Windows or macOS | [docs/usage/gui.rst](docs/usage/gui.rst) |
 | `uv sync: Permission denied` | [creator/README.md#uv-sync-permission-denied](creator/README.md#uv-sync-permission-denied) |
 
 ## Compose in one minute

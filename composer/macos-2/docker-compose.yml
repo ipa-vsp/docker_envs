@@ -1,3 +1,15 @@
+# ROS 2 Jazzy on a macOS host, with GUI applications on the Mac desktop.
+#
+# A Mac has no /tmp/.X11-unix, so the container cannot be handed an X11 socket
+# the way it is on Linux. Instead XQuartz listens on TCP and the container
+# connects to host.docker.internal:0. Set up XQuartz once before `up`:
+#
+#   defaults write org.xquartz.X11 nolisten_tcp 0
+#   defaults write org.xquartz.X11 enable_iglx -bool true
+#   open -a XQuartz            # restart it if it was already running
+#   xhost + 127.0.0.1          # once per XQuartz session
+#
+# Full guide, including the Qt-only VNC fallback: docs/usage/gui.rst
 services:
   canopen_ws:
     image: ghcr.io/ipa-vsp/docker_envs:24.04-jazzy
@@ -7,11 +19,16 @@ services:
     tty: true
     network_mode: "host"
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:ro
       - /etc/localtime:/etc/localtime:ro
       # - ../../../ros2_canopen:/home/admin/colcon_ws/src
     environment:
-      - DISPLAY=$DISPLAY
+      # Never $DISPLAY here: on macOS that is a launchd socket path
+      # (/var/run/com.apple.launchd.*/org.xquartz:0) that means nothing to Linux.
+      - DISPLAY=${MACOS_DISPLAY:-host.docker.internal:0}
+      - QT_X11_NO_MITSHM=1
+      # XQuartz offers no hardware GL to the container; render in the container
+      # with llvmpipe and let X carry the pixels.
+      - LIBGL_ALWAYS_SOFTWARE=1
       - ROS_DOMAIN_ID=73
     # entrypoint: /usr/local/bin/scripts/ros2_entrypoint.sh
     command: tail -f /dev/null # bash -c "top"

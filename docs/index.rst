@@ -44,6 +44,12 @@ Sim / Isaac Lab.
 
       Open a container workspace in Zed over SSH on Windows, macOS or Linux.
 
+   .. grid-item-card:: GUI apps
+      :link: usage/gui
+      :link-type: doc
+
+      Run rviz2, rqt and Gazebo on your desktop from Linux, Windows or macOS.
+
    .. grid-item-card:: Contribute
       :link: development/index
       :link-type: doc
@@ -78,6 +84,13 @@ Sim / Isaac Lab.
    composer/windows
    _generated/composer-canopen
    _generated/composer-isaac
+
+.. toctree::
+   :caption: Graphical applications
+   :maxdepth: 2
+   :hidden:
+
+   usage/gui
 
 .. toctree::
    :caption: Editors
