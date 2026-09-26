@@ -25,9 +25,12 @@ from.
    * - Windows
      - Bind-mount the WSLg socket directory
      - ``:0`` — see :doc:`Windows hosts <../composer/windows>`
-   * - macOS
+   * - macOS, plain Qt
      - XQuartz listening on **TCP**
      - ``host.docker.internal:0``
+   * - macOS, OpenGL
+     - X server **inside** the container, exported over VNC
+     - ``:99`` — XQuartz cannot serve these; see :ref:`gui-macos-vnc`
 
 Linux
 -----
@@ -103,17 +106,19 @@ If ``/opt/X11`` exists but the ``.app`` does not, the install is broken: X will
 never start and ``open -a XQuartz`` fails with *Unable to find application
 named 'XQuartz'*. Reinstall with ``brew reinstall --cask xquartz``.
 
-2. Let it listen on TCP, and allow indirect GL
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2. Let it listen on TCP
+^^^^^^^^^^^^^^^^^^^^^^^
 
-XQuartz ships with TCP turned off, and with indirect GLX turned off — the
-first blocks the container from connecting at all, the second blocks
-``rviz2`` and ``gz sim`` once it does.
+XQuartz ships with TCP turned off, which blocks the container from connecting
+at all:
 
 .. code-block:: bash
 
    defaults write org.xquartz.X11 nolisten_tcp 0
-   defaults write org.xquartz.X11 enable_iglx -bool true
+
+``defaults write org.xquartz.X11 enable_iglx -bool true`` turns on indirect
+GLX. It is worth setting, but be aware it is **not** enough for ``rviz2`` or
+``gz sim`` (:ref:`gui-macos-vnc`).
 
 Quit XQuartz completely and start it again; the settings are only read at
 startup.
@@ -129,12 +134,25 @@ or it started before the ``defaults write``.
 3. Allow the container in
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Connections from Docker Desktop reach the Mac through its user-mode network
-stack, so they arrive from the loopback address:
+``host.docker.internal`` resolves to an **IPv6** address inside the container
+(something like ``fdc4:f303:9324::254``), and Docker Desktop's user-mode network
+stack delivers the connection to the Mac from the IPv6 loopback, ``::1``. So
+authorize that, not ``127.0.0.1``:
 
 .. code-block:: bash
 
-   xhost + 127.0.0.1
+   xhost + ::1
+
+``xhost + 127.0.0.1`` adds only ``INET:localhost`` and leaves the container
+refused with ``Authorization required, but no authorization protocol
+specified``. Check which entries are actually in place:
+
+.. code-block:: bash
+
+   xhost
+   # access control enabled, only authorized clients can connect
+   # INET6:localhost      <- this is the one that matters
+   # INET:localhost
 
 This is per XQuartz session — repeat it after every restart. ``xhost +`` on its
 own also works but accepts every host that can reach port ``6000``, including
@@ -156,20 +174,19 @@ Do **not** mount ``/tmp/.X11-unix`` and do **not** forward the host's
 inside Linux. ``host.docker.internal`` resolves under both bridge and
 ``network_mode: host``.
 
-``LIBGL_ALWAYS_SOFTWARE=1`` matters because XQuartz offers the container no
-hardware GL. With it, Mesa's ``llvmpipe`` renders in the container and X only
-carries the finished pixels — slower, but it works on Apple silicon and Intel
-alike.
+This gets plain-Qt applications such as ``rqt`` onto the Mac desktop. It does
+**not** get ``rviz2``, ``gz sim`` or the MuJoCo viewer there — see
+:ref:`gui-macos-vnc` for those.
 
-``composer/macos-2/docker-compose.yml`` is a ready-made service with all of
-this set:
+``composer/macos-2/docker-compose.yml`` has this as the ``canopen_ws``
+service:
 
 .. code-block:: bash
 
    cd composer/macos-2
-   docker compose up -d
+   docker compose up -d canopen_ws
    docker compose exec canopen_ws bash
-   rviz2
+   rqt
 
 5. Check it before blaming the app
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -184,30 +201,79 @@ Two tools in the images test the path without any of ROS's complexity:
 If ``xdpyinfo`` works and ``rviz2`` does not, the problem is GL, not the
 display.
 
-Qt-only fallback: no XQuartz at all
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _gui-macos-vnc:
 
-Qt can serve its own window over VNC, which needs nothing installed on the
-Mac — macOS Screen Sharing is built in:
+rviz2, Gazebo and MuJoCo on macOS: use VNC instead
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+XQuartz gets OpenGL applications no further than a connection. Ogre — the
+renderer behind ``rviz2``, ``gz sim`` and the MuJoCo viewer — asks for a GLX
+framebuffer configuration that XQuartz does not provide, even with
+``enable_iglx`` on, and Mesa gives up:
+
+.. code-block:: text
+
+   No matching fbConfigs or visuals found
+   glx: failed to create drisw screen
+   [ERROR] [rviz2]: Unable to create the rendering window after 100 tries
+
+That is a limit of XQuartz's GLX, not a configuration mistake, and no
+``LIBGL_*`` setting works around it. The fix is to stop involving XQuartz:
+run a real X server **in the container**, render into it with Mesa's
+``llvmpipe``, and export that framebuffer over VNC. macOS has a VNC client
+built in, so nothing needs installing on the Mac.
+
+``composer/macos-2`` has this ready as the ``canopen_ws_vnc`` service:
+
+.. code-block:: bash
+
+   cd composer/macos-2
+   docker compose up -d --build canopen_ws_vnc
+   open vnc://localhost:5901          # or Finder → Go → Connect to Server
+   docker compose exec canopen_ws_vnc bash
+   rviz2                              # window appears in the VNC session
+
+The pieces, if you are adding this to another service:
+
+* ``Dockerfile.vnc`` installs ``xvfb`` and ``x11vnc`` on top of any
+  ``docker_envs`` image.
+* ``vnc-entrypoint.sh`` starts ``Xvfb`` with ``+extension GLX`` and
+  ``-noreset``, waits for it with ``xdpyinfo`` rather than a blind ``sleep``,
+  starts ``x11vnc``, then chains to the image's own
+  ``workspace-entrypoint.sh`` so ROS and ``WORKSPACE_UMASK`` are set up as
+  usual. Tunables: ``VNC_DISPLAY``, ``VNC_GEOMETRY``, ``VNC_DEPTH``,
+  ``VNC_PORT``, ``VNC_PASSWORD``.
+* ``DISPLAY=:99`` is set in the service's ``environment``, not only exported by
+  the entrypoint, because ``docker compose exec`` does **not** run the
+  entrypoint — without it every shell you open is missing ``DISPLAY``.
+* The service does not use ``network_mode: host``. On Docker Desktop the "host"
+  network is the Linux VM's, so the Mac cannot reach a port there and
+  ``ports:`` is ignored. Containers on the bridge network still discover each
+  other's ROS 2 topics.
+* The port is published as ``127.0.0.1:5901:5901``, so it is not exposed to
+  your network and ``x11vnc`` can run without a password. Set ``VNC_PASSWORD``
+  if you widen that binding.
+
+Rendering is software, so expect a busy ``rviz2`` scene to feel sluggish; a
+smaller ``VNC_GEOMETRY`` helps.
+
+Qt's own VNC server
+^^^^^^^^^^^^^^^^^^^
+
+For plain-Qt tools only, Qt can serve its window directly with no extra
+packages:
 
 .. code-block:: yaml
 
    ports:
-     - "5900:5900"
+     - "127.0.0.1:5900:5900"
    environment:
      - QT_QPA_PLATFORM=vnc
 
-Then connect to ``vnc://localhost:5900``.
-
-This works for plain-Qt tools such as ``rqt`` and ``rqt_graph``. It does
-**not** work for ``rviz2``, ``gz sim`` or the MuJoCo viewer: those render with
-OpenGL through Ogre, which opens the X display itself and fails with
-``Couldn't open X display`` no matter what Qt is doing. For those, XQuartz is
-the only route.
-
-Note that ``ports:`` is ignored under ``network_mode: host``; either drop host
-networking for this service (losing cross-container ROS 2 discovery) or turn on
-*Docker Desktop → Settings → Resources → Network → Enable host networking*.
+This is enough for ``rqt``. It does **not** help ``rviz2``: Qt reports
+``QVncServer created on port 5900`` and Ogre then still fails with
+``Couldn't open X display``, because it opens the X display itself. Use the
+``Xvfb`` service above for anything OpenGL.
 
 Troubleshooting
 ---------------
@@ -225,14 +291,22 @@ Troubleshooting
      - XQuartz is not running, or not listening on TCP. Check
        ``lsof -nP -iTCP:6000``, then ``nolisten_tcp 0`` and restart it.
    * - ``Authorization required, but no authorization protocol specified``
-     - The server refused the client. ``xhost + 127.0.0.1`` on macOS,
-       ``xhost +local:`` or a wildcard cookie on Linux.
+     - The server answered and refused the client — TCP is fine, the ACL is
+       not. On macOS ``xhost + ::1`` (the connection arrives over IPv6
+       loopback, so ``127.0.0.1`` does not cover it); on Linux
+       ``xhost +local:`` or a wildcard cookie.
    * - ``Could not load the Qt platform plugin "xcb"``
      - Almost always the display above, not a missing plugin — Qt reports the
        connection failure first, then this. Fix the display.
    * - ``RenderingAPIException: Couldn't open X display`` from ``rviz2``
-     - Ogre could not reach X. Confirm with ``xdpyinfo``; on macOS also set
-       ``enable_iglx`` and ``LIBGL_ALWAYS_SOFTWARE=1``.
+     - Ogre could not reach X at all. Confirm the display with ``xdpyinfo``.
+       Common cause on macOS: ``QT_QPA_PLATFORM=vnc``, which serves Qt but
+       leaves Ogre with no display.
+   * - ``No matching fbConfigs or visuals found`` / ``failed to create drisw
+       screen`` / ``Unable to create the rendering window after 100 tries``
+     - The display works but its GLX cannot satisfy Ogre. On macOS this is
+       XQuartz's limit; switch to the VNC service (:ref:`gui-macos-vnc`). On
+       Linux, install Mesa or pass the GPU through.
    * - Windows open but are slow or blank
      - Software rendering over the network. Reduce the window size, or on
        Linux pass the GPU through instead.

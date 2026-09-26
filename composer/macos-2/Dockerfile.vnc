@@ -1,0 +1,22 @@
+# Adds an in-container X server and a VNC bridge to any docker_envs image.
+#
+# On macOS, XQuartz cannot give OpenGL applications a usable GLX fbConfig, so
+# rviz2, gz sim and the MuJoCo viewer fail with "No matching fbConfigs or
+# visuals found". Running a real X server next to the application inside the
+# container avoids XQuartz entirely: Mesa renders with llvmpipe against a
+# proper framebuffer and x11vnc exports it, so the Mac only needs its built-in
+# Screen Sharing client.
+ARG BASE_IMAGE=ghcr.io/ipa-vsp/docker_envs:24.04-jazzy
+FROM ${BASE_IMAGE}
+
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        x11vnc \
+        xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY vnc-entrypoint.sh /usr/local/bin/scripts/vnc-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/scripts/vnc-entrypoint.sh
+
+USER admin
