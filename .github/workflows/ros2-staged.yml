@@ -28,13 +28,16 @@ jobs:
   validate-pr:
     name: Validate ROS stack without publishing
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        include:
+        platform:
+          - { runner: ubuntu-24.04, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64 }
+        target:
           - { os: "24.04", ros: rolling, usage: skip }
           - { os: "24.04", ros: kilted, usage: skip }
           - { os: "24.04", ros: jazzy, usage: skip }
@@ -51,9 +54,9 @@ jobs:
           driver: docker
       - name: Build the complete local stack
         env:
-          OS_VERSION: ${{ matrix.os }}
-          ROS_DISTRO: ${{ matrix.ros }}
-          USAGE: ${{ matrix.usage }}
+          OS_VERSION: ${{ matrix.target.os }}
+          ROS_DISTRO: ${{ matrix.target.ros }}
+          USAGE: ${{ matrix.target.usage }}
         run: |
           creator/scripts/run_env.sh -b -o "$OS_VERSION" -v "$ROS_DISTRO" \
             -u "$USAGE" -U 1000 -G 1000 -i docker-envs-pr:ros
@@ -65,12 +68,15 @@ jobs:
   build-base:
     if: ${{ github.event_name != 'pull_request' }}
     name: Build Base Image
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
+        platform:
+          - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
         os: ["24.04", "22.04", "26.04"]
     steps:
       - uses: actions/checkout@v7
@@ -86,23 +92,27 @@ jobs:
           context: .
           file: creator/common/Dockerfile.base
           push: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }},mode=max
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+          platforms: ${{ matrix.platform.docker }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }}-${{ matrix.platform.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-base-${{ matrix.os }}-${{ matrix.platform.arch }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}-${{ matrix.platform.arch }}
           build-args: |
             BASE_IMAGE=${{ matrix.os }}
 
   build-ros:
     if: ${{ github.event_name != 'pull_request' }}
     name: Add ROS
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     needs: build-base
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        include:
+        platform:
+          - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
+        target:
           - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
@@ -116,32 +126,34 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Select ROS Dockerfile
-        run: echo "ROS_FILE=creator/ros2/Dockerfile.${{ matrix.ros }}" >> $GITHUB_ENV
       - name: Build ROS layer
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ env.ROS_FILE }}
+          file: creator/ros2/Dockerfile.${{ matrix.target.ros }}
           push: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.os }}-${{ matrix.ros }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.os }}-${{ matrix.ros }},mode=max
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
+          platforms: ${{ matrix.platform.docker }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-ros-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
           build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.os }}
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/base:${{ matrix.target.os }}-${{ matrix.platform.arch }}
 
   build-moveit:
     if: ${{ github.event_name != 'pull_request' }}
     name: Add MoveIt
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     needs: build-ros
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
+        platform:
+          - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
         # lyrical (26.04) omitted: no MoveIt debs published for it yet.
-        include:
+        target:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -159,24 +171,28 @@ jobs:
           context: .
           file: creator/usage/Dockerfile.moveit
           push: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.os }}-${{ matrix.ros }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.os }}-${{ matrix.ros }},mode=max
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
+          platforms: ${{ matrix.platform.docker }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-build-moveit-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }},mode=max
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
           build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
-            ROS_DISTRO=${{ matrix.ros }}
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+            ROS_DISTRO=${{ matrix.target.ros }}
 
   finalize-base-ros-user:
     if: ${{ github.event_name != 'pull_request' }}
     name: Final User Image (ROS only)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     needs: build-ros
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        include:
+        platform:
+          - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
+        target:
           - { os: "24.04", ros: rolling }
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
@@ -191,33 +207,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final user image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
-          push: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.os }}-${{ matrix.ros }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.os }}-${{ matrix.ros }},mode=max
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}
+          platforms: ${{ matrix.platform.docker }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-user-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }},mode=max
+          # Push without a tag; the merge job assembles the multi-arch manifest.
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.os }}-${{ matrix.ros }}
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ros:${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
             USER_UID=1000
             USER_GID=1000
             USERNAME=admin
-            ROS_DISTRO=${{ matrix.ros }}
+            ROS_DISTRO=${{ matrix.target.ros }}
+      - name: Record image digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          echo -n "${DIGEST}" > "/tmp/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-ros-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   finalize-base-ros-moveit-user:
     if: ${{ github.event_name != 'pull_request' }}
     name: Final User Image (MoveIt)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.platform.runner }}
     needs: build-moveit
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
+        platform:
+          - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
         # lyrical (26.04) omitted: no MoveIt debs published for it yet.
-        include:
+        target:
           - { os: "24.04", ros: kilted }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
@@ -230,27 +264,88 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build final MoveIt image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: creator/common/Dockerfile.user
-          push: true
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.os }}-${{ matrix.ros }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.os }}-${{ matrix.ros }},mode=max
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.os }}-${{ matrix.ros }}-moveit
+          platforms: ${{ matrix.platform.docker }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/buildcache:ros-finalize-base-ros-moveit-user-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }},mode=max
+          # Push without a tag; the merge job assembles the multi-arch manifest.
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.os }}-${{ matrix.ros }}
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/moveit:${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
             USER_UID=1000
             USER_GID=1000
             USERNAME=admin
-            ROS_DISTRO=${{ matrix.ros }}
+            ROS_DISTRO=${{ matrix.target.ros }}
+      - name: Record image digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/digests
+          echo -n "${DIGEST}" > "/tmp/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-moveit-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-manifests:
+    if: ${{ github.event_name != 'pull_request' }}
+    name: Publish multi-arch tag
+    runs-on: ubuntu-latest
+    needs:
+      - finalize-base-ros-user
+      - finalize-base-ros-moveit-user
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { prefix: ros, os: "24.04", ros: rolling, tag: "24.04-rolling" }
+          - { prefix: ros, os: "24.04", ros: kilted, tag: "24.04-kilted" }
+          - { prefix: ros, os: "24.04", ros: jazzy, tag: "24.04-jazzy" }
+          - { prefix: ros, os: "22.04", ros: humble, tag: "22.04-humble" }
+          - { prefix: ros, os: "26.04", ros: lyrical, tag: "26.04-lyrical" }
+          - { prefix: moveit, os: "24.04", ros: kilted, tag: "24.04-kilted-moveit" }
+          - { prefix: moveit, os: "24.04", ros: jazzy, tag: "24.04-jazzy-moveit" }
+          - { prefix: moveit, os: "22.04", ros: humble, tag: "22.04-humble-moveit" }
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-${{ matrix.prefix }}-${{ matrix.os }}-${{ matrix.ros }}-*
+          path: /tmp/digests
+          merge-multiple: true
+      - name: Create manifest list
+        env:
+          TARGET: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}
+          SOURCE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          mapfile -t refs < <(find /tmp/digests -type f -printf "${SOURCE}@sha256:%f\n")
+          if [[ ${#refs[@]} -eq 0 ]]; then
+            echo "No digests found for ${TARGET}" >&2
+            exit 1
+          fi
+          docker buildx imagetools create -t "${TARGET}" "${refs[@]}"
+          docker buildx imagetools inspect "${TARGET}"
 
   cleanup-intermediates:
     name: Delete intermediate stage packages
     runs-on: ubuntu-latest
     needs:
-      - finalize-base-ros-user
-      - finalize-base-ros-moveit-user
+      - publish-manifests
     # Only the final user images are meant to persist. Delete the intermediate
     # secondary packages once every final image has been pushed. Skipped on PRs
     # (which don't push). All required final jobs must succeed. Versions protected
