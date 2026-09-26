@@ -105,6 +105,7 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
   - [ROS publication](.github/workflows/ros2-staged.yml)
   - [PyTorch publication](.github/workflows/pytorch-staged.yml)
   - [Build regression checks](.github/workflows/build-validation.yml)
+  - [Documentation build + Pages deploy](.github/workflows/docs.yml)
 
 ## Repository layout
 
