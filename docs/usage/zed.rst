@@ -548,9 +548,44 @@ Troubleshooting
    right ``ZED_SSH_PUBKEY``.
 
 ``REMOTE HOST IDENTIFICATION HAS CHANGED``
-   Host keys are created when the image is built, so rebuilding it gives new
-   keys. Remove the old entry: ``ssh-keygen -R "[localhost]:2222"``. With
-   :ref:`zed-proxycommand`, remove the ``wbcc`` entry instead.
+   Zed may report ``Failed to run 'uname -sm' to determine platform`` followed
+   by this warning and ``Host key verification failed``. SSH stops before
+   running ``uname`` because the server key differs from the saved entry in
+   your local ``known_hosts`` file.
+
+   This image creates SSH host keys during its build. Rebuilding that layer
+   or switching images can change the keys; restarting the same container
+   does not. Verify the new key directly through Docker before replacing
+   the saved entry. For ``rsi-windows`` on port ``2223``:
+
+   .. code-block:: powershell
+
+      docker exec windows-rsi-windows-1 ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+
+   Compare the SHA256 fingerprint with the ED25519 fingerprint in Zed's
+   error. If they match, run these commands in a local PowerShell terminal:
+
+   .. code-block:: powershell
+
+      ssh-keygen -R "[localhost]:2223" -f "$env:USERPROFILE/.ssh/known_hosts"
+      ssh -o HostKeyAlgorithms=ssh-ed25519 -p 2223 admin@localhost
+
+   Check that the connection prompt shows the verified fingerprint, then
+   type ``yes`` to save it. After login, run ``exit`` and reconnect in Zed.
+   The algorithm option makes this check use the same ED25519 key you
+   verified; it is not needed for subsequent connections.
+
+   Use the hostname, port and ``known_hosts`` path shown in your own error.
+   For ``wbcc-zed-windows``, use container ``windows-wbcc-zed-windows-1`` and
+   port ``2222``. With :ref:`zed-proxycommand`, remove the saved alias instead
+   (for example, ``ssh-keygen -R wbcc``), then reconnect with ``ssh wbcc``.
+   On Linux/macOS, use ``~/.ssh/known_hosts`` for the file path.
+
+   If the fingerprints differ, check which container or server owns that
+   address before proceeding. Do not disable host key checking or delete
+   the entire ``known_hosts`` file. The
+   `OpenSSH ssh-keygen manual <https://man.openbsd.org/ssh-keygen>`_ documents
+   ``-R`` for removing only the specified host's saved keys.
 
 ``authorized_keys`` is a directory
    The key file did not exist when the container started, so Docker created a
