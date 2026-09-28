@@ -230,7 +230,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/digests
           echo -n "${DIGEST}" > "/tmp/digests/${DIGEST#sha256:}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: digest-ros-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
           path: /tmp/digests/*
@@ -287,7 +287,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/digests
           echo -n "${DIGEST}" > "/tmp/digests/${DIGEST#sha256:}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: digest-moveit-${{ matrix.target.os }}-${{ matrix.target.ros }}-${{ matrix.platform.arch }}
           path: /tmp/digests/*
