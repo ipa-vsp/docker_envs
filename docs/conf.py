@@ -21,6 +21,7 @@ BRANCH = "main"
 GUIDES = {
     "README.md": "overview",
     "docs/ISAAC_WORKFLOW.md": "isaac-workflow",
+    "docs/UID_GID.md": "uid-gid",
     "creator/README.md": "creator",
     "gui/README.md": "gui",
     "composer/template/README.md": "composer-template",
@@ -42,13 +43,16 @@ extensions = [
     "myst_parser",
     "sphinx_design",
     "sphinx_copybutton",
+    "sphinxcontrib.mermaid",
 ]
 
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 root_doc = "index"
-exclude_patterns = ["_build", ".venv", "ISAAC_WORKFLOW.md", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", ".venv", "ISAAC_WORKFLOW.md", "UID_GID.md", "Thumbs.db", ".DS_Store"]
 
 myst_enable_extensions = ["colon_fence", "deflist"]
+# ```mermaid fences render on GitHub natively and as diagrams here.
+myst_fence_as_directive = ["mermaid"]
 # GitHub-style anchors, so "creator.md#uv-sync-permission-denied" resolves.
 myst_heading_anchors = 4
 

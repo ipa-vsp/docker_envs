@@ -32,6 +32,12 @@ Sim / Isaac Lab.
 
       End-to-end workflow from host setup to training runs.
 
+   .. grid-item-card:: UID / GID explained
+      :link: _generated/uid-gid
+      :link-type: doc
+
+      Step-by-step guide with diagrams: why mounts become read-only and how to fix it.
+
    .. grid-item-card:: Compose examples
       :link: composer/index
       :link-type: doc
@@ -63,6 +69,7 @@ Sim / Isaac Lab.
 
    _generated/overview
    _generated/isaac-workflow
+   _generated/uid-gid
 
 .. toctree::
    :caption: Building images

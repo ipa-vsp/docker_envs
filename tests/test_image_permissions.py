@@ -24,10 +24,31 @@ class ImagePermissionsTests(unittest.TestCase):
             "bash",
             "-c",
             'test "$(id -u)" = 12345 && test "$(id -g)" = 23456 && '
-            'test -w "$HOME" && test -w "$HOME/colcon_ws" && '
-            'test -w "$HOME/colcon_ws/src" && test -w "$HOME/workspace" && '
-            'touch "$HOME/colcon_ws/probe"',
+            'test -w "$HOME" && test -w "$HOME/workspace" && '
+            'test "$PWD" = "$HOME" && '
+            # The workspace is the user's choice; the image must not ship one.
+            'test ! -e "$HOME/colcon_ws"',
         )
+
+    def test_src_only_mount_leaves_a_writable_workspace(self):
+        # Docker creates the missing ~/colcon_ws parent as root; the entrypoint
+        # hands it back to the account so colcon can write build/install/log.
+        volume = f"docker-envs-src-{uuid.uuid4().hex}"
+        self.docker("volume", "create", volume)
+        try:
+            self.docker(
+                "run",
+                "--rm",
+                "--network=none",
+                "--mount",
+                f"type=volume,source={volume},target=/home/admin/colcon_ws/src",
+                IMAGE,
+                "bash",
+                "-c",
+                'mkdir "$HOME/colcon_ws/build"',
+            )
+        finally:
+            self.docker("volume", "rm", volume)
 
     def test_empty_named_volume_inherits_workspace_ownership(self):
         volume = f"docker-envs-permissions-{uuid.uuid4().hex}"
@@ -38,11 +59,11 @@ class ImagePermissionsTests(unittest.TestCase):
                 "--rm",
                 "--network=none",
                 "--mount",
-                f"type=volume,source={volume},target=/home/admin/colcon_ws",
+                f"type=volume,source={volume},target=/home/admin/workspace",
                 IMAGE,
                 "bash",
                 "-c",
-                'touch "$HOME/colcon_ws/probe"',
+                'touch "$HOME/workspace/probe"',
             )
         finally:
             self.docker("volume", "rm", volume)
@@ -60,8 +81,8 @@ class ImagePermissionsTests(unittest.TestCase):
             'test -s "$HOME/.claude/skills/graphify/SKILL.md" && '
             'test -w "$HOME/.claude/skills/graphify/SKILL.md" && '
             'test -w "$HOME/.local/share/claude" && '
-            'test -w "$HOME/colcon_ws/.claude" && '
-            'git -C "$HOME/colcon_ws/.claude" remote get-url origin',
+            'test -w "$HOME/.claude/.git" && '
+            'git -C "$HOME/.claude" remote get-url origin',
         )
         self.assertIn("Claude Code", result.stdout)
         self.assertIn("https://github.com/ipa-vsp/.claude.git", result.stdout)
@@ -83,7 +104,7 @@ class ImagePermissionsTests(unittest.TestCase):
                     "exit",
                 )
                 self.assertIn("docker_envs", result.stdout)
-                self.assertIn("/home/admin/colcon_ws", result.stdout)
+                self.assertIn("none — mount one at /home/admin/colcon_ws", result.stdout)
                 self.assertNotIn("\x1b[", result.stdout)
                 if user == "0:0":
                     self.assertIn("WARNING: This shell is running as root", result.stdout)

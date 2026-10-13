@@ -31,12 +31,18 @@ ENV PATH=/home/${USERNAME}/.local/bin:${PATH}
 COPY --chmod=0755 creator/scripts/workspace-entrypoint.sh /usr/local/bin/scripts/workspace-entrypoint.sh
 
 USER ${USERNAME}
-WORKDIR /home/${USERNAME}/colcon_ws
+# The home, not a workspace: the image ships no colcon_ws (see create_user.sh).
+WORKDIR /home/${USERNAME}
 # Install into the development user's home, with pipefail propagating download errors.
 RUN curl -fsSL https://claude.ai/install.sh | bash
+# Shared skills/agents/rules go into the user-level ~/.claude, so a workspace
+# mounted at ~/colcon_ws cannot hide them. ~/.claude may already hold Claude's
+# own state, so check the repository out over it instead of cloning into it.
 RUN claude --version && \
-    if [[ ! -e .claude && ! -L .claude ]]; then \
-        git clone https://github.com/ipa-vsp/.claude.git .claude; \
+    if [[ ! -d .claude/.git ]]; then \
+        git clone --no-checkout https://github.com/ipa-vsp/.claude.git /tmp/dot-claude && \
+        mkdir -p .claude && mv /tmp/dot-claude/.git .claude/.git && rm -rf /tmp/dot-claude && \
+        git -C .claude reset --hard --quiet HEAD; \
     fi
 
 # Graphify lives in the shared environment too (owned by the account by now).

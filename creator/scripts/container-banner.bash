@@ -16,7 +16,11 @@ __docker_envs_banner() {
     printf '%s  • • •%s\n\n' "$red" "$reset"
     printf '  %sUser%s       %s (UID %s · GID %s)\n' \
         "$cyan" "$reset" "$(id -un 2>/dev/null || printf 'unknown')" "$(id -u)" "$(id -g)"
-    printf '  %sWorkspace%s  %s\n' "$cyan" "$reset" "${HOME}/colcon_ws"
+    if [[ -d ${HOME}/colcon_ws ]]; then
+        printf '  %sWorkspace%s  %s\n' "$cyan" "$reset" "${HOME}/colcon_ws"
+    else
+        printf '  %sWorkspace%s  none — mount one at %s/colcon_ws\n' "$cyan" "$reset" "$HOME"
+    fi
     if [[ -n ${ROS_DISTRO:-} ]]; then
         printf '  %sROS%s        %s\n' "$cyan" "$reset" "$ROS_DISTRO"
     fi

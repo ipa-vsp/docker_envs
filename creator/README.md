@@ -188,6 +188,9 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
 
 ### Workspace
 
+- The image ships no `~/colcon_ws`; `-w` mounts your host folder there
+- Mounting only `~/colcon_ws/src` → the entrypoint hands the Docker-created `~/colcon_ws` back to the account (never recursive, never a mountpoint)
+- UID/GID background → [UID / GID guide](../docs/UID_GID.md)
 - Whole workspace mounted; working directory set to it
 - Runs with your UID/GID
 - Paths with spaces → supported
@@ -235,16 +238,10 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
   - Runs `graphify install` to register the Claude skill in the user's config
   - `graphify` is on `PATH` through `/opt/venv/bin`
   - In Claude, run `/graphify .` to build a graph for the current workspace
-- Build clones `https://github.com/ipa-vsp/.claude.git` → `~/colcon_ws/.claude`
-- Existing `.claude` directory → preserved when extending an image
-- Host workspace mounted at `~/colcon_ws` → hides the image clone → set it up once inside the container:
-
-```bash
-cd ~/colcon_ws
-git clone https://github.com/ipa-vsp/.claude.git
-```
-
-- Keep an existing `.claude` directory
+- Build checks out `https://github.com/ipa-vsp/.claude.git` into the user-level `~/.claude`
+  - Skills, agents, rules and `CLAUDE.md` apply in every directory, including a mounted workspace
+  - Checked out over any state Claude already wrote there; an existing `~/.claude/.git` is kept
+  - Update later with `git -C ~/.claude pull`
 - Start `claude` from the workspace → follow the sign-in prompts
 - Shell startup → no downloads, no workspace changes
 - Interactive Bash banner → user, numeric UID/GID, workspace, ROS distro, Claude availability
@@ -395,6 +392,8 @@ python -c "import curobo; print(curobo.__version__)"
 - Compose alternative with named volumes → [composer/isaaclab](../composer/isaaclab/README.md)
 
 ## Permissions and storage
+
+New to UID/GID? Start with the [step-by-step guide with diagrams](../docs/UID_GID.md).
 
 ### Rules
 

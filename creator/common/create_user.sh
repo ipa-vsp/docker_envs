@@ -48,8 +48,9 @@ if [[ -n "$previous_gid" && "$previous_gid" != "$USER_GID" ]]; then
     find "/home/$USERNAME" -xdev -uid "$USER_UID" -gid "$previous_gid" \
         -exec chgrp "$USER_GID" {} +
 fi
-install -d -o "$USER_UID" -g "$USER_GID" \
-    "/home/$USERNAME/colcon_ws" "/home/$USERNAME/colcon_ws/src" "/home/$USERNAME/workspace"
+# No colcon_ws here: the workspace is the user's choice (run_env.sh -w mounts
+# one at ~/colcon_ws; dockgen can create it in a derived image).
+install -d -o "$USER_UID" -g "$USER_GID" "/home/$USERNAME/workspace"
 # Editable Isaac Lab installs regenerate metadata in the source tree. Keep this
 # in the final account layer so expensive dependency layers remain shareable.
 # Do not follow source symlinks into other installation or system paths.

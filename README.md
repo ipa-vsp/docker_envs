@@ -81,6 +81,7 @@ See the [GUI guide](gui/README.md).
 | One-off shell | `creator/scripts/run_env.sh -r -i <img> -w <workspace>` |
 
 - Workspace → must already exist; mounted at `~/colcon_ws`; ownership never changed
+- `Permission denied` on the workspace? → [UID / GID guide](docs/UID_GID.md) (step by step, with diagrams)
 - Devices → explicit only: `-g` all NVIDIA GPUs, `-d /dev/<device>` one device
 - `-H` → host network + IPC (ROS 2 discovery)
 - Isaac images → GPU, caches and Isaac Lab output mounts added automatically
@@ -174,10 +175,10 @@ USER admin
 - Loads ROS and Zenoh (when installed), applies `WORKSPACE_UMASK`, then `exec`s the command
 - No package updates, rosdep updates, Git pulls or host sysctl changes at startup
 - Interactive Bash → banner with user, workspace, ROS distro; warning when root
-- Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) cloned at `~/colcon_ws/.claude`
+- Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) checked out at the user-level `~/.claude`
 - Python → one shared environment, `/opt/venv`: active by default (`(venv)` prompt), writable by the user, visible to ROS 2 → see [Python environment](creator/README.md#python-environment-optvenv)
 - Graphify → installed into `/opt/venv` after Claude; skill registered with `graphify install`
-- Mounted workspace hides that clone → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
+- No `~/colcon_ws` in the image → mount yours with `-w`, or let dockgen create it in a derived image
 
 ## Validation
 
