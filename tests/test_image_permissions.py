@@ -87,6 +87,26 @@ class ImagePermissionsTests(unittest.TestCase):
         self.assertIn("Claude Code", result.stdout)
         self.assertIn("https://github.com/ipa-vsp/.claude.git", result.stdout)
 
+    def test_claude_plugins_and_node_tools_are_installed_for_development_user(self):
+        result = self.docker(
+            "run",
+            "--rm",
+            "--network=none",
+            IMAGE,
+            "bash",
+            "-c",
+            "claude plugin list && "
+            "rea --version && "
+            "command -v omniroute && "
+            'test -s "$HOME/.claude/skills/reverse-engineer-anything/SKILL.md" && '
+            'grep -q \'"rea"\' "$HOME/.claude.json" && '
+            'test -w "$HOME/.claude/plugins" && '
+            'test -w "$(npm prefix --global)/lib/node_modules/rea-agents"',
+        )
+        for plugin in ("claude-code-setup", "security-guidance", "caveman"):
+            self.assertIn(plugin, result.stdout)
+        self.assertNotIn("claude-security", result.stdout)
+
     def test_interactive_banner_reports_identity_and_root_warning(self):
         for user in ("12345:23456", "0:0"):
             with self.subTest(user=user):

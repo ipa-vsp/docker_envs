@@ -242,6 +242,18 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
   - Skills, agents, rules and `CLAUDE.md` apply in every directory, including a mounted workspace
   - Checked out over any state Claude already wrote there; an existing `~/.claude/.git` is kept
   - Update later with `git -C ~/.claude pull`
+- After the checkout, the build installs Claude Code plugins (user scope):
+  - Anthropic official ([`claude-plugins-official`](https://github.com/anthropics/claude-plugins-official)) → `claude-code-setup`, `security-guidance`
+  - [Caveman](https://github.com/JuliusBrussee/caveman) → `caveman@caveman`; turn on per session with `/caveman`
+  - List / remove → `claude plugin list`, `claude plugin uninstall <name>`
+- Node.js (latest of `NODE_MAJOR`, default 24) → official tarball in `/usr/local`, checksum-verified
+  - Global npm packages → `NPM_CONFIG_PREFIX=~/.local`, no root needed
+- [REA](https://github.com/morluto/rea) → `npm install --global rea-agents`, then `rea setup --yes --client claude_code`
+  - Registers the `rea` MCP server in `~/.claude.json` and the `reverse-engineer-anything` skill
+  - Analysis engines (Ghidra, IDA, Hopper, ...) are not installed → `rea setup` inside the container
+- [OmniRoute](https://github.com/diegosouzapw/OmniRoute) → `npm install --global omniroute`; installed only
+  - Claude Code is not routed through it; it needs its own secrets and a running gateway
+  - Start → `omniroute` (dashboard on port `20128`), then `omniroute configure claude`
 - Start `claude` from the workspace → follow the sign-in prompts
 - Shell startup → no downloads, no workspace changes
 - Interactive Bash banner → user, numeric UID/GID, workspace, ROS distro, Claude availability

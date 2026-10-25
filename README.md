@@ -178,6 +178,8 @@ USER admin
 - Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) checked out at the user-level `~/.claude`
 - Python → one shared environment, `/opt/venv`: active by default (`(venv)` prompt), writable by the user, visible to ROS 2 → see [Python environment](creator/README.md#python-environment-optvenv)
 - Graphify → installed into `/opt/venv` after Claude; skill registered with `graphify install`
+- Claude plugins → `claude-code-setup`, `security-guidance` (Anthropic official), `caveman`
+- Node.js 24 → REA (MCP server + skill registered for Claude) and OmniRoute (installed, not configured) → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
 - No `~/colcon_ws` in the image → mount yours with `-w`, or let dockgen create it in a derived image
 
 ## Validation
