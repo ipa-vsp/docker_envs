@@ -6,5 +6,8 @@
 # make it load the host's libraries against the bundled interpreter.
 HERE="$(dirname "$(readlink -f "$0")")"
 unset PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LD_PRELOAD QT_PLUGIN_PATH QML2_IMPORT_PATH
+# Host GIO extensions may require a newer GLib than the bundled Qt uses.
+unset GIO_EXTRA_MODULES
+export GIO_MODULE_DIR="${HERE}/usr/lib/gio/modules"
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
 exec "${HERE}/usr/bin/docker-envs-gui" "$@"

@@ -12,8 +12,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+
 from datetime import datetime
 from dataclasses import dataclass
+
+from .process_env import host_environment
 
 # Reads are quick; an action on a container can take as long as its stop timeout.
 READ_TIMEOUT = 30
@@ -130,6 +133,7 @@ class DockerCli:
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                env=host_environment(),
             )
         except FileNotFoundError as exc:
             raise DockerError(f"{self.executable} is not installed or not on PATH") from exc

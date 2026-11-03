@@ -7,13 +7,13 @@ module encodes build rules; it only turns unit-separated records into objects.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .model import Plan, PlanLayer, Selection
+from .process_env import host_environment
 
 US = "\x1f"
 
@@ -75,7 +75,7 @@ class Bridge:
         extra_env: dict[str, str] | None = None,
         timeout: int = PLAN_TIMEOUT,
     ) -> list[list[str]]:
-        env = dict(os.environ)
+        env = host_environment()
         # A DEG_* left over from a previous call would silently re-enter the
         # selection, so the namespace is cleared before each run.
         for name in [key for key in env if key.startswith("DEG_")]:
@@ -168,6 +168,8 @@ class Bridge:
                 out.selection[record[1]] = record[2]
             elif record[0] == "SUPPORTED_OS":
                 out.supported_os = record[1].split()
+        if not out.fallbacks or not out.supported_os or not out.selection:
+            raise BridgeError(f"Cannot read stage defaults from {self.script}")
         return out
 
     # ----- preflight -------------------------------------------------------- #
@@ -181,7 +183,13 @@ class Bridge:
         status.client = True
 
         def probe(*args: str) -> subprocess.CompletedProcess[str]:
-            return subprocess.run(["docker", *args], capture_output=True, text=True, timeout=15)
+            return subprocess.run(
+                ["docker", *args],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                env=host_environment(),
+            )
 
         try:
             info = probe("info", "--format", "{{.ServerVersion}}")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -541,7 +542,8 @@ class MainWindow(QMainWindow):
         self.refresh_button.setEnabled(False)
         self._pending_lookups += len(kinds)
         for kind in kinds:
-            self.form.version_combo(kind).set_loading(self.form.defaults.fallbacks[kind.upper()])
+            combo = self.form.version_combo(kind)
+            combo.set_loading(self.form.defaults.fallbacks.get(kind.upper(), combo.value()))
             if kind == "isaaclab":
                 self._submit(self._isaaclab_choices, self._apply_isaaclab_choices)
             else:
@@ -763,7 +765,55 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="resolve the checkout, plan the default stack and exit (no window)",
     )
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
+    parser.add_argument(
+        "--check-gui",
+        action="store_true",
+        help="construct the window with offline version lookups, verify startup and exit",
+    )
     return parser.parse_args(argv)
+
+
+def run_gui_check(repo_root: Path) -> int:
+    """Exercise window startup without online lookups or saved user settings."""
+
+    class OfflineBridge(Bridge):
+        def versions(self, kind, os_version=None, limit=8):
+            return []
+
+        def branches(self, limit=4):
+            return []
+
+    app = QApplication(sys.argv[:1])
+    app.setApplicationName(f"{APP_NAME}-check")
+    config = tempfile.TemporaryDirectory(prefix="docker-envs-gui-check-")
+    QSettings.setPath(QSettings.Format.NativeFormat, QSettings.Scope.UserScope, config.name)
+    bridge = OfflineBridge(repo_root)
+    window = MainWindow(bridge, bridge.defaults())
+    window.show()
+    result = 1
+
+    def verify() -> None:
+        nonlocal result
+        if window._tasks or window._plan_timer.isActive():
+            return
+        if window.plan.ok and window._pending_lookups == 0:
+            result = 0
+            print("window:    startup OK (offline version lookups)")
+        else:
+            print(f"window:    FAILED — {window.status_label.text()}")
+        app.quit()
+
+    poll = QTimer()
+    poll.timeout.connect(verify)
+    poll.start(20)
+    QTimer.singleShot(15000, app.quit)
+    try:
+        app.exec()
+    finally:
+        window.pool.waitForDone()
+        window.close()
+        config.cleanup()
+    return result
 
 
 def run_check(repo_root: Path) -> int:
@@ -795,6 +845,13 @@ def run_check(repo_root: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+
+    if args.check_gui:
+        try:
+            return run_gui_check(resolve(args.repo_root))
+        except (RepoError, BridgeError) as exc:
+            print(f"window:    FAILED — {exc}")
+            return 2
 
     if args.check:
         # Deliberately before QApplication: this has to work without a display.

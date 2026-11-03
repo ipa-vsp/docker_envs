@@ -21,6 +21,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from .model import BUILD_STEP, LAYER_HEADING
+from .process_env import host_environment
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -30,7 +31,7 @@ KILL_GRACE_MS = 5000
 
 def build_environment() -> dict[str, str]:
     """Environment for the build subprocess."""
-    env = dict(os.environ)
+    env = host_environment()
     # Without a TTY, BuildKit's default renderer still emits cursor-addressing
     # escapes; plain mode keeps the log line-oriented and readable in a QTextEdit.
     env["BUILDKIT_PROGRESS"] = "plain"

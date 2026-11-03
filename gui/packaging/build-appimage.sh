@@ -45,6 +45,7 @@ python3 -m PyInstaller --noconfirm --clean \
 # --- 2. assemble the AppDir --------------------------------------------------- #
 info "Assembling ${APPDIR}"
 mkdir -p "${APPDIR}/usr/bin" \
+         "${APPDIR}/usr/lib/gio/modules" \
          "${APPDIR}/usr/share/applications" \
          "${APPDIR}/usr/share/icons/hicolor/scalable/apps"
 cp -a "${FROZEN}/${APP}/." "${APPDIR}/usr/bin/"
@@ -113,6 +114,7 @@ ARCH="${ARCH}" "${APPIMAGETOOL}" --appimage-extract-and-run --no-appstream \
 # proves the packaged tree is usable rather than merely present.
 info "Self-testing the AppImage"
 ( cd / && APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen "${OUTPUT}" --check )
+( cd / && APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen "${OUTPUT}" --check-gui )
 
 info "Built ${OUTPUT}"
 ls -lh "${OUTPUT}"

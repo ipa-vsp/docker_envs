@@ -32,6 +32,7 @@ Useful arguments:
 | `--repo-root PATH` | Build from a particular `docker_envs` checkout. |
 | `--check` | Resolve the checkout, plan the default stack, print the result and exit. No window; used by the packaging pipeline. |
 | `--version` | Print the version. |
+| `--check-gui` | Open and close the window with offline version lookups to verify packaged startup. Use `QT_QPA_PLATFORM=offscreen` without a display. |
 
 The checkout is resolved in this order:
 
@@ -190,5 +191,6 @@ AppImage inherits the glibc of the machine that built it, so building on a newer
 runner would produce one that refuses to start on older systems. Tagged pushes
 (`v*`) attach the AppImage and its checksum to the GitHub release.
 
-The final step runs the packaged application with `--check` from `/`, which
-proves the bundled `creator/` tree is not merely present but usable.
+The final step runs the packaged application with `--check` and `--check-gui`
+from `/`, verifying the bundled `creator/` tree and window startup. Online
+version lookups are disabled during the window check.
