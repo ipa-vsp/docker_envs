@@ -48,10 +48,27 @@ class PlanRecordTests(unittest.TestCase):
             [
                 "common/Dockerfile.base",
                 "ros2/Dockerfile.jazzy",
-                "common/Dockerfile.venv",
                 "common/Dockerfile.user",
             ],
         )
+
+    def test_pure_ros_stacks_have_no_venv_layer(self):
+        for os_version, ros in (
+            ("24.04", "rolling"),
+            ("26.04", "lyrical"),
+            ("24.04", "jazzy"),
+            ("22.04", "humble"),
+        ):
+            with self.subTest(ros=ros):
+                result, records = query("plan", os=os_version, ros=ros, usage="both")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                files = [record[1] for record in records_of("LAYER", records)]
+                self.assertNotIn("common/Dockerfile.venv", files)
+
+    def test_mujoco_stack_adds_venv_after_ros(self):
+        _result, records = query("plan", os="24.04", ros="jazzy", mujoco="true")
+        files = [record[1] for record in records_of("LAYER", records)]
+        self.assertEqual(files.index("common/Dockerfile.venv"), files.index("ros2/Dockerfile.jazzy") + 1)
 
     def test_layer_records_carry_build_arguments(self):
         _result, records = query(

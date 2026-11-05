@@ -336,7 +336,7 @@ if [[ "${STAGES_ISAACLAB}" == true ]]; then
     printf '  %-16s %s\n' "Lab selectors:" "$(stages::isaaclab_effective_install)"
 fi
 printf '  %-16s %s\n' "cuRobo:"    "$([[ ${STAGES_CUROBO} == true ]] && echo "${STAGES_CUROBO_VERSION}" || echo "-")"
-printf '  %-16s %s\n' "Python env:" "/opt/venv ($(stages::venv_python))"
+printf '  %-16s %s\n' "Python env:" "$(stages::needs_venv && echo "/opt/venv ($(stages::venv_python))" || echo "system (no venv)")"
 printf '  %-16s %s\n' "Zenoh:"     "$([[ ${STAGES_ZENOH} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "Gazebo:"    "$([[ ${STAGES_SIMULATION} == true ]] && echo "yes" || echo "-")"
 printf '  %-16s %s\n' "User:"      "${STAGES_USERNAME} (${STAGES_USER_UID}:${STAGES_USER_GID})"

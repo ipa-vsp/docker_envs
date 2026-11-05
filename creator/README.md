@@ -88,8 +88,9 @@ creator/scripts/run_env.sh -p -o 24.04 -v jazzy -c -I -L
 
 ### Stage order
 
-- base → ROS → venv → MuJoCo → MoveIt/Nav2 → Isaac Sim → Isaac Lab → cuRobo → Zenoh → Gazebo → user
-- `venv` is always built: it creates the one shared Python environment, `/opt/venv`
+- base → ROS → [venv] → MuJoCo → MoveIt/Nav2 → Isaac Sim → Isaac Lab → cuRobo → Zenoh → Gazebo → user
+- `venv` is built only with MuJoCo, Isaac Sim, Isaac Lab or cuRobo: it creates the one shared Python
+  environment, `/opt/venv`. Pure ROS 2 images (any distro, MoveIt/Nav2/Zenoh/Gazebo included) have no venv
 - Each stage builds on its parent and keeps its tools
 - Both front ends share `scripts/lib/stages.sh` → identical names and layers
 
@@ -234,9 +235,9 @@ creator/scripts/run_env.sh -r -i docker_envs:24.04-jazzy-moveit \
   - `curl -fsSL https://claude.ai/install.sh | bash`
   - `~/.local/bin` on `PATH`, also for non-interactive commands
 - After Claude, the build installs [Graphify](https://graphify.com/docs/install) as the development user:
-  - Installs `graphifyy` into the shared `/opt/venv` (no separate tool environment)
+  - With a venv: installs `graphifyy` into the shared `/opt/venv`; `graphify` is on `PATH` through `/opt/venv/bin`
+  - Pure ROS 2 (no venv): `uv tool install graphifyy`; `graphify` is on `PATH` through `~/.local/bin`
   - Runs `graphify install` to register the Claude skill in the user's config
-  - `graphify` is on `PATH` through `/opt/venv/bin`
   - In Claude, run `/graphify .` to build a graph for the current workspace
 - Build checks out `https://github.com/ipa-vsp/.claude.git` into the user-level `~/.claude`
   - Skills, agents, rules and `CLAUDE.md` apply in every directory, including a mounted workspace
@@ -324,11 +325,12 @@ creator/scripts/run_env.sh -b -o 24.04 -v jazzy -I 6.1.0.0 \
 
 ### Python environment (`/opt/venv`)
 
-- Every image has exactly one Python environment, `/opt/venv`; no layer creates another one
+- Only images with MuJoCo, Isaac Sim, Isaac Lab or cuRobo have a Python environment, `/opt/venv`;
+  no layer creates another one
   - Created once by `common/Dockerfile.venv` (script: `common/setup_venv.sh`), right after ROS
   - MuJoCo, Isaac Sim, Isaac Lab, cuRobo and Graphify all install into it
-  - CI images (no venv layer) get the same environment from `Dockerfile.user`
-- Always active: `$VIRTUAL_ENV=/opt/venv`, `/opt/venv/bin` first on `PATH`, prompt shows `(venv)`
+  - Pure ROS 2 images and CI images have no venv: system Python, no `$VIRTUAL_ENV`, no `zz-opt-venv.pth`
+- When present, always active: `$VIRTUAL_ENV=/opt/venv`, `/opt/venv/bin` first on `PATH`, prompt shows `(venv)`
   - `python`, `pip`, `uv pip` → `/opt/venv`; `--system-site-packages` keeps apt's `python3-*` visible
 - Owned by the container user → `pip install <pkg>` / `uv pip install <pkg>` work without `sudo`
 - Interpreter: distribution Python (ROS's) unless a layer pins one

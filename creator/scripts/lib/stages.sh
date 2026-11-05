@@ -192,6 +192,13 @@ stages::isaacsim_python() {
 # The one /opt/venv interpreter for the selection: Isaac Sim pins its wheels'
 # CPython, Isaac Lab 3.x and cuRobo need 3.12, anything else uses the
 # distribution Python that ROS is built for ("system").
+# /opt/venv is only built for the Python-heavy stacks; a pure ROS 2 image
+# (any distro, with or without MoveIt/Nav2/Zenoh/Gazebo) uses the system Python.
+stages::needs_venv() {
+    [[ "${STAGES_MUJOCO}" == true || "${STAGES_ISAACSIM}" == true \
+        || "${STAGES_ISAACLAB}" == true || "${STAGES_CUROBO}" == true ]]
+}
+
 stages::venv_python() {
     if [[ "${STAGES_ISAACSIM}" == true ]]; then
         stages::isaacsim_python "${STAGES_ISAACSIM_VERSION}"
@@ -483,9 +490,9 @@ stages::validate_curobo() {
 }
 
 # Turn the selection into an ordered build plan and derive the image names.
-# Layer order matches ros2-staged.yml: base -> ros -> venv -> mujoco -> usage
-# -> extras -> user. ros2-staged.yml has no venv layer; Dockerfile.user creates
-# the same environment there.
+# Layer order matches ros2-staged.yml: base -> ros -> [venv] -> mujoco -> usage
+# -> extras -> user. The venv layer exists only when stages::needs_venv; CI
+# images (ros2-staged.yml) are pure ROS and have no venv.
 stages::build_plan() {
     stages::validate_isaaclab || return 1
     stages::validate_curobo || return 1
@@ -516,14 +523,17 @@ stages::build_plan() {
 
     # --- shared Python environment (/opt/venv) -----------------------------
     # The only place the environment is created; every later Python layer
-    # installs into it. A pinned interpreter is part of the tag so distro-Python
-    # and Isaac-compatible environments are cached side by side.
-    local venv_python; venv_python="$(stages::venv_python)"
-    [[ "${venv_python}" != system ]] && stages::tag_add "py${venv_python}"
-    image="$(stages::layer_image venv)"
-    stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.venv" "${base_image}" "${image}" \
-        "--build-arg" "PYTHON_VERSION=${venv_python}"
-    base_image="${image}"
+    # installs into it. Only MuJoCo, Isaac Sim, Isaac Lab and cuRobo need it.
+    # A pinned interpreter is part of the tag so distro-Python and
+    # Isaac-compatible environments are cached side by side.
+    if stages::needs_venv; then
+        local venv_python; venv_python="$(stages::venv_python)"
+        [[ "${venv_python}" != system ]] && stages::tag_add "py${venv_python}"
+        image="$(stages::layer_image venv)"
+        stages::_plan_add "${CREATOR_DIR}/common/Dockerfile.venv" "${base_image}" "${image}" \
+            "--build-arg" "PYTHON_VERSION=${venv_python}"
+        base_image="${image}"
+    fi
 
     # --- MuJoCo -------------------------------------------------------------
     if [[ "${STAGES_MUJOCO}" == true ]]; then

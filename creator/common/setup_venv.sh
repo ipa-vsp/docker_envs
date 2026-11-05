@@ -2,9 +2,9 @@
 # Build-time creation of the single, image-wide Python environment.
 #
 # Every Python layer (MuJoCo, Isaac Sim, Isaac Lab, cuRobo, Graphify) installs
-# into this one environment; none of them creates its own. It is created by
-# Dockerfile.venv right after the ROS layer, and by Dockerfile.user as a fallback
-# for stacks that skip that layer (the CI images).
+# into this one environment; none of them creates its own. It is created only by
+# Dockerfile.venv, right after the ROS layer, and only when the selection needs
+# it (stages::needs_venv). Pure ROS images and CI images have no venv.
 #
 # PYTHON_VERSION is "system" (the distribution interpreter ROS is built for) or
 # an X.Y version that a later layer pins, e.g. Isaac Sim's wheels.

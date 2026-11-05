@@ -87,7 +87,7 @@ flowchart TB
   `--user <uid>:<gid>`).
 
 If ③ matches ① you can write your files. If ② also matches, the process has a
-proper name, a home it owns (`~/.cache`, `~/.local`, `/opt/venv`) and `sudo`.
+proper name, a home it owns (`~/.cache`, `~/.local`, `/opt/venv` when present) and `sudo`.
 
 ## 4. Step by step: the normal workflow
 
@@ -135,7 +135,7 @@ creator/scripts/run_env.sh -b -o 24.04 -v jazzy -U 1001 -G 1001   # explicit
 ```
 
 The final layer (`creator/common/Dockerfile.user`) creates the account
-(`admin` by default) with those numbers and gives it its home, `/opt/venv`
+(`admin` by default) with those numbers and gives it its home, `/opt/venv` (when present)
 and passwordless `sudo`. It does **not** create `~/colcon_ws` — the workspace
 is yours to mount (step 4) or to add in a derived image (see
 [dockgen](#dockgen-and-pre-built-images)).

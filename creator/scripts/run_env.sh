@@ -63,9 +63,10 @@ Container (-r, -S, -E, -K):
   -X                Do not auto-configure Isaac (skip GPU, cache and output mounts)
   -h                Show this help
 
-Every image has one Python environment, /opt/venv: active by default,
-owned by the container user, and visible to ROS 2 (system Python) when its
-Python matches the distribution's.
+Images with MuJoCo, Isaac Sim, Isaac Lab or cuRobo have one Python
+environment, /opt/venv: active by default, owned by the container user, and
+visible to ROS 2 (system Python) when its Python matches the distribution's.
+Pure ROS 2 images have no venv and use the system Python.
 
 Isaac images are detected automatically in -r/-S mode:
   - Isaac Sim: GPU, EULA variables, Omniverse caches under ~/docker/isaac-sim

@@ -14,13 +14,10 @@ ARG NODE_MAJOR=24
 RUN --mount=type=bind,source=creator/common/install_node.sh,target=/tmp/install_node.sh \
     NODE_MAJOR=${NODE_MAJOR} bash /tmp/install_node.sh
 
-# Every image has exactly one Python environment. The local build plan creates
-# it in Dockerfile.venv; stacks without that layer (CI) get it here, before the
-# account takes ownership of it.
-ENV VIRTUAL_ENV=/opt/venv UV_PYTHON_INSTALL_DIR=/opt/uv/python
-RUN --mount=type=bind,source=creator/common/setup_venv.sh,target=/tmp/setup_venv.sh \
-    bash /tmp/setup_venv.sh
-ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+# No Python environment is created here. /opt/venv (with VIRTUAL_ENV and PATH)
+# is inherited from Dockerfile.venv, which the build plan adds only for MuJoCo,
+# Isaac Sim, Isaac Lab or cuRobo. Pure ROS images, including CI, use the
+# system Python.
 
 ARG USERNAME=admin
 ARG USER_UID=1000
@@ -68,12 +65,17 @@ RUN npm install --global --no-fund --no-audit rea-agents omniroute && \
     rea --version && command -v omniroute && \
     npm cache clean --force
 
-# Graphify lives in the shared environment too (owned by the account by now).
+# Graphify goes into the shared environment when there is one (owned by the
+# account by now); pure ROS images get it as an isolated uv tool in ~/.local.
 RUN if ! command -v uv >/dev/null 2>&1; then \
         curl -LsSf https://astral.sh/uv/install.sh \
             | env UV_UNMANAGED_INSTALL="$HOME/.local/bin" sh; \
     fi && \
-    uv pip install --python "${VIRTUAL_ENV}/bin/python" graphifyy && \
+    if [[ -n "${VIRTUAL_ENV:-}" && -x "${VIRTUAL_ENV}/bin/python" ]]; then \
+        uv pip install --python "${VIRTUAL_ENV}/bin/python" graphifyy; \
+    else \
+        uv tool install graphifyy; \
+    fi && \
     graphify install && \
     graphify --version
 

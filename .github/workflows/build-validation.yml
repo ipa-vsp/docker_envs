@@ -76,5 +76,10 @@ jobs:
           docker build -f creator/common/Dockerfile.user \
             --build-arg USER_UID=12345 --build-arg USER_GID=23456 \
             -t docker-envs-permissions:test .
+          # Pure ROS / CI images must not use or create a Python venv.
+          docker run --rm --entrypoint bash docker-envs-permissions:test -ec \
+            'test -z "${VIRTUAL_ENV:-}"; test ! -e /opt/venv;
+             ! compgen -G "/usr/lib/python3*/dist-packages/zz-opt-venv.pth" >/dev/null;
+             command -v graphify'
           DOCKER_ENVS_TEST_IMAGE=docker-envs-permissions:test \
             python -m unittest discover -s tests -p 'test_image_permissions.py' -v

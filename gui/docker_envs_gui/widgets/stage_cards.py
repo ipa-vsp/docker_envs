@@ -262,8 +262,8 @@ class StageForm(QScrollArea):
         card = Card(
             "Stage 8 of 9",
             "Extra layers",
-            "Optional motion generation, middleware and simulation. Every Python package "
-            "shares one environment, /opt/venv.",
+            "Optional motion generation, middleware and simulation. MuJoCo, Isaac and cuRobo "
+            "share one environment, /opt/venv; pure ROS 2 images use the system Python.",
         )
         self.curobo = QCheckBox("NVIDIA cuRobo (GPU motion generation, Python 3.12)")
         self.curobo.toggled.connect(self._on_changed)

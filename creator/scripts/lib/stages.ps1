@@ -104,6 +104,11 @@ function Assert-StageSelection([hashtable]$Selection) {
     if ($s.IsaacSim -and !$s.Cuda) { Write-Warning 'Isaac Sim without a CUDA base needs a CUDA-capable runtime at run time.' }
 }
 
+# /opt/venv only for MuJoCo / Isaac Sim / Isaac Lab / cuRobo (mirrors stages::needs_venv).
+function Test-NeedsVenv([hashtable]$Selection) {
+    return [bool]($Selection.Mujoco -or $Selection.IsaacSim -or $Selection.IsaacLab -or $Selection.Curobo)
+}
+
 # The one /opt/venv interpreter (mirrors stages::venv_python).
 function Get-VenvPython([hashtable]$Selection) {
     if ($Selection.IsaacSim) {
@@ -143,11 +148,14 @@ function New-StagePlan([hashtable]$Selection) {
         & $add 'base' 'common/Dockerfile.cuda' "cuda$($s.Cuda)" @()
     } else { & $add 'base' 'common/Dockerfile.base' '' @() }
     & $add 'ros' "ros2/Dockerfile.$($s.Ros)" $s.Ros @()
-    # The shared /opt/venv is created once, straight after ROS.
+    # The shared /opt/venv is created once, straight after ROS, and only for
+    # the Python-heavy stacks; pure ROS images use the system Python.
     $python = Get-VenvPython $s
-    $component = ''
-    if ($python -ne 'system') { $component = "py$python" }
-    & $add 'venv' 'common/Dockerfile.venv' $component @('--build-arg', "PYTHON_VERSION=$python")
+    if (Test-NeedsVenv $s) {
+        $component = ''
+        if ($python -ne 'system') { $component = "py$python" }
+        & $add 'venv' 'common/Dockerfile.venv' $component @('--build-arg', "PYTHON_VERSION=$python")
+    }
     if ($s.Mujoco) {
         & $add 'mujoco' 'common/Dockerfile.mujoco' "mujoco$($s.Mujoco)" @('--build-arg', "MUJOCO_VERSION=$($s.Mujoco)", '--build-arg', "GYM_VERSION=$($s.Gym)")
     }
