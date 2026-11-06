@@ -1,132 +1,41 @@
 name: GHCR Cleanup
 
+# Removes untagged versions that no tag references any more: digests left behind
+# when a tag is re-pushed, orphaned per-arch images, and superseded build caches.
+# Per-arch images that a multi-arch tag still points at are kept, and nothing
+# tagged is ever deleted. Intermediate stage packages (docker_envs/base, /ros,
+# /moveit) are removed by ros2-staged.yml itself.
+
 on:
-  # schedule:
-  #   - cron: "30 1 * * *"
+  schedule:
+    - cron: "30 1 * * 0"
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: List what would be deleted without deleting it
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 permissions:
   packages: write
   contents: read
 
-env:
-  RETENTION_DAYS: 30
-  KEEP_TAGS: '["latest","main","rolling","jazzy","kilted","humble"]'
-  PACKAGE_NAME: ${{ github.event.repository.name }}
-  EXTRA_PACKAGES_TO_DELETE: '["docker_envs/ros","docker_envs/base","docker_envs/moveit","docker_envs/mujoco","docker_envs/nav2"]'
-
 jobs:
   cleanup:
-    name: Remove untagged and stale images
+    name: Remove unreferenced untagged versions
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Delete untagged versions from secondary packages
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EXTRA_PACKAGES_TO_DELETE: ${{ env.EXTRA_PACKAGES_TO_DELETE }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          OWNER="${REPO%%/*}"
-          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
-          BASE_PATH="/users/${OWNER}"
-          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
-            BASE_PATH="/orgs/${OWNER}"
-          fi
-
-          echo "${EXTRA_PACKAGES_TO_DELETE}" | jq -r '.[]' | while read -r pkg; do
-            [[ -z "${pkg}" ]] && continue
-            PKG_PATH="${pkg//\//%2F}" # URL-encode slashes in package names
-            echo "Cleaning untagged versions in package '${pkg}' for ${OWNER_TYPE} '${OWNER}'"
-
-            if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PKG_PATH}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
-              echo "Package '${pkg}' not found. Skipping."
-              continue
-            fi
-            if [[ -z "${VERSIONS}" || "${VERSIONS}" == "[]" ]]; then
-              echo "No versions found in ${pkg}; skipping."
-              continue
-            fi
-
-            SELECTION=$(echo "${VERSIONS}" | jq '
-              map(select(type == "object"))
-              | map(
-                  (.metadata? // {}) as $m
-                  | ($m.container.tags // []) as $tags
-                  | select(($tags | length == 0))
-                )
-            ')
-
-            if [[ -z "${SELECTION}" || "${SELECTION}" == "[]" ]]; then
-              echo "No untagged versions to delete in ${pkg}."
-              continue
-            fi
-
-            echo "Deleting untagged versions in ${pkg}:"
-            echo "${SELECTION}" | jq -r '.[] | "- id: \(.id) tags: \((.metadata.container.tags // []) | join(", "))"'
-
-            echo "${SELECTION}" \
-              | jq -r '.[].id' \
-              | while read -r id; do
-                  [[ -z "${id}" ]] && continue
-                  gh api -X DELETE "${BASE_PATH}/packages/container/${PKG_PATH}/versions/${id}"
-                done
-          done
-
-      - name: Delete untagged and stale versions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RETENTION_DAYS: ${{ env.RETENTION_DAYS }}
-          KEEP_TAGS: ${{ env.KEEP_TAGS }}
-          PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          # Determine owner type (User vs Org) for the API path
-          OWNER="${REPO%%/*}"
-          PACKAGE="${PACKAGE_NAME:-${REPO#*/}}"
-          OWNER_TYPE=$(gh api "/repos/${REPO}" --jq '.owner.type')
-          BASE_PATH="/users/${OWNER}"
-          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
-            BASE_PATH="/orgs/${OWNER}"
-          fi
-
-          echo "Cleaning container package '${PACKAGE}' for ${OWNER_TYPE} '${OWNER}'"
-          # Fetch all versions (flatten paginated arrays into a single array)
-          if ! VERSIONS=$(gh api --paginate "${BASE_PATH}/packages/container/${PACKAGE}/versions?per_page=100" --jq '.[]' | jq -s '.'); then
-            echo "Package '${PACKAGE}' not found in GHCR for ${OWNER}. Skipping cleanup."
-            exit 0
-          fi
-          if [[ -z "${VERSIONS}" || "${VERSIONS}" == "[]" ]]; then
-            echo "No versions found; nothing to clean."
-            exit 0
-          fi
-
-          # Select versions to delete: ONLY untagged (do not delete tagged images)
-          SELECTION=$(echo "${VERSIONS}" | jq '
-            map(select(type == "object"))
-            | map(
-                (.metadata? // {}) as $m
-                | ($m.container.tags // []) as $tags
-                | select(
-                    ($tags | length == 0)
-                  )
-              )
-          ')
-
-          if [[ -z "${SELECTION}" || "${SELECTION}" == "[]" ]]; then
-            echo "No untagged or stale versions to delete."
-            exit 0
-          fi
-
-          echo "Deleting versions:"
-          echo "${SELECTION}" | jq -r '.[] | "- id: \(.id) tags: \((.metadata.container.tags // []) | join(", "))"'
-
-          echo "${SELECTION}" \
-            | jq -r '.[].id' \
-            | while read -r id; do
-                [[ -z "${id}" ]] && continue
-                gh api -X DELETE "${BASE_PATH}/packages/container/${PACKAGE}/versions/${id}"
-              done
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: docker_envs,docker_envs/buildcache
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true
+          # Scheduled runs have no inputs and delete for real.
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run || false }}

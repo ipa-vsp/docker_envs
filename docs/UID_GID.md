@@ -2,7 +2,7 @@
 
 This guide explains, step by step, how user IDs work between your host and a
 docker_envs container, and which knob to turn in each situation. Read the
-first three sections once; after that the [decision table](#which-fix-do-i-need)
+first three sections once; after that the [decision table](#6-which-fix-do-i-need)
 is all you need.
 
 **Videos** (if you prefer watching first):

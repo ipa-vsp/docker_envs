@@ -52,7 +52,7 @@ printf '%s\\n' "${STAGES_PLAN[@]}"
                 # Created exactly once, straight after ROS; nothing else pins Python.
                 self.assertEqual(files.count("Dockerfile.venv"), 1)
                 self.assertEqual(
-                    files.index("Dockerfile.venv"), files.index("Dockerfile.rolling") + 1
+                    files.index("Dockerfile.venv"), files.index("Dockerfile.jazzy") + 1
                 )
                 venv = rows[files.index("Dockerfile.venv")]
                 self.assertIn(f"PYTHON_VERSION={python}", venv)
@@ -215,9 +215,9 @@ if sys.argv[1:3] != ['buildx', 'version']:
             git.chmod(0o755)
             env = dict(os.environ, PATH=f"{directory}:{os.environ['PATH']}")
             answers = [
-                "2",
+                "2",  # Ubuntu 24.04
                 "n",
-                "3",
+                "1",  # jazzy, the only distro offered on 24.04
                 "4",
                 "n",
                 "n",

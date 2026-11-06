@@ -13,17 +13,14 @@ the ``docker build`` underneath it running.
 from __future__ import annotations
 
 import os
-import re
 import signal
 import subprocess
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
-from .model import BUILD_STEP, LAYER_HEADING
+from .model import ANSI, BUILD_STEP, LAYER_HEADING
 from .process_env import host_environment
-
-ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 # How long a cancelled build gets to exit on SIGTERM before it is killed.
 KILL_GRACE_MS = 5000

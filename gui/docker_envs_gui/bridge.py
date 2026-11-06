@@ -33,7 +33,10 @@ class RosOption:
 
     distro: str
     in_ci: bool = False
-    frozen: bool = False
+    # MoveIt/Nav2 binaries exist for this distro (stages::has_usage_layers).
+    has_usage: bool = False
+    # Installed from the ros2-testing apt repo (stages::testing_note).
+    testing: bool = False
     note: str = ""
 
 
@@ -149,7 +152,8 @@ class Bridge:
                 RosOption(
                     distro=record[0],
                     in_ci="ci" in flags,
-                    frozen="frozen" in flags,
+                    has_usage="usage" in flags,
+                    testing="testing" in flags,
                     note=record[2] if len(record) > 2 else "",
                 )
             )

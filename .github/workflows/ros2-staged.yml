@@ -38,12 +38,11 @@ jobs:
           - { runner: ubuntu-24.04, arch: amd64 }
           - { runner: ubuntu-24.04-arm, arch: arm64 }
         target:
-          - { os: "24.04", ros: rolling, usage: skip }
-          - { os: "24.04", ros: kilted, usage: skip }
+          - { os: "26.04", ros: rolling, usage: skip }
+          - { os: "26.04", ros: lyrical, usage: skip }
           - { os: "24.04", ros: jazzy, usage: skip }
           - { os: "22.04", ros: humble, usage: skip }
-          - { os: "26.04", ros: lyrical, usage: skip }
-          - { os: "24.04", ros: kilted, usage: manipulation }
+          - { os: "26.04", ros: lyrical, usage: manipulation }
           - { os: "24.04", ros: jazzy, usage: manipulation }
           - { os: "22.04", ros: humble, usage: manipulation }
     steps:
@@ -113,11 +112,10 @@ jobs:
           - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
           - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
         target:
-          - { os: "24.04", ros: rolling }
-          - { os: "24.04", ros: kilted }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
@@ -152,9 +150,9 @@ jobs:
         platform:
           - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
           - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
-        # lyrical (26.04) omitted: no MoveIt debs published for it yet.
+        # rolling omitted: no MoveIt debs published for Rolling on 26.04.
         target:
-          - { os: "24.04", ros: kilted }
+          - { os: "26.04", ros: lyrical }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
     steps:
@@ -193,11 +191,10 @@ jobs:
           - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
           - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
         target:
-          - { os: "24.04", ros: rolling }
-          - { os: "24.04", ros: kilted }
+          - { os: "26.04", ros: rolling }
+          - { os: "26.04", ros: lyrical }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
-          - { os: "26.04", ros: lyrical }
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
@@ -250,9 +247,9 @@ jobs:
         platform:
           - { runner: ubuntu-24.04, docker: linux/amd64, arch: amd64 }
           - { runner: ubuntu-24.04-arm, docker: linux/arm64, arch: arm64 }
-        # lyrical (26.04) omitted: no MoveIt debs published for it yet.
+        # rolling omitted: no MoveIt debs published for Rolling on 26.04.
         target:
-          - { os: "24.04", ros: kilted }
+          - { os: "26.04", ros: lyrical }
           - { os: "24.04", ros: jazzy }
           - { os: "22.04", ros: humble }
     steps:
@@ -307,12 +304,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - { prefix: ros, os: "24.04", ros: rolling, tag: "24.04-rolling" }
-          - { prefix: ros, os: "24.04", ros: kilted, tag: "24.04-kilted" }
+          - { prefix: ros, os: "26.04", ros: rolling, tag: "26.04-rolling" }
+          - { prefix: ros, os: "26.04", ros: lyrical, tag: "26.04-lyrical" }
           - { prefix: ros, os: "24.04", ros: jazzy, tag: "24.04-jazzy" }
           - { prefix: ros, os: "22.04", ros: humble, tag: "22.04-humble" }
-          - { prefix: ros, os: "26.04", ros: lyrical, tag: "26.04-lyrical" }
-          - { prefix: moveit, os: "24.04", ros: kilted, tag: "24.04-kilted-moveit" }
+          - { prefix: moveit, os: "26.04", ros: lyrical, tag: "26.04-lyrical-moveit" }
           - { prefix: moveit, os: "24.04", ros: jazzy, tag: "24.04-jazzy-moveit" }
           - { prefix: moveit, os: "22.04", ros: humble, tag: "22.04-humble-moveit" }
     steps:
@@ -345,12 +341,20 @@ jobs:
     name: Delete intermediate stage packages
     runs-on: ubuntu-latest
     needs:
+      - build-base
+      - build-ros
+      - build-moveit
+      - finalize-base-ros-user
+      - finalize-base-ros-moveit-user
       - publish-manifests
     # Only the final user images are meant to persist. Delete the intermediate
-    # secondary packages once every final image has been pushed. Skipped on PRs
-    # (which don't push). All required final jobs must succeed. Versions protected
-    # by GitHub's public download limit must remain.
-    if: ${{ success() && github.event_name != 'pull_request' }}
+    # secondary packages once every publishing job has stopped, even when some of
+    # them failed: final images are complete images in the main package and do not
+    # reference these stage packages, and the shared `publish` concurrency group
+    # keeps another run from using them meanwhile. Skipped on PRs (which don't
+    # push) and on cancelled runs. Versions protected by GitHub's public download
+    # limit must remain.
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     permissions:
       contents: read
       packages: write

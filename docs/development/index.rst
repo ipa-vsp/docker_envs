@@ -72,8 +72,6 @@ Continuous integration
    * - ``ros2-staged.yml``
      - Builds and publishes the ROS 2 and ROS 2 + MoveIt images to
        ``ghcr.io/ipa-vsp/docker_envs``.
-   * - ``pytorch-staged.yml``
-     - Builds and publishes the PyTorch image from ``creator/pytorch``.
    * - ``gui-appimage.yml``
      - GUI tests and the AppImage release build (on ``v*`` tags).
    * - ``docs.yml``

@@ -7,7 +7,7 @@ $script:StageDefaults = @{ Cuda = '13.3.1'; Mujoco = '3.12.0'; Gym = '1.3.0'; Is
 
 function New-StageSelection {
     @{
-        OS = '24.04'; Ros = 'rolling'; Usage = 'skip'; Cuda = ''; Mujoco = ''
+        OS = '24.04'; Ros = 'jazzy'; Usage = 'skip'; Cuda = ''; Mujoco = ''
         Gym = $script:StageDefaults.Gym; IsaacSim = ''; IsaacLab = ''; LabMethod = 'auto'
         LabPackages = 'default'; LabPhysics = 'default'; LabVisualizer = 'default'; Curobo = ''
         Zenoh = $false; Gazebo = $false; Username = 'admin'; UserUid = '1000'; UserGid = '1000'
@@ -15,8 +15,12 @@ function New-StageSelection {
     }
 }
 
+# Mirrors STAGES_CI_COMBOS and stages::has_usage_layers in stages.sh.
+$script:CiCombos = @('26.04:rolling', '26.04:lyrical', '24.04:jazzy', '22.04:humble')
+$script:UsageDistros = @('humble', 'jazzy', 'lyrical')
+
 function Get-RosOptions([string]$OS) {
-    switch ($OS) { '22.04' { 'humble', 'iron' }; '24.04' { 'rolling', 'kilted', 'jazzy' }; '26.04' { 'lyrical', 'rolling' } }
+    switch ($OS) { '22.04' { 'humble' }; '24.04' { 'jazzy' }; '26.04' { 'lyrical', 'rolling' } }
 }
 
 function Get-LabMajor([string]$Ref) {
@@ -98,9 +102,9 @@ function Assert-StageSelection([hashtable]$Selection) {
         if ($s.Cuda -and $s.Cuda.Split('.')[0] -notin '12', '13') { throw "cuRobo supports CUDA 12 and 13, not $($s.Cuda)." }
         if ($s.OS -eq '22.04') { Write-Warning 'cuRobo uses Python 3.12; ROS on Ubuntu 22.04 uses 3.10, so ROS nodes cannot import it.' }
     }
-    if ($s.OS -eq '24.04' -and $s.Ros -eq 'rolling') { Write-Warning 'ROS Rolling has migrated to Ubuntu 26.04; 24.04 no longer receives updated Rolling packages.' }
-    if ("$($s.OS):$($s.Ros)" -notin @('24.04:rolling', '24.04:kilted', '24.04:jazzy', '22.04:humble', '26.04:lyrical')) { Write-Warning 'This Ubuntu/ROS combination is not built in CI; upstream packages may be missing.' }
-    if ($s.Ros -eq 'lyrical' -and $s.Usage -ne 'skip') { Write-Warning 'MoveIt/Nav2 packages are not published for lyrical; that layer will be a no-op.' }
+    if ($s.Ros -eq 'rolling') { Write-Warning 'ROS Rolling installs from the ros2-testing apt repo; packages change daily and may break.' }
+    if ("$($s.OS):$($s.Ros)" -notin $script:CiCombos) { Write-Warning 'This Ubuntu/ROS combination is not built in CI; upstream packages may be missing.' }
+    if ($s.Ros -notin $script:UsageDistros -and $s.Usage -ne 'skip') { Write-Warning "MoveIt/Nav2 packages are not published for $($s.Ros); that layer will be a no-op." }
     if ($s.IsaacSim -and !$s.Cuda) { Write-Warning 'Isaac Sim without a CUDA base needs a CUDA-capable runtime at run time.' }
 }
 

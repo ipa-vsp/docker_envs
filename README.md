@@ -3,7 +3,7 @@
 Docker development environments for ROS 2, PyTorch, MuJoCo and NVIDIA Isaac Sim / Isaac Lab.
 
 - Staged builder → pick only the layers you need
-- Published images → ROS 2, MoveIt, PyTorch
+- Published images → ROS 2 (Rolling, Lyrical, Jazzy, Humble) and MoveIt
 - Development images → compilers, dev tools, passwordless `sudo` for the development account
 - Non-root by default → your host UID/GID inside the container
 
@@ -14,6 +14,18 @@ Docker development environments for ROS 2, PyTorch, MuJoCo and NVIDIA Isaac Sim 
 - Tests: Python 3 (Linux regression suite: PyYAML, `jq`)
 - GPU stacks → NVIDIA driver + NVIDIA Container Toolkit
 - GUI → X11 display + `xauth` on Linux; WSLg on Windows; XQuartz on macOS → [GUI guide](docs/usage/gui.rst)
+
+## Supported ROS 2 distributions
+
+| ROS 2 | Ubuntu | MoveIt / Nav2 layer | Notes |
+|---|---|---|---|
+| Humble | 22.04 | yes | LTS |
+| Jazzy | 24.04 | yes | LTS, default |
+| Lyrical | 26.04 | yes | LTS |
+| Rolling | 26.04 | no | installed from the `ros2-testing` apt repo (the only one publishing Rolling for 26.04); packages change daily |
+
+- Each Ubuntu release offers only the distros above; other combinations are rejected by the builder and the GUI
+- Kilted and Iron are no longer offered
 
 ## Quick start
 
@@ -93,19 +105,19 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
 
 | Stack | Tags |
 |---|---|
-| ROS 2 | `24.04-rolling`, `24.04-kilted`, `24.04-jazzy`, `22.04-humble`, `26.04-lyrical` |
-| ROS 2 + MoveIt | `24.04-kilted-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
-| PyTorch | `cuda12.8-torch2.8` (Torch 2.8.0, CUDA wheels, MuJoCo 3.4.0, Ubuntu 24.04) |
+| ROS 2 | `26.04-rolling`, `26.04-lyrical`, `24.04-jazzy`, `22.04-humble` |
+| ROS 2 + MoveIt | `26.04-lyrical-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
+| PyTorch | `cuda12.8-torch2.8` (last published image; no longer rebuilt by CI) |
 
 - Publication status → check workflow results
 - Existing registry images → keep previous behavior until rebuilt
-- CI PyTorch image → Ubuntu + CUDA-enabled wheels
-- Local PyTorch helper → CUDA development base
+- PyTorch → local builds only (`creator/scripts/build_pytorch_env.sh`, CUDA development base)
+- Only final images are kept: stage packages (`docker_envs/base`, `/ros`, `/moveit`) are deleted after each publish run
 - CUDA, Isaac Sim/Lab, Nav2, other MuJoCo combinations → local builds only
 - Workflows:
   - [ROS publication](.github/workflows/ros2-staged.yml)
-  - [PyTorch publication](.github/workflows/pytorch-staged.yml)
   - [Build regression checks](.github/workflows/build-validation.yml)
+  - [GHCR cleanup](.github/workflows/ghcr-cleanup.yml) → weekly; removes untagged versions no tag references (manual runs default to a dry run)
   - [Documentation build + Pages deploy](.github/workflows/docs.yml)
 
 ## Repository layout
@@ -176,8 +188,8 @@ USER admin
 - No package updates, rosdep updates, Git pulls or host sysctl changes at startup
 - Interactive Bash → banner with user, workspace, ROS distro; warning when root
 - Claude Code → installed in final images; [`ipa-vsp/.claude`](https://github.com/ipa-vsp/.claude) checked out at the user-level `~/.claude`
-- Python → one shared environment, `/opt/venv`: active by default (`(venv)` prompt), writable by the user, visible to ROS 2 → see [Python environment](creator/README.md#python-environment-optvenv)
-- Graphify → installed into `/opt/venv` after Claude; skill registered with `graphify install`
+- Python → images with MuJoCo, Isaac Sim, Isaac Lab or cuRobo share one environment, `/opt/venv` (active by default, writable by the user, visible to ROS 2); pure ROS 2 images use the system Python → see [Python environment](creator/README.md#python-environment-optvenv)
+- Graphify → installed after Claude (into `/opt/venv`, or with `uv tool` on pure ROS 2 images); skill registered with `graphify install`
 - Claude plugins → `claude-code-setup`, `security-guidance` (Anthropic official), `caveman`
 - Node.js 24 → REA (MCP server + skill registered for Claude) and OmniRoute (installed, not configured) → see [Claude Code and skills](creator/README.md#claude-code-and-skills)
 - No `~/colcon_ws` in the image → mount yours with `-w`, or let dockgen create it in a derived image

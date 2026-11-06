@@ -27,16 +27,16 @@ stages::heading() { echo -e "\n\033[1;36m== $* ==\033[0m"; }
 STAGES_SUPPORTED_OS=("22.04" "24.04" "26.04")
 
 STAGES_CI_COMBOS=(
-    "24.04:rolling" "24.04:kilted" "24.04:jazzy"
+    "26.04:rolling" "26.04:lyrical"
+    "24.04:jazzy"
     "22.04:humble"
-    "26.04:lyrical"
 )
 
 # ROS distros offered per Ubuntu release.
 stages::ros_for_os() {
     case "$1" in
-        22.04) echo "humble iron" ;;
-        24.04) echo "rolling kilted jazzy" ;;
+        22.04) echo "humble" ;;
+        24.04) echo "jazzy" ;;
         26.04) echo "lyrical rolling" ;;
         *)     echo "" ;;
     esac
@@ -50,20 +50,21 @@ stages::is_ci_combo() {
     return 1
 }
 
-# MoveIt and Nav2 are not released for every distro yet (notably lyrical).
+# MoveIt and Nav2 binaries exist for the released distros only; Rolling on
+# Ubuntu 26.04 ships ROS core packages alone.
 stages::has_usage_layers() {
     case "$1" in
-        rolling|jazzy|kilted|iron|humble) return 0 ;;
+        humble|jazzy|lyrical) return 0 ;;
         *) return 1 ;;
     esac
 }
 
-# Combinations upstream has moved on from. They still build (CI covers
-# 24.04-rolling), but the packages are frozen, so say so once rather than
-# leaving it to be discovered from a runtime banner.
-stages::deprecation_note() {
-    if [[ "$1" == "24.04" && "$2" == "rolling" ]]; then
-        echo "ROS Rolling has migrated to Ubuntu 26.04; 24.04 no longer receives updated Rolling packages."
+# Rolling on Ubuntu 26.04 is installed from packages.ros.org/ros2-testing,
+# the only repo that publishes it there. Say so once rather than leaving a
+# broken upstream sync to be discovered at build time.
+stages::testing_note() {
+    if [[ "$2" == "rolling" ]]; then
+        echo "ROS Rolling installs from the ros2-testing apt repo; packages change daily and may break."
     fi
 }
 
@@ -294,7 +295,7 @@ stages::final_image() { echo "${STAGES_NAMESPACE}:$(stages::tag)"; }
 # Selection inputs (front ends set these).
 stages::init_selection() {
     STAGES_OS="24.04"
-    STAGES_ROS="rolling"
+    STAGES_ROS="jazzy"
     STAGES_USE_CUDA=false
     STAGES_CUDA_VERSION="${STAGES_DEFAULT_CUDA}"
     STAGES_USAGE="skip"          # manipulation | navigation | both | skip
@@ -361,7 +362,7 @@ stages::validate_selection() {
         stages::warn "MoveIt/Nav2 packages are not published for '${STAGES_ROS}'; that layer will be a no-op."
     fi
 
-    local note; note="$(stages::deprecation_note "${STAGES_OS}" "${STAGES_ROS}")"
+    local note; note="$(stages::testing_note "${STAGES_OS}" "${STAGES_ROS}")"
     if [[ -n "${note}" ]]; then
         stages::warn "${note}"
     fi

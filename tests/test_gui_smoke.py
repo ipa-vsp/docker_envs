@@ -66,11 +66,11 @@ class StageFormTests(unittest.TestCase):
     def test_the_form_opens_on_a_buildable_default(self):
         plan = self.plan()
         self.assertTrue(plan.ok, plan.errors)
-        self.assertEqual(plan.image, "docker_envs:24.04-rolling")
+        self.assertEqual(plan.image, "docker_envs:24.04-jazzy")
 
     def test_changing_ubuntu_changes_the_available_ros_distros(self):
         self.form.set_ros_options(self.bridge.ros_for_os("22.04"))
-        self.assertEqual(self.form.ros_choice.values(), ["humble", "iron"])
+        self.assertEqual(self.form.ros_choice.values(), ["humble"])
         self.form.os_choice.set_value("22.04")
         self.assertTrue(self.plan().ok)
 
@@ -138,7 +138,7 @@ class StageFormTests(unittest.TestCase):
         self.form.final_image.setText("acme/dev:latest")
         self.assertEqual(self.plan().image, "acme/dev:latest")
         self.form.final_image.clear()
-        self.assertEqual(self.plan().image, "docker_envs:24.04-rolling")
+        self.assertEqual(self.plan().image, "docker_envs:24.04-jazzy")
 
     def test_a_rejected_selection_surfaces_an_error(self):
         self.form.os_choice.set_value("22.04")  # ROS options still list 24.04 distros

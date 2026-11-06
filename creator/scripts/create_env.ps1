@@ -15,7 +15,7 @@ param(
     [switch]$DryRun,
     [switch]$NonInteractive,
     [string]$OS = '24.04',
-    [string]$Ros = 'rolling',
+    [string]$Ros = 'jazzy',
     [string]$Usage = 'skip',
     [string]$Cuda = '',
     [string]$Mujoco = '',
@@ -122,16 +122,16 @@ function Read-BuilderSelection([hashtable]$Selection) {
     $options = @(Get-RosOptions $s.OS)
     $labels = @($options | ForEach-Object {
         $label = $_
-        if ("$($s.OS):$_" -in '24.04:rolling', '24.04:kilted', '24.04:jazzy', '22.04:humble', '26.04:lyrical') { $label += ' (built in CI)' }
-        if ($s.OS -eq '24.04' -and $_ -eq 'rolling') { $label += ' (frozen upstream)' }
+        if ("$($s.OS):$_" -in $script:CiCombos) { $label += ' (built in CI)' }
+        if ($_ -eq 'rolling') { $label += ' (testing repo)' }
         $label
     })
     $s.Ros = $options[(Read-BuilderChoice 'Which ROS 2 distribution?' $labels)]
     Write-Host "`n== Stage 4/9 - Application stack ==" -ForegroundColor Cyan
     $options = @('manipulation (MoveIt)', 'navigation (Nav2)', 'both', 'skip')
     $default = 4
-    if ($s.Ros -eq 'lyrical') {
-        Write-Warning 'MoveIt/Nav2 are not published for lyrical yet.'
+    if ($s.Ros -notin $script:UsageDistros) {
+        Write-Warning "MoveIt/Nav2 are not published for $($s.Ros)."
         $options = @('skip', 'manipulation (MoveIt)', 'navigation (Nav2)', 'both'); $default = 1
     }
     $s.Usage = $options[(Read-BuilderChoice 'Which application packages?' $options $default)].Split(' ')[0]
@@ -198,7 +198,7 @@ requiring Docker. -NonInteractive builds immediately using the given selection.
 Selection parameters require -NonInteractive; omitted parameters use defaults.
 
   -OS 22.04|24.04|26.04     Ubuntu release (24.04)
-  -Ros <distro>             ROS distribution (rolling)
+  -Ros <distro>             ROS distribution (jazzy)
   -Usage skip|manipulation|navigation|both (skip)
   -Cuda <version|latest>    Enable CUDA + cuDNN development base
   -Mujoco <version|latest>  Enable MuJoCo
