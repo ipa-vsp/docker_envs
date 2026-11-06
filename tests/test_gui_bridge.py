@@ -54,7 +54,7 @@ class PlanRecordTests(unittest.TestCase):
 
     def test_pure_ros_stacks_have_no_venv_layer(self):
         for os_version, ros in (
-            ("24.04", "rolling"),
+            ("26.04", "rolling"),
             ("26.04", "lyrical"),
             ("24.04", "jazzy"),
             ("22.04", "humble"),
@@ -81,15 +81,15 @@ class PlanRecordTests(unittest.TestCase):
         self.assertIn("GYM_VERSION=1.3.0", mujoco)
 
     def test_warnings_are_records_not_prose_on_stderr(self):
-        # 24.04 + rolling is buildable but frozen upstream, and iron is not in CI.
-        _result, records = query("plan", os="24.04", ros="rolling")
+        # 26.04 + rolling builds from the ros2-testing repo, which is worth a warning.
+        _result, records = query("plan", os="26.04", ros="rolling")
         warnings = " ".join(record[0] for record in records_of("WARN", records))
-        self.assertIn("Rolling", warnings)
+        self.assertIn("ros2-testing", warnings)
         self.assertTrue(first("IMAGE", records), "a warning must not suppress the plan")
 
     def test_unset_fields_keep_the_stages_defaults(self):
         _result, records = query("plan")
-        self.assertEqual(first("IMAGE", records), "docker_envs:24.04-rolling")
+        self.assertEqual(first("IMAGE", records), "docker_envs:24.04-jazzy")
 
     def test_stages_variables_from_the_environment_are_ignored(self):
         # Only DEG_* may steer a plan; a stray STAGES_* must not leak in.
@@ -97,7 +97,7 @@ class PlanRecordTests(unittest.TestCase):
         result = subprocess.run(
             ["bash", str(QUERY), "plan"], cwd=ROOT, env=env, capture_output=True, text=True
         )
-        self.assertIn("docker_envs:24.04-rolling", result.stdout)
+        self.assertIn("docker_envs:24.04-jazzy", result.stdout)
 
 
 class ValidationTests(unittest.TestCase):
@@ -258,17 +258,26 @@ class AgreementWithRunEnvTests(unittest.TestCase):
 
 
 class LookupTests(unittest.TestCase):
-    def test_ros_for_os_annotates_ci_and_frozen_combinations(self):
-        _result, records = query("ros-for-os", "24.04")
-        table = {record[0]: record[1] for record in records}
-        self.assertEqual(set(table), {"rolling", "kilted", "jazzy"})
-        self.assertIn("ci", table["jazzy"])
-        self.assertIn("frozen", table["rolling"])
-        self.assertNotIn("frozen", table["jazzy"])
+    def test_ros_for_os_annotates_ci_testing_and_usage(self):
+        _result, records = query("ros-for-os", "26.04")
+        table = {record[0]: record[1].split(",") for record in records}
+        self.assertEqual(list(table), ["lyrical", "rolling"])
+        self.assertEqual(set(table["lyrical"]), {"ci", "usage"})
+        # Rolling: built in CI from the testing repo, with no MoveIt/Nav2 layers.
+        self.assertEqual(set(table["rolling"]), {"ci", "testing"})
 
-    def test_ros_for_os_22_04(self):
-        _result, records = query("ros-for-os", "22.04")
-        self.assertEqual([record[0] for record in records], ["humble", "iron"])
+    def test_each_older_ubuntu_offers_only_its_lts(self):
+        for os_version, distro in (("22.04", "humble"), ("24.04", "jazzy")):
+            with self.subTest(os=os_version):
+                _result, records = query("ros-for-os", os_version)
+                self.assertEqual([record[0] for record in records], [distro])
+                self.assertEqual(set(records[0][1].split(",")), {"ci", "usage"})
+
+    def test_dropped_distros_are_rejected(self):
+        for os_version, distro in (("24.04", "kilted"), ("22.04", "iron"), ("24.04", "rolling")):
+            with self.subTest(ros=distro, os=os_version):
+                result, _records = query("plan", os=os_version, ros=distro)
+                self.assertIn("not offered", result.stdout + result.stderr)
 
     def test_isaaclab_selectors_follow_the_major_version(self):
         _result, three = query("isaaclab-selectors", "release/3.0.0")

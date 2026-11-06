@@ -93,9 +93,9 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
 
 | Stack | Tags |
 |---|---|
-| ROS 2 | `24.04-rolling`, `24.04-kilted`, `24.04-jazzy`, `22.04-humble`, `26.04-lyrical` |
-| ROS 2 + MoveIt | `24.04-kilted-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
-| PyTorch | `cuda12.8-torch2.8` (Torch 2.8.0, CUDA wheels, MuJoCo 3.4.0, Ubuntu 24.04) |
+| ROS 2 | `26.04-rolling`, `26.04-lyrical`, `24.04-jazzy`, `22.04-humble` |
+| ROS 2 + MoveIt | `26.04-lyrical-moveit`, `24.04-jazzy-moveit`, `22.04-humble-moveit` |
+| PyTorch | `cuda12.8-torch2.8` (last published image; no longer rebuilt by CI) |
 
 - Publication status → check workflow results
 - Existing registry images → keep previous behavior until rebuilt

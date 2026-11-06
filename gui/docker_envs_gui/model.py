@@ -98,7 +98,7 @@ class Selection:
     """One build configuration, i.e. the answers to create_env.sh's nine stages."""
 
     os: str = "24.04"
-    ros: str = "rolling"
+    ros: str = "jazzy"
     use_cuda: bool = False
     cuda_version: str = ""
     usage: str = "skip"

@@ -81,14 +81,16 @@ query::versions() {
 }
 
 # Each distro with the annotations create_env.sh puts in its menu labels, so a
-# GUI can render the same "built in CI" / "frozen upstream" badges.
+# GUI can render the same "built in CI" / "testing repo" badges, plus whether
+# MoveIt/Nav2 layers exist for it.
 query::ros_for_os() {
     local os="${1:-}" distro flags note
     for distro in $(stages::ros_for_os "${os}"); do
         flags=""
         stages::is_ci_combo "${os}" "${distro}" && flags="ci"
-        note="$(stages::deprecation_note "${os}" "${distro}")"
-        [[ -n "${note}" ]] && flags="${flags:+${flags},}frozen"
+        stages::has_usage_layers "${distro}" && flags="${flags:+${flags},}usage"
+        note="$(stages::testing_note "${os}" "${distro}")"
+        [[ -n "${note}" ]] && flags="${flags:+${flags},}testing"
         printf '%s%s%s%s%s\n' "${distro}" "${US}" "${flags}" "${US}" "${note}"
     done
 }

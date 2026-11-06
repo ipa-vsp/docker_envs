@@ -23,8 +23,8 @@ Modes (exactly one):
 
 Stages:
   -o <os>           Ubuntu version: 22.04 | 24.04 | 26.04            (default: 24.04)
-  -v <ros>          ROS distro: rolling|kilted|jazzy|humble|iron|lyrical
-                                                                     (default: rolling)
+  -v <ros>          ROS distro: humble (22.04) | jazzy (24.04) | lyrical, rolling (26.04)
+                                                                     (default: jazzy)
   -c [<version>]    CUDA + cuDNN devel base; "latest" or e.g. 13.3.1 (default: latest)
   -u <usage>        manipulation | navigation | both | skip          (default: skip)
   -m [<version>]    MuJoCo layer; "latest" or e.g. 3.12.0            (default: latest)

@@ -98,7 +98,7 @@ creator/scripts/run_env.sh -p -o 24.04 -v jazzy -c -I -L
 
 | Selection | Flags |
 |---|---|
-| Ubuntu / ROS | `-o 22.04\|24.04\|26.04`, `-v <distro>`; defaults `24.04`, `rolling` |
+| Ubuntu / ROS | `-o 22.04\|24.04\|26.04`, `-v <distro>`: humble (22.04), jazzy (24.04), lyrical or rolling (26.04, Rolling from the ros2-testing repo); defaults `24.04`, `jazzy` |
 | CUDA + cuDNN development base | `-c [version]` |
 | MoveIt / Nav2 | `-u manipulation\|navigation\|both\|skip` |
 | MuJoCo + Gymnasium | `-m [version]` |

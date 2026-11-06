@@ -345,6 +345,8 @@ class StageForm(QScrollArea):
             label = option.distro
             if option.in_ci:
                 label += "  ·  CI"
+            if option.testing:
+                label += "  ·  testing repo"
             entries.append((option.distro, label, option.note or ""))
         with self.suspended():
             self.ros_choice.set_options(entries)
@@ -445,7 +447,7 @@ class StageForm(QScrollArea):
         current = next((o for o in self._ros_options if o.distro == selection.ros), None)
         self.ros_note.setText(current.note if current and current.note else "")
         self.ros_note.setVisible(bool(current and current.note))
-        no_usage_layers = selection.ros not in {"rolling", "jazzy", "kilted", "iron", "humble"}
+        no_usage_layers = current is not None and not current.has_usage
         self.usage_note.setText(
             f"MoveIt and Nav2 are not published for {selection.ros}; that layer would be a no-op."
         )

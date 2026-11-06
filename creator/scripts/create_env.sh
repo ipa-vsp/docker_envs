@@ -188,7 +188,7 @@ ROS_LABELS=()
 for distro in "${ROS_OPTIONS[@]}"; do
     label="${distro}"
     stages::is_ci_combo "${STAGES_OS}" "${distro}" && label+=" (built in CI)"
-    [[ -n "$(stages::deprecation_note "${STAGES_OS}" "${distro}")" ]] && label+=" (frozen upstream)"
+    [[ -n "$(stages::testing_note "${STAGES_OS}" "${distro}")" ]] && label+=" (testing repo)"
     ROS_LABELS+=("${label}")
 done
 ask_choice "Which ROS 2 distribution?" 1 "${ROS_LABELS[@]}"
@@ -200,7 +200,7 @@ if stages::has_usage_layers "${STAGES_ROS}"; then
     ask_choice "Which application packages should be pre-installed?" 4 \
         "manipulation (MoveIt)" "navigation (Nav2)" "both" "skip"
 else
-    stages::warn "MoveIt/Nav2 are not published for ${STAGES_ROS} yet."
+    stages::warn "MoveIt/Nav2 are not published for ${STAGES_ROS}."
     ask_choice "Which application packages should be pre-installed?" 1 \
         "skip" "manipulation (MoveIt)" "navigation (Nav2)" "both"
 fi
