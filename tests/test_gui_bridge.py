@@ -68,7 +68,9 @@ class PlanRecordTests(unittest.TestCase):
     def test_mujoco_stack_adds_venv_after_ros(self):
         _result, records = query("plan", os="24.04", ros="jazzy", mujoco="true")
         files = [record[1] for record in records_of("LAYER", records)]
-        self.assertEqual(files.index("common/Dockerfile.venv"), files.index("ros2/Dockerfile.jazzy") + 1)
+        self.assertEqual(
+            files.index("common/Dockerfile.venv"), files.index("ros2/Dockerfile.jazzy") + 1
+        )
 
     def test_layer_records_carry_build_arguments(self):
         _result, records = query(

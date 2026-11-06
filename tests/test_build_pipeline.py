@@ -48,7 +48,9 @@ class WorkflowTests(unittest.TestCase):
                 for step in job.get("steps", []):
                     settings = step.get("with", {})
                     # Final images push by digest through `outputs` instead of `push`.
-                    pushes = settings.get("push") == "true" or "push=true" in settings.get("outputs", "")
+                    pushes = settings.get("push") == "true" or "push=true" in settings.get(
+                        "outputs", ""
+                    )
                     if not pushes:
                         continue
                     cache = settings["cache-from"]
@@ -56,7 +58,9 @@ class WorkflowTests(unittest.TestCase):
                     self.assertNotIn(cache, refs)
                     refs.add(cache)
                     self.assertEqual(settings["cache-to"], cache + ",mode=max")
-                    self.assertNotIn("/buildcache:", settings.get("tags", "") + settings.get("outputs", ""))
+                    self.assertNotIn(
+                        "/buildcache:", settings.get("tags", "") + settings.get("outputs", "")
+                    )
         # Five ROS stages plus the builder image.
         self.assertEqual(len(refs), 6)
         # The registry cleanup may only remove untagged versions, never tags.
