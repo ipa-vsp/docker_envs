@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "gui"))
 
 from docker_envs_gui.model import (  # noqa: E402  (path set up above)
+    ANSI,
     BUILD_STEP,
     LAYER_HEADING,
     Plan,
@@ -154,8 +155,6 @@ class ProgressParsingTests(unittest.TestCase):
         self.assertEqual(overall_progress(1, 3, -1.0), 0.0)
 
     def test_ansi_is_stripped_before_matching(self):
-        from docker_envs_gui.builder import ANSI
-
         line = "\x1b[1;36m== Building docker_envs/base:24.04 (layer 1/3) ==\x1b[0m"
         self.assertIsNotNone(LAYER_HEADING.match(ANSI.sub("", line).strip()))
 

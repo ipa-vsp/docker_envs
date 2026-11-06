@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 import os
-import re
 import subprocess
 import tempfile
 import unittest
@@ -20,7 +19,7 @@ def workflow(name):
 
 class WorkflowTests(unittest.TestCase):
     def test_prs_have_no_publication_credentials_or_cleanup(self):
-        for name in ("ros2-staged.yml", "pytorch-staged.yml"):
+        for name in ("ros2-staged.yml",):
             with self.subTest(workflow=name):
                 config = workflow(name)
                 self.assertIn("pull_request", config["on"])
@@ -35,28 +34,36 @@ class WorkflowTests(unittest.TestCase):
                     if job_name != "validate-pr":
                         self.assertIn("github.event_name != 'pull_request'", job["if"])
                 cleanup = config["jobs"]["cleanup-intermediates"]
-                self.assertIn("success()", cleanup["if"])
+                # Stage packages must go even when a later job failed, but not
+                # while a cancelled run may still be using them.
+                self.assertIn("!cancelled()", cleanup["if"])
                 self.assertNotIn("always()", cleanup["if"])
 
     def test_publication_caches_are_distinct_and_outside_cleanup(self):
         refs = set()
-        for name in ("ros2-staged.yml", "pytorch-staged.yml", "docker.yml"):
+        for name in ("ros2-staged.yml", "docker.yml"):
             config = workflow(name)
             self.assertEqual(config["concurrency"]["cancel-in-progress"], "false")
             for job in config["jobs"].values():
                 for step in job.get("steps", []):
                     settings = step.get("with", {})
-                    if settings.get("push") != "true":
+                    # Final images push by digest through `outputs` instead of `push`.
+                    pushes = settings.get("push") == "true" or "push=true" in settings.get("outputs", "")
+                    if not pushes:
                         continue
                     cache = settings["cache-from"]
                     self.assertIn("/buildcache:", cache)
                     self.assertNotIn(cache, refs)
                     refs.add(cache)
                     self.assertEqual(settings["cache-to"], cache + ",mode=max")
-                    self.assertNotIn("/buildcache:", settings["tags"])
-        self.assertEqual(len(refs), 10)
-        cleanup = workflow("ghcr-cleanup.yml")
-        self.assertNotIn("buildcache", cleanup["env"]["EXTRA_PACKAGES_TO_DELETE"])
+                    self.assertNotIn("/buildcache:", settings.get("tags", "") + settings.get("outputs", ""))
+        # Five ROS stages plus the builder image.
+        self.assertEqual(len(refs), 6)
+        # The registry cleanup may only remove untagged versions, never tags.
+        steps = workflow("ghcr-cleanup.yml")["jobs"]["cleanup"]["steps"]
+        action = next(s for s in steps if "ghcr-cleanup-action" in s.get("uses", ""))
+        self.assertEqual(action["with"]["delete-untagged"], "true")
+        self.assertNotIn("delete-tags", action["with"])
 
     def test_ros_pr_matrix_matches_published_final_images(self):
         jobs = workflow("ros2-staged.yml")["jobs"]
@@ -65,59 +72,13 @@ class WorkflowTests(unittest.TestCase):
             ("finalize-base-ros-user", "skip"),
             ("finalize-base-ros-moveit-user", "manipulation"),
         ):
-            for row in jobs[name]["strategy"]["matrix"]["include"]:
+            for row in jobs[name]["strategy"]["matrix"]["target"]:
                 expected.add((row["os"], row["ros"], usage))
         actual = {
             (row["os"], row["ros"], row["usage"])
-            for row in jobs["validate-pr"]["strategy"]["matrix"]["include"]
+            for row in jobs["validate-pr"]["strategy"]["matrix"]["target"]
         }
         self.assertEqual(actual, expected)
-
-    def test_cleanup_preserves_digests_with_final_or_other_tags(self):
-        job = workflow("pytorch-staged.yml")["jobs"]["cleanup-intermediates"]
-        script = job["steps"][0]["run"]
-        query = re.search(r"jq --arg tag \"\$\{TAG\}\" '(.*?)'", script, re.S).group(1)
-        tag = "cuda12.8-torch2.8"
-        tag_sets = [
-            [tag + "-base"],
-            [tag + "-mujoco", tag],
-            [tag + "-pytorch", "other-release"],
-            [],
-            [tag],
-            [tag + "-base", tag + "-mujoco"],
-        ]
-        versions = [
-            {"id": i, "metadata": {"container": {"tags": tags}}} for i, tags in enumerate(tag_sets)
-        ]
-        result = subprocess.run(
-            ["jq", "--arg", "tag", tag, query],
-            input=json.dumps(versions),
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        self.assertEqual([v["id"] for v in json.loads(result.stdout)], [0, 5])
-
-    def test_pytorch_pr_versions_match_publication(self):
-        jobs = workflow("pytorch-staged.yml")["jobs"]
-        matrix = jobs["finalize"]["strategy"]["matrix"]["env"]
-        self.assertEqual(len(matrix), 1, "Extend PR coverage when adding a published stack")
-        settings = next(
-            step["with"]
-            for step in jobs["validate-pr"]["steps"]
-            if "build-push-action" in step.get("uses", "")
-        )
-        args = dict(line.split("=", 1) for line in settings["build-args"].splitlines())
-        expected = matrix[0]
-        self.assertEqual(args["BASE_IMAGE"], "ubuntu:" + expected["OS_VERSION"])
-        for arg, key in (
-            ("TORCH_VERSION", "TORCH"),
-            ("TORCHVISION_VERSION", "VISION"),
-            ("TORCHAUDIO_VERSION", "AUDIO"),
-            ("MUJOCO_VERSION", "MUJOCO"),
-            ("GYM_VERSION", "GYM"),
-        ):
-            self.assertEqual(args[arg], expected[key])
 
 
 class RosCleanupTests(unittest.TestCase):

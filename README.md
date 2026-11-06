@@ -99,12 +99,10 @@ Registry: `ghcr.io/ipa-vsp/docker_envs`
 
 - Publication status → check workflow results
 - Existing registry images → keep previous behavior until rebuilt
-- CI PyTorch image → Ubuntu + CUDA-enabled wheels
 - Local PyTorch helper → CUDA development base
 - CUDA, Isaac Sim/Lab, Nav2, other MuJoCo combinations → local builds only
 - Workflows:
   - [ROS publication](.github/workflows/ros2-staged.yml)
-  - [PyTorch publication](.github/workflows/pytorch-staged.yml)
   - [Build regression checks](.github/workflows/build-validation.yml)
   - [Documentation build + Pages deploy](.github/workflows/docs.yml)
 

@@ -69,6 +69,9 @@ LAYER_HEADING = re.compile(
 # progress signal available inside a layer, and a layer can run for minutes.
 BUILD_STEP = re.compile(r"^#\d+ \[\s*(?P<done>\d+)/(?P<total>\d+)\]")
 
+# Colour/cursor escapes that run_env.sh emits; strip them before matching a line.
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
 
 def overall_progress(layer: int, layers: int, fraction: float = 0.0) -> float:
     """Position within the whole plan, 0.0-1.0.

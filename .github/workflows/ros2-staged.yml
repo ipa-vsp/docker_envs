@@ -345,12 +345,20 @@ jobs:
     name: Delete intermediate stage packages
     runs-on: ubuntu-latest
     needs:
+      - build-base
+      - build-ros
+      - build-moveit
+      - finalize-base-ros-user
+      - finalize-base-ros-moveit-user
       - publish-manifests
     # Only the final user images are meant to persist. Delete the intermediate
-    # secondary packages once every final image has been pushed. Skipped on PRs
-    # (which don't push). All required final jobs must succeed. Versions protected
-    # by GitHub's public download limit must remain.
-    if: ${{ success() && github.event_name != 'pull_request' }}
+    # secondary packages once every publishing job has stopped, even when some of
+    # them failed: final images are complete images in the main package and do not
+    # reference these stage packages, and the shared `publish` concurrency group
+    # keeps another run from using them meanwhile. Skipped on PRs (which don't
+    # push) and on cancelled runs. Versions protected by GitHub's public download
+    # limit must remain.
+    if: ${{ !cancelled() && github.event_name != 'pull_request' }}
     permissions:
       contents: read
       packages: write
